@@ -57,7 +57,7 @@ public class Workflow {
     private String authorUsername;
 
     @Comment("是否为模板")
-    @ColumnDefault("'FALSE'")
+    @ColumnDefault("0")
     private Boolean isTemplate;
 
     @Column(length = 50)
@@ -71,7 +71,7 @@ public class Workflow {
 
 
     @Comment("是否启用")
-    @ColumnDefault("'TRUE'")
+    @ColumnDefault("1")
     private Boolean isActive;
 
     @Column(nullable = false, updatable = false)

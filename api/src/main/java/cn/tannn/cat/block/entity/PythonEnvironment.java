@@ -50,7 +50,7 @@ public class PythonEnvironment {
     private JSONObject packages;
 
     @Comment("是否默认环境")
-    @ColumnDefault("'true'")
+    @ColumnDefault("1")
     private Boolean isDefault;
 
     @Column(nullable = false, updatable = false)

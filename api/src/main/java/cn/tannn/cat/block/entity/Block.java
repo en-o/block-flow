@@ -69,8 +69,8 @@ public class Block {
     @Comment("输出参数定义")
     private JSONObject outputs;
 
-    @ColumnDefault("'true'")
     @Comment("是否公开")
+    @ColumnDefault("1")
     private Boolean isPublic;
 
     @Column(length = 200)

@@ -54,8 +54,8 @@ public class ContextVariable {
     @Comment("变量描述")
     private String description;
 
-    @ColumnDefault("'FALSE'")
     @Comment("是否加密")
+    @ColumnDefault("0")
     private Boolean isEncrypted;
 
     @Enumerated(EnumType.STRING)
