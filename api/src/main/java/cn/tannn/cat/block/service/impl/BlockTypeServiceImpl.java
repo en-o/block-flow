@@ -1,8 +1,7 @@
 package cn.tannn.cat.block.service.impl;
 
-import cn.tannn.cat.block.dto.blocktype.BlockTypeCreateDTO;
-import cn.tannn.cat.block.dto.blocktype.BlockTypeUpdateDTO;
-import cn.tannn.cat.block.dto.blocktype.BlockTypeVO;
+import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeCreateDTO;
+import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeUpdateDTO;
 import cn.tannn.cat.block.entity.BlockType;
 import cn.tannn.cat.block.repository.BlockTypeRepository;
 import cn.tannn.cat.block.service.BlockTypeService;
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 块类型Service实现类

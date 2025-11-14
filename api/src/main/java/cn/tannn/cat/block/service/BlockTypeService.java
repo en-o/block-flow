@@ -1,8 +1,7 @@
 package cn.tannn.cat.block.service;
 
-import cn.tannn.cat.block.dto.blocktype.BlockTypeCreateDTO;
-import cn.tannn.cat.block.dto.blocktype.BlockTypeUpdateDTO;
-import cn.tannn.cat.block.dto.blocktype.BlockTypeVO;
+import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeCreateDTO;
+import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeUpdateDTO;
 import cn.tannn.cat.block.entity.BlockType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
