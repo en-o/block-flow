@@ -69,12 +69,11 @@ public class Block {
     @Comment("输出参数定义")
     private JSONObject outputs;
 
-    @Column(columnDefinition = "BOOLEAN")
     @ColumnDefault("'true'")
     @Comment("是否公开")
     private Boolean isPublic;
 
-    @Column()
+    @Column(length = 200)
     @Comment("创建者登录名")
     private String authorUsername;
 

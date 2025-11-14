@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -48,8 +49,8 @@ public class PythonEnvironment {
     @Comment("已安装包列表")
     private JSONObject packages;
 
-    @Column(columnDefinition = "BOOLEAN DEFAULT FALSE")
     @Comment("是否默认环境")
+    @ColumnDefault("'true'")
     private Boolean isDefault;
 
     @Column(nullable = false, updatable = false)

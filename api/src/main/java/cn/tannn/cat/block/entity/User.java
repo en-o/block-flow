@@ -52,7 +52,6 @@ public class User {
     @Comment("角色: admin/user/viewer")
     private UserRole role;
 
-    @Column(columnDefinition = "BOOLEAN")
     @ColumnDefault("'TRUE'")
     @Comment("是否启用")
     private Boolean isActive;

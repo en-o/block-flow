@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 @Table(name = "workflows", indexes = {
         @Index(name = "idx_author", columnList = "authorUsername"),
         @Index(name = "idx_category", columnList = "category"),
-        @Index(name = "idx_active", columnList = "is_active")
+        @Index(name = "idx_active", columnList = "isActive")
 })
 @Comment("流程定义表")
 public class Workflow {
@@ -38,7 +38,6 @@ public class Workflow {
     @Comment("流程名称")
     private String name;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     @Comment("流程描述")
     private String description;
@@ -57,7 +56,6 @@ public class Workflow {
     @Comment("创建者登录名")
     private String authorUsername;
 
-    @Column(columnDefinition = "BOOLEAN")
     @Comment("是否为模板")
     @ColumnDefault("'FALSE'")
     private Boolean isTemplate;
@@ -72,7 +70,6 @@ public class Workflow {
     private String tags;
 
 
-    @Column( columnDefinition = "BOOLEAN")
     @Comment("是否启用")
     @ColumnDefault("'TRUE'")
     private Boolean isActive;

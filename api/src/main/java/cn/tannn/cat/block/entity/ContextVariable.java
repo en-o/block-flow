@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Comment;
 
 import java.time.LocalDateTime;
@@ -36,7 +37,6 @@ public class ContextVariable {
     @Comment("变量名")
     private String varKey;
 
-    @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     @Comment("变量值")
     private String varValue;
@@ -54,7 +54,7 @@ public class ContextVariable {
     @Comment("变量描述")
     private String description;
 
-    @Column(columnDefinition = "BOOLEAN DEFAULT FALSE")
+    @ColumnDefault("'FALSE'")
     @Comment("是否加密")
     private Boolean isEncrypted;
 
