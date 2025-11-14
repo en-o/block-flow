@@ -1,0 +1,30 @@
+# 数据库配置
+spring:
+  datasource:
+    password: ${MYSQL_PWD:root}
+    username: ${MYSQL_UNM:root}
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+    url: jdbc:p6spy:mysql://${MYSQL_URL:localhost:3306}/${MYSQL_DB:db_block_flow}?useUnicode=true&characterEncoding=UTF8&zeroDateTimeBehavior=convertToNull&allowMultiQueries=true&useSSL=false&serverTimezone=Asia/Chongqing&allowPublicKeyRetrieval=true
+    hikari:
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000 # 连接最大存活时间.不等于0且小于30秒，会被重置为默认值30分钟(1800000).设置应该比mysql设置的超时时间短
+      maximum-pool-size: 15 # ((core_count * 2) + effective_spindle_count)
+      pool-name: ${spring.application.name}
+      minimum-idle: 15 # 和最大连接数保持一致
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    database: mysql
+
+
+# swagger认证
+knife4j:
+  enable: true
+  basic:
+    enable: true
+    password: ${DOC_PASSWORD:tan}
+    username: ${DOC_USERNAME:tan}
+    include:
+      - /v3;/api-docs

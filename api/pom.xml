@@ -25,6 +25,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>cn.tannn.jdevelops</groupId>
+            <artifactId>jdevelops-apis-exception</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.tannn.jdevelops</groupId>
+            <artifactId>jdevelops-apis-knife4j</artifactId>
+            <version>1.0.2</version>
+        </dependency>
         <dependency>
             <groupId>cn.tannn.jdevelops</groupId>
             <artifactId>jdevelops-dals-autoschema</artifactId>
@@ -35,6 +46,7 @@
             <artifactId>jdevelops-logs-p6spy</artifactId>
             <version>1.0.2</version>
         </dependency>
+
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>

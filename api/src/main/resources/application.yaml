@@ -14,3 +14,20 @@ spring:
       # 总上传的文件大小
       max-request-size: ${FILE_MAX_REQUEST:500MB}
 
+jdevelops:
+  swagger:
+    base-package:
+      - cn.tannn.cat.block.controller
+    title: ${spring.application.name}
+    display-name: 脚本编排
+    group-name: block-flow
+    security-scheme-default: false
+# 接口文档
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+    custom-code: 500
+    enable-footer-custom: false
+    # 动态参数默认开启
+    enable-dynamic-parameter: true
