@@ -82,4 +82,12 @@ public interface ExecutionLogRepository extends JpaRepository<ExecutionLog, Long
      * @return 执行记录列表
      */
     Page<ExecutionLog> findByWorkflowIdOrderByStartTimeDesc(Long workflowId, Pageable pageable);
+
+    /**
+     * 统计流程的执行次数
+     *
+     * @param workflowId 流程ID
+     * @return 执行次数
+     */
+    long countByWorkflowId(Long workflowId);
 }

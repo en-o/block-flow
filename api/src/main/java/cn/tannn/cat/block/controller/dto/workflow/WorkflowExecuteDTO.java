@@ -17,7 +17,7 @@ import java.util.Map;
 public class WorkflowExecuteDTO implements Serializable {
 
     @Schema(description = "流程ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long workflowId;
+    private Integer workflowId;
 
     @Schema(description = "执行者登录名", example = "admin")
     private String executorUsername;

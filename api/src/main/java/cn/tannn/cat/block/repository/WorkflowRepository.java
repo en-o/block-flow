@@ -17,7 +17,7 @@ import java.util.Optional;
  * @author tnnn
  */
 @Repository
-public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
+public interface WorkflowRepository extends JpaRepository<Workflow, Integer> {
 
     /**
      * 根据流程名称查找
@@ -183,4 +183,12 @@ public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
      * @return 流程数量
      */
     long countByIsActive(Boolean isActive);
+
+    /**
+     * 获取所有不同的分类
+     *
+     * @return 分类列表
+     */
+    @Query("SELECT DISTINCT w.category FROM Workflow w WHERE w.category IS NOT NULL ORDER BY w.category")
+    List<String> findDistinctCategories();
 }

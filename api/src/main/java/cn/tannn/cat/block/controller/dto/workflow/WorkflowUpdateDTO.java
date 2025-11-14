@@ -16,7 +16,7 @@ import java.io.Serializable;
 public class WorkflowUpdateDTO implements Serializable {
 
     @Schema(description = "主键ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long id;
+    private Integer id;
 
     @Schema(description = "流程名称", example = "React项目部署流程")
     private String name;
