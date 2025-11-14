@@ -1,0 +1,16 @@
+server:
+  port: 8777
+spring:
+  application:
+    name: blokflow
+  profiles:
+    active: ${CONFIG_ENV:dev}
+  servlet:
+    multipart:
+      # 启用限制，默认启用的这里写是为了后面要改知道
+      enabled: true
+      # 单个文件大小
+      max-file-size: ${FILE_MAX_SIZE:500MB}
+      # 总上传的文件大小
+      max-request-size: ${FILE_MAX_REQUEST:500MB}
+
