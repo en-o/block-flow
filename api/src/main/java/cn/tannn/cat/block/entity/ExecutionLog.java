@@ -29,7 +29,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_start_time", columnList = "startTime")
 })
 @Comment("执行记录表")
-public class ExecutionLog extends EntityPfield {
+public class ExecutionLog{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
