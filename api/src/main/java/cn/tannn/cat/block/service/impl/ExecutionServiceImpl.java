@@ -62,7 +62,7 @@ public class ExecutionServiceImpl implements ExecutionService {
     @Override
     public ExecutionLog getById(Long id) {
         return executionLogRepository.findById(id)
-                .orElseThrow(() -> new ServiceException("执行记录不存在"));
+                .orElseThrow(() -> new ServiceException(500,"执行记录不存在"));
     }
 
     @Override
@@ -97,7 +97,7 @@ public class ExecutionServiceImpl implements ExecutionService {
         ExecutionLog executionLog = getById(id);
 
         if (executionLog.getStatus() != ExecutionStatus.RUNNING) {
-            throw new ServiceException("只能取消正在运行的执行");
+            throw new ServiceException(500,"只能取消正在运行的执行");
         }
 
         executionLog.setStatus(ExecutionStatus.CANCELLED);
@@ -119,7 +119,7 @@ public class ExecutionServiceImpl implements ExecutionService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         if (!executionLogRepository.existsById(id)) {
-            throw new ServiceException("执行记录不存在");
+            throw new ServiceException(500,"执行记录不存在");
         }
         executionLogRepository.deleteById(id);
     }

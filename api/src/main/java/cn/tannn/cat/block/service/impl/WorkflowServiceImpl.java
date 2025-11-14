@@ -71,7 +71,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Integer id) {
         if (!workflowRepository.existsById(id)) {
-            throw new ServiceException("流程不存在");
+            throw new ServiceException(500,"流程不存在");
         }
         workflowRepository.deleteById(id);
     }
@@ -79,7 +79,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     @Override
     public Workflow getById(Integer id) {
         return workflowRepository.findById(id)
-                .orElseThrow(() -> new ServiceException("流程不存在"));
+                .orElseThrow(() -> new ServiceException(500,"流程不存在"));
     }
 
     @Override
