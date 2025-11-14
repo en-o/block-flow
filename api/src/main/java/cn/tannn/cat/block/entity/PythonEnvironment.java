@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.entity;
 
+import cn.tannn.cat.block.contansts.EntityPfield;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -25,12 +26,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_name", columnList = "name", unique = true)
 })
 @Comment("Python环境表")
-public class PythonEnvironment {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Comment("主键ID")
-    private Integer id;
+public class PythonEnvironment  extends EntityPfield {
 
     @Column(unique = true, nullable = false, length = 100)
     @Comment("环境名称")
@@ -50,7 +46,7 @@ public class PythonEnvironment {
     private JSONObject packages;
 
     @Comment("是否默认环境")
-    @ColumnDefault("1")
+    @ColumnDefault("0")
     private Boolean isDefault;
 
     @Column(nullable = false, updatable = false)
@@ -61,17 +57,4 @@ public class PythonEnvironment {
     @Comment("更新时间")
     private LocalDateTime updateTime;
 
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-        if (isDefault == null) {
-            isDefault = false;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

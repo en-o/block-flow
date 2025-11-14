@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.entity;
 
+import cn.tannn.cat.block.contansts.EntityPfield;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -27,12 +28,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_active", columnList = "isActive")
 })
 @Comment("流程定义表")
-public class Workflow {
+public class Workflow extends EntityPfield {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Comment("主键ID")
-    private Long id;
 
     @Column(nullable = false, length = 100)
     @Comment("流程名称")
@@ -82,20 +79,4 @@ public class Workflow {
     @Comment("更新时间")
     private LocalDateTime updateTime;
 
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-        if (isTemplate == null) {
-            isTemplate = false;
-        }
-        if (isActive == null) {
-            isActive = true;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

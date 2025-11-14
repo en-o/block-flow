@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.entity;
 
+import cn.tannn.cat.block.contansts.EntityPfield;
 import cn.tannn.cat.block.enums.Environment;
 import cn.tannn.cat.block.enums.VarType;
 import jakarta.persistence.*;
@@ -26,12 +27,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_env", columnList = "environment")
 })
 @Comment("上下文变量表")
-public class ContextVariable {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Comment("主键ID")
-    private Long id;
+public class ContextVariable extends EntityPfield {
 
     @Column(unique = true, nullable = false, length = 100)
     @Comment("变量名")
@@ -44,6 +40,7 @@ public class ContextVariable {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     @Comment("变量类型: text/secret/json/file")
+    @ColumnDefault("'TEXT'")
     private VarType varType;
 
     @Column(length = 50)
@@ -61,6 +58,7 @@ public class ContextVariable {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     @Comment("环境: DEFAULT/DEV/TEST/PROD")
+    @ColumnDefault("'DEFAULT'")
     private Environment environment;
 
     @Column(nullable = false, updatable = false)
@@ -71,23 +69,4 @@ public class ContextVariable {
     @Comment("更新时间")
     private LocalDateTime updateTime;
 
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-        if (varType == null) {
-            varType = VarType.TEXT;
-        }
-        if (isEncrypted == null) {
-            isEncrypted = false;
-        }
-        if (environment == null) {
-            environment = Environment.DEFAULT;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

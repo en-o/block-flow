@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.entity;
 
+import cn.tannn.cat.block.contansts.EntityPfield;
 import cn.tannn.cat.block.enums.ExecutionStatus;
 import cn.tannn.cat.block.enums.TriggerType;
 import com.alibaba.fastjson2.JSONObject;
@@ -28,7 +29,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_start_time", columnList = "startTime")
 })
 @Comment("执行记录表")
-public class ExecutionLog {
+public class ExecutionLog extends EntityPfield {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

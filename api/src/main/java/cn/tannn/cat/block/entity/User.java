@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.entity;
 
+import cn.tannn.cat.block.contansts.EntityPfield;
 import cn.tannn.cat.block.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -24,12 +25,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_email", columnList = "email", unique = true)
 })
 @Comment("用户表")
-public class User {
+public class User  extends EntityPfield {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Comment("主键ID")
-    private Long id;
 
     @Column(unique = true, nullable = false, length = 50)
     @Comment("用户名")
@@ -50,6 +47,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     @Comment("角色: admin/user/viewer")
+    @ColumnDefault("'USER'")
     private UserRole role;
 
     @Comment("是否启用")
@@ -68,20 +66,4 @@ public class User {
     @Comment("更新时间")
     private LocalDateTime updateTime;
 
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-        if (role == null) {
-            role = UserRole.USER;
-        }
-        if (isActive == null) {
-            isActive = true;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

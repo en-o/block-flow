@@ -1,9 +1,11 @@
 package cn.tannn.cat.block.entity;
 
+import cn.tannn.cat.block.contansts.EntityPfield;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Comment;
 
 import java.time.LocalDateTime;
@@ -21,12 +23,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_code", columnList = "code", unique = true)
 })
 @Comment("块类型表")
-public class BlockType {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Comment("主键ID")
-    private Integer id;
+public class BlockType extends EntityPfield {
 
     @Column(unique = true, nullable = false, length = 100)
     @Comment("类型代码")
@@ -36,8 +33,9 @@ public class BlockType {
     @Comment("类型名称")
     private String name;
 
-    @Column(columnDefinition = "INT DEFAULT 0")
+    @Column(columnDefinition = "INT")
     @Comment("排序")
+    @ColumnDefault("0")
     private Integer sortOrder;
 
     @Column(nullable = false, updatable = false)
@@ -48,17 +46,4 @@ public class BlockType {
     @Comment("更新时间")
     private LocalDateTime updateTime;
 
-    @PrePersist
-    protected void onCreate() {
-        createTime = LocalDateTime.now();
-        updateTime = LocalDateTime.now();
-        if (sortOrder == null) {
-            sortOrder = 0;
-        }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updateTime = LocalDateTime.now();
-    }
 }

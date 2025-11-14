@@ -89,43 +89,37 @@
   "id": 1,
   "name": "SSH 上传文件",
   "type_code": "ssh_upload",
-  "block_type_id": 2,
   "description": "通过 SSH 上传文件到远程服务器",
   "color": "#5C7CFA",
-  "icon": "upload",
   "script": "# Python 脚本内容\nimport paramiko\n...",
   "python_env_id": 1,
-  "inputs": [
-    {
-      "name": "host",
+  "inputs": {
+    "host": {
       "type": "string",
       "required": true,
       "default": "",
       "description": "服务器地址"
     },
-    {
-      "name": "file_path",
+    "file_path": {
       "type": "file",
       "required": true,
       "description": "本地文件路径"
     }
-  ],
-  "outputs": [
-    {
-      "name": "remote_path",
+  },
+  "outputs": {
+    "remote_path": {
       "type": "string",
       "description": "远程文件路径"
     }
-  ],
-  "category": "服务器操作",
+  },
   "is_public": true,
-  "author_id": 1,
-  "usage_count": 156,
-  "version": "1.2.0",
-  "create_time": "2025-01-15T10:00:00Z",
-  "update_time": "2025-02-01T15:30:00Z"
+  "author_username": "admin",
+  "create_time": "2025-01-15T10:00:00",
+  "update_time": "2025-02-01T15:30:00"
 }
 ```
+
+> 注：根据实际 Entity 定义，Block 表的字段与文档保持一致。inputs/outputs 以 JSON 格式存储。
 
 #### 内置块库（建议预置）
 
@@ -169,10 +163,17 @@
 - 变量验证规则（格式校验）
 
 #### 变量类型
-- **文本型**：普通字符串
-- **密钥型**：密码/Token（加密存储，界面脱敏显示）
-- **JSON型**：结构化配置
-- **文件型**：证书文件路径
+- **TEXT (文本型)**：普通字符串
+- **SECRET (密钥型)**：密码/Token（加密存储，界面脱敏显示）
+- **JSON (JSON型)**：结构化配置
+- **NUMBER (数字型)**：数值类型
+- **FILE (文件型)**：证书文件路径
+
+#### 环境类型
+- **DEFAULT**：默认环境
+- **DEV**：开发环境
+- **TEST**：测试环境
+- **PROD**：生产环境
 
 #### 典型变量示例
 
