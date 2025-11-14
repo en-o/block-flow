@@ -40,7 +40,7 @@ public class ExecutionLog{
     @Column(nullable = false)
     @Comment("流程ID")
     @Schema(description = "流程ID")
-    private Long workflowId;
+    private Integer workflowId;
 
     @Column(length = 100)
     @Comment("流程名称快照")
