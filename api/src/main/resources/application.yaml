@@ -21,7 +21,9 @@ jdevelops:
     title: ${spring.application.name}
     display-name: 脚本编排
     group-name: block-flow
-    security-scheme-default: false
+    sb34:
+      enabled: true
+
   jwt:
     token-secret: b30715ff9b4d60c4dff8044acfb44ba091544b2e21825672edc38799f52f1895
     expire-time: 2

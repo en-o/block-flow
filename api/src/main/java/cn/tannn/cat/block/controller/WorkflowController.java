@@ -24,7 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/workflows")
 @RequiredArgsConstructor
-@Tag(name = "流程管��", description = "流程的增删改查接口")
+@Tag(name = "流程管理", description = "流程的增删改查接口")
 public class WorkflowController {
 
     private final WorkflowService workflowService;
