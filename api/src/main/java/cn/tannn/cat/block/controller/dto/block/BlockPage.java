@@ -1,6 +1,9 @@
 package cn.tannn.cat.block.controller.dto.block;
 
 import cn.tannn.jdevelops.annotations.jpa.JpaSelectIgnoreField;
+import cn.tannn.jdevelops.annotations.jpa.JpaSelectOperator;
+import cn.tannn.jdevelops.annotations.jpa.enums.SQLConnect;
+import cn.tannn.jdevelops.annotations.jpa.enums.SQLOperatorWrapper;
 import cn.tannn.jdevelops.util.jpa.request.PagingSorteds;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -16,6 +19,36 @@ import lombok.Data;
 @Data
 @Schema(description = "块创建请求")
 public class BlockPage {
+
+
+    /**
+     * 块名称
+     */
+    @Schema(description = "块名称")
+    @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.LIKE)
+    private String name;
+
+    /**
+     * 块类型标识
+     */
+    @Schema(description = "块类型标识")
+    @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
+    private String typeCode;
+
+
+    /**
+     * Python环境ID
+     */
+    @Schema(description = "Python环境ID")
+    @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
+    private Integer pythonEnvId;
+
+    /**
+     * 是否公开
+     */
+    @Schema(description = "是否公开")
+    @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
+    private Boolean isPublic;
 
     /**
      * 分页排序
