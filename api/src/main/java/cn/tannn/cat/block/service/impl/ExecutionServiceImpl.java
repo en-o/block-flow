@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.service.impl;
 
+import cn.tannn.cat.block.controller.dto.execution.ExecutionLogPage;
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowExecuteDTO;
 import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.Workflow;
@@ -9,10 +10,12 @@ import cn.tannn.cat.block.repository.ExecutionLogRepository;
 import cn.tannn.cat.block.service.ExecutionService;
 import cn.tannn.cat.block.service.WorkflowService;
 import cn.tannn.jdevelops.result.exception.ServiceException;
+import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,24 +68,11 @@ public class ExecutionServiceImpl implements ExecutionService {
                 .orElseThrow(() -> new ServiceException(500,"执行记录不存在"));
     }
 
-    @Override
-    public Page<ExecutionLog> listPage(Pageable pageable) {
-        return executionLogRepository.findAll(pageable);
-    }
 
     @Override
-    public Page<ExecutionLog> listByWorkflowId(Long workflowId, Pageable pageable) {
-        return executionLogRepository.findByWorkflowId(workflowId, pageable);
-    }
-
-    @Override
-    public Page<ExecutionLog> listByExecutor(String executorUsername, Pageable pageable) {
-        return executionLogRepository.findByExecutorUsername(executorUsername, pageable);
-    }
-
-    @Override
-    public Page<ExecutionLog> listByStatus(ExecutionStatus status, Pageable pageable) {
-        return executionLogRepository.findByStatus(status, pageable);
+    public Page<ExecutionLog> findPage(ExecutionLogPage where) {
+        Specification<ExecutionLog> select = EnhanceSpecification.beanWhere(where);
+        return executionLogRepository.findAll(select, where.getPage().pageable());
     }
 
     @Override

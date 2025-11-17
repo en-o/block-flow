@@ -30,13 +30,6 @@ public interface ExecutionService {
      */
     ExecutionLog getById(Long id);
 
-    /**
-     * 分页查询执行历史
-     *
-     * @param pageable 分页参数
-     * @return 执行记录分页列表
-     */
-    Page<ExecutionLog> listPage(Pageable pageable);
 
     /**
      * 分页查询执行历史（使用查询条件）
@@ -45,33 +38,6 @@ public interface ExecutionService {
      * @return 执行记录分页列表
      */
     Page<ExecutionLog> findPage(ExecutionLogPage where);
-
-    /**
-     * 根据流程ID查询执行历史
-     *
-     * @param workflowId 流程ID
-     * @param pageable   分页参数
-     * @return 执行记录分页列表
-     */
-    Page<ExecutionLog> listByWorkflowId(Long workflowId, Pageable pageable);
-
-    /**
-     * 根据执行者查询执行历史
-     *
-     * @param executorUsername 执行者登录名
-     * @param pageable         分页参数
-     * @return 执行记录分页列表
-     */
-    Page<ExecutionLog> listByExecutor(String executorUsername, Pageable pageable);
-
-    /**
-     * 根据执行状态查询执行历史
-     *
-     * @param status   执行状态
-     * @param pageable 分页参数
-     * @return 执行记录分页列表
-     */
-    Page<ExecutionLog> listByStatus(ExecutionStatus status, Pageable pageable);
 
     /**
      * 获取执行日志
