@@ -68,7 +68,7 @@ public class ContextVariableServiceImpl implements ContextVariableService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ContextVariable update(ContextVariableUpdateDTO updateDTO) {
-        ContextVariable contextVariable = contextVariableRepository.findById(updateDTO.getId().longValue())
+        ContextVariable contextVariable = contextVariableRepository.findById(updateDTO.getId())
                 .orElseThrow(() -> new BusinessException("上下文变量不存在: " + updateDTO.getId()));
 
         // 检查变量名是否被其他记录使用
@@ -112,15 +112,15 @@ public class ContextVariableServiceImpl implements ContextVariableService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Integer id) {
-        if (!contextVariableRepository.existsById(id.longValue())) {
+        if (!contextVariableRepository.existsById(id)) {
             throw new BusinessException("上下文变量不存在: " + id);
         }
-        contextVariableRepository.deleteById(id.longValue());
+        contextVariableRepository.deleteById(id);
     }
 
     @Override
     public ContextVariable getById(Integer id) {
-        return contextVariableRepository.findById(id.longValue())
+        return contextVariableRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("上下文变量不存在: " + id));
     }
 
