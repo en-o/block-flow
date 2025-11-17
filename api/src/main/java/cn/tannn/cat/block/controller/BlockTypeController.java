@@ -69,8 +69,8 @@ public class BlockTypeController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询块类型", description = "分页查询块类型列表")
-    public ResultPageVO<BlockType, JpaPageResult<BlockType>> page(@RequestBody @Valid BlockTypePage page) {
-        return ResultPageVO.success(blockTypeService.findPage(page));
+    public ResultPageVO<BlockType, JpaPageResult<BlockType>> page(@RequestBody @Valid BlockTypePage where) {
+        return ResultPageVO.success(JpaPageResult.toPage(blockTypeService.findPage(where)));
     }
 
     @GetMapping("/search")
