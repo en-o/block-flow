@@ -39,7 +39,7 @@ public class ExecutionController {
         return ResultVO.success(executionService.getById(id));
     }
 
-    @GetMapping("/page")
+    @PostMapping("/page")
     @Operation(summary = "分页查询执行历史", description = "分页查询所有执行记录")
     public ResultPageVO<ExecutionLog, JpaPageResult<ExecutionLog>> page(
             @RequestBody @Valid ExecutionLogPage where) {

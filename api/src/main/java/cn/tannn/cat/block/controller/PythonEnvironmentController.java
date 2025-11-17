@@ -68,7 +68,7 @@ public class PythonEnvironmentController {
         return ResultVO.success(pythonEnvironmentService.listAll());
     }
 
-    @GetMapping("/page")
+    @PostMapping("/page")
     @Operation(summary = "分页查询环境", description = "分页查询Python环境列表")
     public ResultPageVO<PythonEnvironment, JpaPageResult<PythonEnvironment>> page(@RequestBody @Valid PythonEnvironmentPage where) {
         return ResultPageVO.success(JpaPageResult.toPage(pythonEnvironmentService.findPage(where)));

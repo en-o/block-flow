@@ -55,7 +55,7 @@ public class WorkflowController {
         return ResultVO.success(workflowService.getById(id));
     }
 
-    @GetMapping("/page")
+    @PostMapping("/page")
     @Operation(summary = "分页查询流程", description = "分页查询流程列表")
     public ResultPageVO<Workflow, JpaPageResult<Workflow>> page(@RequestBody @Valid WorkflowPage where) {
         return ResultPageVO.success(JpaPageResult.toPage(workflowService.findPage(where)));
