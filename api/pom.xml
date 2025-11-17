@@ -55,7 +55,11 @@
             <artifactId>jdevelops-logs-p6spy</artifactId>
             <version>1.0.3</version>
         </dependency>
-
+        <dependency>
+            <groupId>cn.tannn.jdevelops</groupId>
+            <artifactId>jdevelops-authentications-jwt</artifactId>
+            <version>1.0.3</version>
+        </dependency>
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
