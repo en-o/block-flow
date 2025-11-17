@@ -25,14 +25,6 @@ public interface PythonEnvironmentRepository extends JpaRepository<PythonEnviron
     Optional<PythonEnvironment> findByName(String name);
 
     /**
-     * 根据Python版本查找
-     *
-     * @param pythonVersion Python版本
-     * @return Python环境列表
-     */
-    List<PythonEnvironment> findByPythonVersion(String pythonVersion);
-
-    /**
      * 查找默认环境
      *
      * @param isDefault 是否默认
