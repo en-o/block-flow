@@ -1,0 +1,75 @@
+.manage-layout {
+  min-height: 100vh;
+}
+
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 16px;
+  border-radius: 4px;
+}
+
+.logo h2 {
+  color: white;
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.manage-header {
+  background: white;
+  padding: 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.header-left h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.user-info {
+  color: #666;
+}
+
+.header-right a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.header-right a:hover {
+  text-decoration: underline;
+}
+
+.logout-btn {
+  color: #ff4d4f;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.logout-btn:hover {
+  color: #ff7875;
+}
+
+.manage-content {
+  margin: 24px;
+  padding: 24px;
+  background: white;
+  border-radius: 4px;
+  min-height: calc(100vh - 64px - 48px);
+}
+
+.content-wrapper {
+  /* 内容区域样式 */
+}
