@@ -1,6 +1,5 @@
 package cn.tannn.cat.block.repository;
 
-import cn.tannn.cat.block.entity.BlockType;
 import cn.tannn.cat.block.entity.ContextVariable;
 import cn.tannn.cat.block.enums.Environment;
 import cn.tannn.cat.block.enums.VarType;

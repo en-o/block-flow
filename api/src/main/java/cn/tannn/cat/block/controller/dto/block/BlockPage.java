@@ -2,7 +2,6 @@ package cn.tannn.cat.block.controller.dto.block;
 
 import cn.tannn.jdevelops.annotations.jpa.JpaSelectIgnoreField;
 import cn.tannn.jdevelops.annotations.jpa.JpaSelectOperator;
-import cn.tannn.jdevelops.annotations.jpa.enums.SQLConnect;
 import cn.tannn.jdevelops.annotations.jpa.enums.SQLOperatorWrapper;
 import cn.tannn.jdevelops.util.jpa.request.PagingSorteds;
 import io.swagger.v3.oas.annotations.media.Schema;

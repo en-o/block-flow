@@ -1,6 +1,5 @@
 package cn.tannn.cat.block.repository;
 
-import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.Workflow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

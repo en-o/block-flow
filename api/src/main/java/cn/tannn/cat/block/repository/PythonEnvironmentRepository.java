@@ -1,6 +1,5 @@
 package cn.tannn.cat.block.repository;
 
-import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

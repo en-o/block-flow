@@ -1,6 +1,5 @@
 package cn.tannn.cat.block.repository;
 
-import cn.tannn.cat.block.entity.ContextVariable;
 import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.enums.ExecutionStatus;
 import org.springframework.data.domain.Page;
