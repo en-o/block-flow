@@ -1,15 +1,17 @@
 package cn.tannn.cat.block.service.impl;
 
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowCreateDTO;
+import cn.tannn.cat.block.controller.dto.workflow.WorkflowPage;
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowUpdateDTO;
 import cn.tannn.cat.block.entity.Workflow;
 import cn.tannn.cat.block.repository.WorkflowRepository;
 import cn.tannn.cat.block.service.WorkflowService;
 import cn.tannn.jdevelops.result.exception.ServiceException;
+import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,33 +85,9 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
-    public Page<Workflow> listPage(Pageable pageable) {
-        return workflowRepository.findAll(pageable);
-    }
-
-    @Override
-    public Page<Workflow> listByAuthor(String authorUsername, Pageable pageable) {
-        return workflowRepository.findByAuthorUsername(authorUsername, pageable);
-    }
-
-    @Override
-    public Page<Workflow> listByCategory(String category, Pageable pageable) {
-        return workflowRepository.findByCategory(category, pageable);
-    }
-
-    @Override
-    public Page<Workflow> listTemplates(Pageable pageable) {
-        return workflowRepository.findByIsTemplate(true, pageable);
-    }
-
-    @Override
-    public Page<Workflow> listByActive(Boolean isActive, Pageable pageable) {
-        return workflowRepository.findByIsActive(isActive, pageable);
-    }
-
-    @Override
-    public Page<Workflow> search(String keyword, Pageable pageable) {
-        return workflowRepository.searchByKeyword(keyword, pageable);
+    public Page<Workflow> findPage(WorkflowPage where) {
+        Specification<Workflow> select = EnhanceSpecification.beanWhere(where);
+        return workflowRepository.findAll(select, where.getPage().pageable());
     }
 
     @Override

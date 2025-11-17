@@ -1,10 +1,10 @@
 package cn.tannn.cat.block.service;
 
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowCreateDTO;
+import cn.tannn.cat.block.controller.dto.workflow.WorkflowPage;
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowUpdateDTO;
 import cn.tannn.cat.block.entity.Workflow;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -45,58 +45,14 @@ public interface WorkflowService {
      * @return 流程
      */
     Workflow getById(Integer id);
-
     /**
-     * 分页查询流程
+     * 分页查询流程（使用查询条件）
      *
-     * @param pageable 分页参数
+     * @param where 分页参数和查询条件
      * @return 流程分页列表
      */
-    Page<Workflow> listPage(Pageable pageable);
+    Page<Workflow> findPage(WorkflowPage where);
 
-    /**
-     * 根据创建者查询流程
-     *
-     * @param authorUsername 创建者登录名
-     * @param pageable       分页参数
-     * @return 流程分页列表
-     */
-    Page<Workflow> listByAuthor(String authorUsername, Pageable pageable);
-
-    /**
-     * 根据分类查询流程
-     *
-     * @param category 流程分类
-     * @param pageable 分页参数
-     * @return 流程分页列表
-     */
-    Page<Workflow> listByCategory(String category, Pageable pageable);
-
-    /**
-     * 查询模板流程
-     *
-     * @param pageable 分页参数
-     * @return 流程分页列表
-     */
-    Page<Workflow> listTemplates(Pageable pageable);
-
-    /**
-     * 根据启用状态查询流程
-     *
-     * @param isActive 是否启用
-     * @param pageable 分页参数
-     * @return 流程分页列表
-     */
-    Page<Workflow> listByActive(Boolean isActive, Pageable pageable);
-
-    /**
-     * 搜索流程（名称或描述包含关键字）
-     *
-     * @param keyword  关键字
-     * @param pageable 分页参数
-     * @return 流程分页列表
-     */
-    Page<Workflow> search(String keyword, Pageable pageable);
 
     /**
      * 克隆流程

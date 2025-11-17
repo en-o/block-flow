@@ -2,7 +2,6 @@ package cn.tannn.cat.block.service.impl;
 
 import cn.tannn.cat.block.controller.dto.user.AccountRegisterAdmin;
 import cn.tannn.cat.block.entity.User;
-import cn.tannn.cat.block.repository.PythonEnvironmentRepository;
 import cn.tannn.cat.block.repository.UserRepository;
 import cn.tannn.cat.block.service.UserService;
 import cn.tannn.cat.block.util.BCryptUtil;
@@ -12,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 import static cn.tannn.jdevelops.utils.jwt.exception.UserCode.*;
 

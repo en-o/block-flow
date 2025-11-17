@@ -1,6 +1,5 @@
 package cn.tannn.cat.block.controller;
 
-import cn.hutool.core.lang.tree.Tree;
 import cn.tannn.cat.block.contansts.DefAccountLoginName;
 import cn.tannn.cat.block.controller.dto.user.AccountRegisterAdmin;
 import cn.tannn.cat.block.service.UserService;
@@ -13,21 +12,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.extensions.Extension;
 import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.List;
 
 
 /**

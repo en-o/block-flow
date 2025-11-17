@@ -6,13 +6,10 @@ import cn.tannn.cat.block.controller.dto.user.LoginVO;
 import cn.tannn.cat.block.entity.User;
 import cn.tannn.cat.block.service.UserService;
 import cn.tannn.jdevelops.annotations.web.authentication.ApiMapping;
-import cn.tannn.jdevelops.annotations.web.constant.PlatformConstant;
 import cn.tannn.jdevelops.annotations.web.mapping.PathRestController;
 import cn.tannn.jdevelops.jwt.standalone.pojo.TokenSign;
 import cn.tannn.jdevelops.jwt.standalone.service.LoginService;
-import cn.tannn.jdevelops.jwt.standalone.util.JwtWebUtil;
 import cn.tannn.jdevelops.result.response.ResultVO;
-import cn.tannn.jdevelops.utils.jwt.module.LoginJwtExtendInfo;
 import cn.tannn.jdevelops.utils.jwt.module.SignEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.extensions.Extension;
@@ -22,16 +19,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-
-import javax.security.auth.login.LoginContext;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 
 
 

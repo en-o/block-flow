@@ -2,7 +2,6 @@ package cn.tannn.cat.block.service;
 
 import cn.tannn.cat.block.controller.dto.user.AccountRegisterAdmin;
 import cn.tannn.cat.block.entity.User;
-import jakarta.validation.Valid;
 
 /**
  * 用户
