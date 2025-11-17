@@ -33,14 +33,6 @@ public interface BlockTypeRepository extends JpaRepository<BlockType, Integer>, 
     boolean existsByCode(String code);
 
     /**
-     * 根据名称查找
-     *
-     * @param name 类型名称
-     * @return 块类型
-     */
-    Optional<BlockType> findByName(String name);
-
-    /**
      * 查询所有类型，按排序字段排序
      *
      * @return 块类型列表
