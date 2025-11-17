@@ -1,10 +1,10 @@
 package cn.tannn.cat.block.service;
 
 import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeCreateDTO;
+import cn.tannn.cat.block.controller.dto.blocktype.BlockTypePage;
 import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeUpdateDTO;
 import cn.tannn.cat.block.entity.BlockType;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -62,12 +62,13 @@ public interface BlockTypeService {
     List<BlockType> listAll();
 
     /**
-     * 分页查询块类型
+     * 分页查询块
      *
-     * @param pageable 分页参数
-     * @return 块类型分页列表
+     * @param where 分页参数
+     * @return 块分页列表
      */
-    Page<BlockType> listPage(Pageable pageable);
+    Page<BlockType> findPage(BlockTypePage where);
+
 
     /**
      * 根据名称模糊查询

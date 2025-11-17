@@ -1,17 +1,18 @@
 package cn.tannn.cat.block.controller;
 
+import cn.tannn.cat.block.contansts.JpaPageResult;
 import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeCreateDTO;
+import cn.tannn.cat.block.controller.dto.blocktype.BlockTypePage;
 import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeUpdateDTO;
 import cn.tannn.cat.block.entity.BlockType;
 import cn.tannn.cat.block.service.BlockTypeService;
+import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -68,11 +69,8 @@ public class BlockTypeController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询块类型", description = "分页查询块类型列表")
-    public ResultVO<Page<BlockType>> listPage(
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(blockTypeService.listPage(pageable));
+    public ResultPageVO<BlockType, JpaPageResult<BlockType>> page(@RequestBody @Valid BlockTypePage page) {
+        return ResultPageVO.success(blockTypeService.findPage(page));
     }
 
     @GetMapping("/search")

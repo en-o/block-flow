@@ -1,16 +1,18 @@
 package cn.tannn.cat.block.service.impl;
 
 import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeCreateDTO;
+import cn.tannn.cat.block.controller.dto.blocktype.BlockTypePage;
 import cn.tannn.cat.block.controller.dto.blocktype.BlockTypeUpdateDTO;
 import cn.tannn.cat.block.entity.BlockType;
 import cn.tannn.cat.block.repository.BlockTypeRepository;
 import cn.tannn.cat.block.service.BlockTypeService;
 import cn.tannn.jdevelops.exception.built.BusinessException;
+import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,8 +105,9 @@ public class BlockTypeServiceImpl implements BlockTypeService {
     }
 
     @Override
-    public Page<BlockType> listPage(Pageable pageable) {
-        return blockTypeRepository.findAll(pageable);
+    public Page<BlockType> findPage(BlockTypePage where) {
+        Specification<BlockType> select = EnhanceSpecification.beanWhere(where);
+        return blockTypeRepository.findAll(select, where.getPage().pageable());
     }
 
     @Override

@@ -1,4 +1,4 @@
-package cn.tannn.cat.block.controller.dto.block;
+package cn.tannn.cat.block.controller.dto.blocktype;
 
 import cn.tannn.jdevelops.annotations.jpa.JpaSelectIgnoreField;
 import cn.tannn.jdevelops.annotations.jpa.JpaSelectOperator;
@@ -16,38 +16,15 @@ import lombok.Data;
  * @date 2025/11/17 09:35
  */
 @Data
-@Schema(description = "块分页查询")
-public class BlockPage {
-
+@Schema(description = "块类型分页查询")
+public class BlockTypePage {
 
     /**
-     * 块名称
+     * 类型名称
      */
-    @Schema(description = "块名称")
+    @Schema(description = "类型名称")
     @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.LIKE)
     private String name;
-
-    /**
-     * 块类型标识
-     */
-    @Schema(description = "块类型标识")
-    @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
-    private String typeCode;
-
-
-    /**
-     * Python环境ID
-     */
-    @Schema(description = "Python环境ID")
-    @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
-    private Integer pythonEnvId;
-
-    /**
-     * 是否公开
-     */
-    @Schema(description = "是否公开")
-    @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
-    private Boolean isPublic;
 
     /**
      * 分页排序
@@ -60,8 +37,8 @@ public class BlockPage {
 
     public PagingSorteds getPage() {
         if (page == null) {
-            return new PagingSorteds().fixSort(0, "typeCode");
+            return new PagingSorteds().fixSort(0, "sortOrder");
         }
-        return page.append(0,"typeCode");
+        return page.append(0,"sortOrder");
     }
 }
