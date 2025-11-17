@@ -44,7 +44,7 @@
         <dependency>
             <groupId>cn.tannn.jdevelops</groupId>
             <artifactId>jdevelops-apis-knife4j</artifactId>
-            <version>1.0.3.1-spring34</version>
+            <version>1.0.3.1-sb34</version>
         </dependency>
         <dependency>
             <groupId>cn.tannn.jdevelops</groupId>
