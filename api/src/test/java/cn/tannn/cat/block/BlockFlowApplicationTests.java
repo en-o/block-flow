@@ -18,7 +18,7 @@ class BlockFlowApplicationTests {
     void contextLoads() {
     }
 
-//    @Test
+    @Test
     void initUser(){
         AccountRegisterAdmin admin = new AccountRegisterAdmin();
         admin.setUsername(DefAccountLoginName.ADMIN);
