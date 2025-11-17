@@ -69,12 +69,6 @@ public class BlockController {
         return ResultVO.success(blockService.test(id, testDTO));
     }
 
-    @GetMapping("/{id}/usage")
-    @Operation(summary = "获取块使用统计", description = "获取块的使用次数")
-    public ResultVO<Long> getUsageCount(@Parameter(description = "块ID") @PathVariable Integer id) {
-        return ResultVO.success(blockService.getUsageCount(id));
-    }
-
     @PostMapping("/{id}/clone")
     @Operation(summary = "克隆块", description = "复制一个现有的块")
     public ResultVO<Block> clone(@Parameter(description = "块ID") @PathVariable Integer id) {

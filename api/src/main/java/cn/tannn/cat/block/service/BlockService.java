@@ -63,13 +63,6 @@ public interface BlockService {
      */
     String test(Integer id, BlockTestDTO testDTO);
 
-    /**
-     * 获取块使用统计
-     *
-     * @param id 块ID
-     * @return 使用次数
-     */
-    Long getUsageCount(Integer id);
 
     /**
      * 克隆块

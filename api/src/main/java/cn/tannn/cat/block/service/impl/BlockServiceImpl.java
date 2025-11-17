@@ -136,13 +136,6 @@ public class BlockServiceImpl implements BlockService {
     }
 
     @Override
-    public Long getUsageCount(Integer id) {
-        Block block = getById(id);
-        // TODO: 从ExecutionLog表中统计此块的使用次数
-        return 0L;
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public Block clone(Integer id) {
         Block original = getById(id);
