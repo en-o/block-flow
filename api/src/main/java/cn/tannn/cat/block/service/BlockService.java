@@ -1,11 +1,13 @@
 package cn.tannn.cat.block.service;
 
 import cn.tannn.cat.block.controller.dto.block.BlockCreateDTO;
+import cn.tannn.cat.block.controller.dto.block.BlockPage;
 import cn.tannn.cat.block.controller.dto.block.BlockTestDTO;
 import cn.tannn.cat.block.controller.dto.block.BlockUpdateDTO;
 import cn.tannn.cat.block.entity.Block;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
@@ -50,46 +52,11 @@ public interface BlockService {
     /**
      * 分页查询块
      *
-     * @param pageable 分页参数
+     * @param where 分页参数
      * @return 块分页列表
      */
-    Page<Block> listPage(Pageable pageable);
+    Page<Block> findPage(BlockPage where);
 
-    /**
-     * 根据类型代码查询块
-     *
-     * @param typeCode 类型代码
-     * @param pageable 分页参数
-     * @return 块分页列表
-     */
-    Page<Block> listByTypeCode(String typeCode, Pageable pageable);
-
-    /**
-     * 根据创建者查询块
-     *
-     * @param authorUsername 创建者登录名
-     * @param pageable       分页参数
-     * @return 块分页列表
-     */
-    Page<Block> listByAuthor(String authorUsername, Pageable pageable);
-
-    /**
-     * 根据公开状态查询块
-     *
-     * @param isPublic 是否公开
-     * @param pageable 分页参数
-     * @return 块分页列表
-     */
-    Page<Block> listByPublic(Boolean isPublic, Pageable pageable);
-
-    /**
-     * 搜索块（名称或描述包含关键字）
-     *
-     * @param keyword  关键字
-     * @param pageable 分页参数
-     * @return 块分页列表
-     */
-    Page<Block> search(String keyword, Pageable pageable);
 
     /**
      * 测试块执行

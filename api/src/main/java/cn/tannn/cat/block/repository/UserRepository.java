@@ -1,8 +1,10 @@
 package cn.tannn.cat.block.repository;
 
 import cn.tannn.cat.block.entity.User;
+import cn.tannn.cat.block.entity.Workflow;
 import cn.tannn.cat.block.enums.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,7 +16,7 @@ import java.util.Optional;
  * @author tnnn
  */
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, Integer>, JpaSpecificationExecutor<User> {
 
     /**
      * 根据用户名查找

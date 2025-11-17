@@ -1,17 +1,20 @@
 package cn.tannn.cat.block.service.impl;
 
 import cn.tannn.cat.block.controller.dto.block.BlockCreateDTO;
+import cn.tannn.cat.block.controller.dto.block.BlockPage;
 import cn.tannn.cat.block.controller.dto.block.BlockTestDTO;
 import cn.tannn.cat.block.controller.dto.block.BlockUpdateDTO;
 import cn.tannn.cat.block.entity.Block;
 import cn.tannn.cat.block.repository.BlockRepository;
 import cn.tannn.cat.block.service.BlockService;
 import cn.tannn.jdevelops.exception.built.BusinessException;
+import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -115,29 +118,11 @@ public class BlockServiceImpl implements BlockService {
     }
 
     @Override
-    public Page<Block> listPage(Pageable pageable) {
-        return blockRepository.findAll(pageable);
+    public Page<Block> findPage(BlockPage where) {
+        Specification<Block> select = EnhanceSpecification.beanWhere(where);
+        return blockRepository.findAll(select, where.getPage().pageable());
     }
 
-    @Override
-    public Page<Block> listByTypeCode(String typeCode, Pageable pageable) {
-        return blockRepository.findByTypeCode(typeCode, pageable);
-    }
-
-    @Override
-    public Page<Block> listByAuthor(String authorUsername, Pageable pageable) {
-        return blockRepository.findByAuthorUsername(authorUsername, pageable);
-    }
-
-    @Override
-    public Page<Block> listByPublic(Boolean isPublic, Pageable pageable) {
-        return blockRepository.findByIsPublic(isPublic, pageable);
-    }
-
-    @Override
-    public Page<Block> search(String keyword, Pageable pageable) {
-        return blockRepository.searchByKeyword(keyword, pageable);
-    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)

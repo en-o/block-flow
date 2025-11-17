@@ -2,6 +2,7 @@ package cn.tannn.cat.block.repository;
 
 import cn.tannn.cat.block.entity.BlockType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -13,7 +14,7 @@ import java.util.Optional;
  * @author tnnn
  */
 @Repository
-public interface BlockTypeRepository extends JpaRepository<BlockType, Integer> {
+public interface BlockTypeRepository extends JpaRepository<BlockType, Integer>, JpaSpecificationExecutor<BlockType> {
 
     /**
      * 根据类型代码查找

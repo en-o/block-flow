@@ -1,18 +1,24 @@
 package cn.tannn.cat.block.controller;
 
+import cn.tannn.cat.block.contansts.JpaPageResult;
 import cn.tannn.cat.block.controller.dto.block.BlockCreateDTO;
+import cn.tannn.cat.block.controller.dto.block.BlockPage;
 import cn.tannn.cat.block.controller.dto.block.BlockTestDTO;
 import cn.tannn.cat.block.controller.dto.block.BlockUpdateDTO;
 import cn.tannn.cat.block.entity.Block;
 import cn.tannn.cat.block.service.BlockService;
+import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
+import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -55,51 +61,9 @@ public class BlockController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询块", description = "分页查询块列表")
-    public ResultVO<Page<Block>> listPage(
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(blockService.listPage(pageable));
-    }
-
-    @GetMapping("/type/{typeCode}")
-    @Operation(summary = "根据类型查询块", description = "根据类型代码分页查询块")
-    public ResultVO<Page<Block>> listByTypeCode(
-            @Parameter(description = "类型代码") @PathVariable String typeCode,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(blockService.listByTypeCode(typeCode, pageable));
-    }
-
-    @GetMapping("/author/{authorUsername}")
-    @Operation(summary = "根据创建者查询块", description = "根据创建者登录名分页查询块")
-    public ResultVO<Page<Block>> listByAuthor(
-            @Parameter(description = "创建者登录名") @PathVariable String authorUsername,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(blockService.listByAuthor(authorUsername, pageable));
-    }
-
-    @GetMapping("/public")
-    @Operation(summary = "查询公开块", description = "根据公开状态分页查询块")
-    public ResultVO<Page<Block>> listByPublic(
-            @Parameter(description = "是否公开") @RequestParam Boolean isPublic,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(blockService.listByPublic(isPublic, pageable));
-    }
-
-    @GetMapping("/search")
-    @Operation(summary = "搜索块", description = "根据关键字搜索块（名称或描述）")
-    public ResultVO<Page<Block>> search(
-            @Parameter(description = "关键字") @RequestParam String keyword,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(blockService.search(keyword, pageable));
+    public ResultPageVO<Block,JpaPageResult<Block>> listPage(
+            @RequestBody @Valid BlockPage where) {
+        return ResultPageVO.success(JpaPageResult.toPage(blockService.findPage(where)));
     }
 
     @PostMapping("/{id}/test")

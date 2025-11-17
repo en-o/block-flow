@@ -1,11 +1,13 @@
 package cn.tannn.cat.block.repository;
 
+import cn.tannn.cat.block.entity.BlockType;
 import cn.tannn.cat.block.entity.ContextVariable;
 import cn.tannn.cat.block.enums.Environment;
 import cn.tannn.cat.block.enums.VarType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -19,7 +21,7 @@ import java.util.Optional;
  * @author tnnn
  */
 @Repository
-public interface ContextVariableRepository extends JpaRepository<ContextVariable, Long> {
+public interface ContextVariableRepository extends JpaRepository<ContextVariable, Integer>, JpaSpecificationExecutor<ContextVariable> {
 
     /**
      * 根据变量名查找

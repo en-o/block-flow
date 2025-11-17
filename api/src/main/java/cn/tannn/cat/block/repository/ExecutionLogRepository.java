@@ -1,10 +1,12 @@
 package cn.tannn.cat.block.repository;
 
+import cn.tannn.cat.block.entity.ContextVariable;
 import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.enums.ExecutionStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -17,7 +19,7 @@ import java.time.LocalDateTime;
  * @author tnnn
  */
 @Repository
-public interface ExecutionLogRepository extends JpaRepository<ExecutionLog, Long> {
+public interface ExecutionLogRepository extends JpaRepository<ExecutionLog, Long>, JpaSpecificationExecutor<ExecutionLog> {
 
     /**
      * 根据流程ID查找执行记录

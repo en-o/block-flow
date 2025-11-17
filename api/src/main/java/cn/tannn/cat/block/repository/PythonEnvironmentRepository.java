@@ -1,7 +1,9 @@
 package cn.tannn.cat.block.repository;
 
+import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -13,7 +15,7 @@ import java.util.Optional;
  * @author tnnn
  */
 @Repository
-public interface PythonEnvironmentRepository extends JpaRepository<PythonEnvironment, Integer> {
+public interface PythonEnvironmentRepository extends JpaRepository<PythonEnvironment, Integer> , JpaSpecificationExecutor<PythonEnvironment> {
 
     /**
      * 根据环境名称查找

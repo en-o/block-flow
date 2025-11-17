@@ -1,9 +1,11 @@
 package cn.tannn.cat.block.repository;
 
+import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.Workflow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -17,7 +19,7 @@ import java.util.Optional;
  * @author tnnn
  */
 @Repository
-public interface WorkflowRepository extends JpaRepository<Workflow, Integer> {
+public interface WorkflowRepository extends JpaRepository<Workflow, Integer> , JpaSpecificationExecutor<Workflow> {
 
     /**
      * 根据流程名称查找
