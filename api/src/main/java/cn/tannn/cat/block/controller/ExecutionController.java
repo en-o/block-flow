@@ -1,17 +1,17 @@
 package cn.tannn.cat.block.controller;
 
+import cn.tannn.cat.block.contansts.JpaPageResult;
+import cn.tannn.cat.block.controller.dto.execution.ExecutionLogPage;
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowExecuteDTO;
 import cn.tannn.cat.block.entity.ExecutionLog;
-import cn.tannn.cat.block.enums.ExecutionStatus;
 import cn.tannn.cat.block.service.ExecutionService;
+import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -41,42 +41,11 @@ public class ExecutionController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询执行历史", description = "分页查询所有执行记录")
-    public ResultVO<Page<ExecutionLog>> listPage(
-            @Parameter(description = "页码,从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(executionService.listPage(pageable));
+    public ResultPageVO<ExecutionLog, JpaPageResult<ExecutionLog>> page(
+            @RequestBody @Valid ExecutionLogPage where) {
+        return ResultPageVO.success(JpaPageResult.toPage(executionService.findPage(where)));
     }
 
-    @GetMapping("/workflow/{workflowId}")
-    @Operation(summary = "根据流程查询执行历史", description = "根据流程ID分页查询执行记录")
-    public ResultVO<Page<ExecutionLog>> listByWorkflowId(
-            @Parameter(description = "流程ID") @PathVariable Long workflowId,
-            @Parameter(description = "页码,从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(executionService.listByWorkflowId(workflowId, pageable));
-    }
-
-    @GetMapping("/executor/{executorUsername}")
-    @Operation(summary = "根据执行者查询执行历史", description = "根据执行者登录名分页查询执行记录")
-    public ResultVO<Page<ExecutionLog>> listByExecutor(
-            @Parameter(description = "执行者登录名") @PathVariable String executorUsername,
-            @Parameter(description = "页码,从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(executionService.listByExecutor(executorUsername, pageable));
-    }
-
-    @GetMapping("/status/{status}")
-    @Operation(summary = "根据状态查询执行历史", description = "根据执行状态分页查询执行记录")
-    public ResultVO<Page<ExecutionLog>> listByStatus(
-            @Parameter(description = "执行状态") @PathVariable ExecutionStatus status,
-            @Parameter(description = "页码,从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(executionService.listByStatus(status, pageable));
-    }
 
     @GetMapping("/{id}/logs")
     @Operation(summary = "获取执行日志", description = "获取指定执行记录的日志")
