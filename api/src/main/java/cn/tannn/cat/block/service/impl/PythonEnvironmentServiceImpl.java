@@ -2,16 +2,20 @@ package cn.tannn.cat.block.service.impl;
 
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageOperationDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.repository.PythonEnvironmentRepository;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
 import cn.tannn.jdevelops.result.exception.ServiceException;
+import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -113,8 +117,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     @Override
-    public Page<PythonEnvironment> listPage(Pageable pageable) {
-        return pythonEnvironmentRepository.findAll(pageable);
+    public Page<PythonEnvironment> findPage(PythonEnvironmentPage where) {
+        Specification<PythonEnvironment> select = EnhanceSpecification.beanWhere(where);
+        return pythonEnvironmentRepository.findAll(select, where.getPage().pageable());
     }
 
     @Override

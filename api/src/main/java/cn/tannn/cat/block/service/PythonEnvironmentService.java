@@ -1,8 +1,11 @@
 package cn.tannn.cat.block.service;
 
+import cn.tannn.cat.block.controller.dto.execution.ExecutionLogPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageOperationDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -62,13 +65,15 @@ public interface PythonEnvironmentService {
      */
     List<PythonEnvironment> listAll();
 
+
     /**
-     * 分页查询环境
+     * 分页查询执行历史（使用查询条件）
      *
-     * @param pageable 分页参数
+     * @param where 分页参数和查询条件
      * @return Python环境分页列表
      */
-    Page<PythonEnvironment> listPage(Pageable pageable);
+    Page<PythonEnvironment> findPage(PythonEnvironmentPage where);
+
 
     /**
      * 搜索环境（名称或描述包含关键字）

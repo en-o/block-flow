@@ -1,14 +1,19 @@
 package cn.tannn.cat.block.controller;
 
+import cn.tannn.cat.block.contansts.JpaPageResult;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageOperationDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
+import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -69,11 +74,8 @@ public class PythonEnvironmentController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询环境", description = "分页查询Python环境列表")
-    public ResultVO<Page<PythonEnvironment>> listPage(
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(pythonEnvironmentService.listPage(pageable));
+    public ResultPageVO<PythonEnvironment, JpaPageResult<PythonEnvironment>> listPage(@RequestBody @Valid PythonEnvironmentPage where) {
+        return ResultPageVO.success(JpaPageResult.toPage(pythonEnvironmentService.findPage(where)));
     }
 
     @GetMapping("/search")

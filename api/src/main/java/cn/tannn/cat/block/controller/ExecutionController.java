@@ -34,7 +34,7 @@ public class ExecutionController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "获取执行详情", description = "根据ID获取��行记录详情")
+    @Operation(summary = "获取执行详情", description = "根据ID获取执行记录详情")
     public ResultVO<ExecutionLog> getById(@Parameter(description = "执行记录ID") @PathVariable Long id) {
         return ResultVO.success(executionService.getById(id));
     }
