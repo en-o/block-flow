@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.service;
 
+import cn.tannn.cat.block.controller.dto.execution.ExecutionLogPage;
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowExecuteDTO;
 import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.enums.ExecutionStatus;
@@ -36,6 +37,14 @@ public interface ExecutionService {
      * @return 执行记录分页列表
      */
     Page<ExecutionLog> listPage(Pageable pageable);
+
+    /**
+     * 分页查询执行历史（使用查询条件）
+     *
+     * @param where 分页参数和查询条件
+     * @return 执行记录分页列表
+     */
+    Page<ExecutionLog> findPage(ExecutionLogPage where);
 
     /**
      * 根据流程ID查询执行历史
