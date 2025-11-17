@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.controller.dto.user;
 
+import cn.tannn.cat.block.enums.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,8 +24,12 @@ public class LoginVO {
     @Schema(description = "token")
     private String token;
 
-    public LoginVO(String token) {
+    @Schema(description = "角色")
+    private UserRole role;
+
+    public LoginVO(String token, UserRole role) {
         this.token = token;
+        this.role = role;
     }
 
 }

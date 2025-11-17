@@ -53,7 +53,7 @@ public class LoginController {
         User login = userService.login(pwd.getLoginName(), pwd.getPassword());
         SignEntity<Object> objectSignEntity = SignEntity.initPlatform2(login.getUsername());
         TokenSign token = loginService.login(objectSignEntity);
-        return ResultVO.success(new LoginVO(token.getSign()));
+        return ResultVO.success(new LoginVO(token.getSign(),login.getRole()));
     }
 
 
