@@ -56,7 +56,7 @@ public class BlockController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询块", description = "分页查询块列表")
-    public ResultPageVO<Block,JpaPageResult<Block>> listPage(
+    public ResultPageVO<Block,JpaPageResult<Block>> page(
             @RequestBody @Valid BlockPage where) {
         return ResultPageVO.success(JpaPageResult.toPage(blockService.findPage(where)));
     }
