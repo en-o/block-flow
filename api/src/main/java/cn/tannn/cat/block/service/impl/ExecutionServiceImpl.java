@@ -7,8 +7,10 @@ import cn.tannn.cat.block.entity.Workflow;
 import cn.tannn.cat.block.enums.ExecutionStatus;
 import cn.tannn.cat.block.enums.TriggerType;
 import cn.tannn.cat.block.repository.ExecutionLogRepository;
+import cn.tannn.cat.block.repository.WorkflowRepository;
 import cn.tannn.cat.block.service.ExecutionService;
 import cn.tannn.cat.block.service.WorkflowService;
+import cn.tannn.jdevelops.exception.built.BusinessException;
 import cn.tannn.jdevelops.result.exception.ServiceException;
 import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +35,14 @@ import java.time.LocalDateTime;
 public class ExecutionServiceImpl implements ExecutionService {
 
     private final ExecutionLogRepository executionLogRepository;
-    private final WorkflowService workflowService;
+    private final WorkflowRepository workflowRepository;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ExecutionLog execute(WorkflowExecuteDTO executeDTO) {
         // 验证流程是否存在
-        Workflow workflow = workflowService.getById(executeDTO.getWorkflowId());
+        Workflow workflow = workflowRepository.findById(executeDTO.getWorkflowId())
+                .orElseThrow(() -> new BusinessException("请选择正确的流程"));
 
         // 创建执行记录
         ExecutionLog executionLog = new ExecutionLog();
