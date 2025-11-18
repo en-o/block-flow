@@ -9,6 +9,8 @@ import Blocks from './pages/Manage/Blocks';
 import BlockTypes from './pages/Manage/BlockTypes';
 import Context from './pages/Manage/Context';
 import PythonEnvironments from './pages/Manage/PythonEnvironments';
+import Users from './pages/Manage/Users';
+import Profile from './pages/Manage/Profile';
 import PrivateRoute from './components/PrivateRoute';
 import { setGlobalMessage } from './utils/messageInstance';
 import './App.css';
@@ -60,6 +62,8 @@ const AppContent: React.FC = () => {
           <Route path="block-types" element={<BlockTypes />} />
           <Route path="python-envs" element={<PythonEnvironments />} />
           <Route path="context" element={<Context />} />
+          <Route path="users" element={<Users />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
 
         {/* 默认重定向到Flow页面 */}

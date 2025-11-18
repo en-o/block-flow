@@ -91,6 +91,46 @@ export interface User {
   updateTime: string;
 }
 
+// 用户分页查询参数
+export interface UserPage {
+  username?: string;
+  role?: 'ADMIN' | 'USER' | 'VIEWER';
+  isActive?: boolean;
+  page?: PagingSorteds;
+}
+
+// 用户创建DTO
+export interface UserCreateDTO {
+  username: string; // 必填
+  password: string; // 必填
+  email?: string;
+  realName?: string;
+  role?: 'ADMIN' | 'USER' | 'VIEWER';
+  isActive?: boolean;
+}
+
+// 用户更新DTO
+export interface UserUpdateDTO {
+  id: number; // 必填
+  username?: string;
+  email?: string;
+  realName?: string;
+  role?: 'ADMIN' | 'USER' | 'VIEWER';
+  isActive?: boolean;
+}
+
+// 修改密码DTO
+export interface ChangePasswordDTO {
+  oldPassword: string; // 必填
+  newPassword: string; // 必填
+}
+
+// 更新个人信息DTO
+export interface UpdateProfileDTO {
+  email?: string;
+  realName?: string;
+}
+
 // ===================
 // 块类型相关（BlockType Entity）
 // ===================

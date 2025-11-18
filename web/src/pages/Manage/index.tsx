@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Layout, Menu, message } from 'antd';
+import { Layout, Menu, message, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   BlockOutlined,
   AppstoreOutlined,
@@ -7,6 +8,8 @@ import {
   EnvironmentOutlined,
   LogoutOutlined,
   UserOutlined,
+  TeamOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { authUtils } from '../../utils/auth';
@@ -33,14 +36,19 @@ const Manage: React.FC = () => {
       label: '块类型管理',
     },
     {
+      key: '/manage/python-envs',
+      icon: <EnvironmentOutlined />,
+      label: 'Python环境',
+    },
+    {
       key: '/manage/context',
       icon: <SettingOutlined />,
       label: '上下文变量',
     },
     {
-      key: '/manage/python-envs',
-      icon: <EnvironmentOutlined />,
-      label: 'Python环境',
+      key: '/manage/users',
+      icon: <TeamOutlined />,
+      label: '用户管理',
     },
   ];
 
@@ -53,6 +61,24 @@ const Manage: React.FC = () => {
     message.success('已退出登录');
     navigate('/login');
   };
+
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      label: '个人中心',
+      icon: <UserOutlined />,
+      onClick: () => navigate('/manage/profile'),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      label: '退出登录',
+      icon: <LogoutOutlined />,
+      onClick: handleLogout,
+    },
+  ];
 
   return (
     <Layout className="manage-layout">
@@ -80,15 +106,14 @@ const Manage: React.FC = () => {
             <h2>管理后台</h2>
           </div>
           <div className="header-right">
-            <span className="user-info">
-              <UserOutlined /> {userInfo?.username || 'Admin'}
-            </span>
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <span className="user-info" style={{ cursor: 'pointer' }}>
+                <UserOutlined /> {userInfo?.username || 'Admin'} <DownOutlined />
+              </span>
+            </Dropdown>
             <a href="/flow" target="_blank" rel="noopener noreferrer">
               前往流程编排
             </a>
-            <span className="logout-btn" onClick={handleLogout}>
-              <LogoutOutlined /> 退出
-            </span>
           </div>
         </Header>
 
