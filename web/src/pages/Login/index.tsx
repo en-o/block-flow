@@ -39,39 +39,23 @@ const Login: React.FC = () => {
   return (
     <div className="login-container">
       <Card className="login-card" title="BlockFlow 登录">
-        <Form
-          name="login"
-          onFinish={onFinish}
-          autoComplete="off"
-          size="large"
-        >
+        <Form name="login" onFinish={onFinish} autoComplete="off" size="large">
           <Form.Item
             name="loginName"
-            rules={[{ required: true, message: '请��入用户名' }]}
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="用户名"
-            />
+            <Input prefix={<UserOutlined />} placeholder="用户名" />
           </Form.Item>
 
           <Form.Item
-            name="loginPassword"
+            name="password"
             rules={[{ required: true, message: '请输入密码' }]}
           >
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="密码"
-            />
+            <Input.Password prefix={<LockOutlined />} placeholder="密码" />
           </Form.Item>
 
           <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              block
-            >
+            <Button type="primary" htmlType="submit" loading={loading} block>
               登录
             </Button>
           </Form.Item>

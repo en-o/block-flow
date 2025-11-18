@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Row, Col, Card, Statistic } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined } from '@ant-design/icons';
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
-import type { Block, BlockType } from '../../types/api';
+import type { Block, BlockType, BlockPage, BlockCreateDTO, BlockUpdateDTO } from '../../types/api';
 import Editor from '@monaco-editor/react';
 
 const Blocks: React.FC = () => {
@@ -13,11 +13,12 @@ const Blocks: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingBlock, setEditingBlock] = useState<Block | null>(null);
   const [tagsStatistics, setTagsStatistics] = useState<Record<string, number>>({});
-  const [searchParams, setSearchParams] = useState<{
-    name?: string;
-    typeCode?: string;
-    tag?: string;
-  }>({});
+  const [searchParams, setSearchParams] = useState<BlockPage>({});
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -27,22 +28,29 @@ const Blocks: React.FC = () => {
     fetchTagsStatistics();
   }, []);
 
-  const fetchBlocks = async (params?: any) => {
+  const fetchBlocks = async (params?: BlockPage) => {
     setLoading(true);
     try {
-      const response = await blockApi.getBlockList({
-        page: {
-          pageNum: 0,
-          pageSize: 100
-        },
+      const queryParams: BlockPage = {
         ...searchParams,
-        ...params
-      });
-      if (response.data) {
-        setBlocks(response.data.records || []);
+        ...params,
+        page: {
+          pageNum: (params?.page?.pageNum !== undefined ? params.page.pageNum : pagination.current - 1),
+          pageSize: (params?.page?.pageSize !== undefined ? params.page.pageSize : pagination.pageSize),
+        }
+      };
+
+      const response = await blockApi.page(queryParams);
+      if (response.code === 200 && response.data) {
+        setBlocks(response.data.rows || []);
+        setPagination({
+          current: response.data.currentPage,
+          pageSize: response.data.pageSize,
+          total: response.data.total,
+        });
       }
     } catch (error) {
-      message.error('获取块列表失败');
+      console.error('获取块列表失败', error);
     } finally {
       setLoading(false);
     }
@@ -51,18 +59,18 @@ const Blocks: React.FC = () => {
   const fetchBlockTypes = async () => {
     try {
       const response = await blockTypeApi.listAll();
-      if (response.data) {
+      if (response.code === 200 && response.data) {
         setBlockTypes(response.data);
       }
     } catch (error) {
-      message.error('获取块类型失败');
+      console.error('获取块类型失败', error);
     }
   };
 
   const fetchTagsStatistics = async () => {
     try {
       const response = await blockApi.getTagsStatistics();
-      if (response.data) {
+      if (response.code === 200 && response.data) {
         setTagsStatistics(response.data);
       }
     } catch (error) {
@@ -73,13 +81,15 @@ const Blocks: React.FC = () => {
   const handleSearch = async () => {
     const values = await searchForm.validateFields();
     setSearchParams(values);
-    fetchBlocks(values);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchBlocks({ ...values, page: { pageNum: 0, pageSize: pagination.pageSize } });
   };
 
   const handleResetSearch = () => {
     searchForm.resetFields();
     setSearchParams({});
-    fetchBlocks({});
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchBlocks({ page: { pageNum: 0, pageSize: pagination.pageSize } });
   };
 
   const handleAdd = () => {
@@ -100,12 +110,12 @@ const Blocks: React.FC = () => {
       content: '确定要删除这个块吗？',
       onOk: async () => {
         try {
-          await blockApi.deleteBlock(id);
+          await blockApi.delete(id);
           message.success('删除成功');
           fetchBlocks();
           fetchTagsStatistics();
         } catch (error) {
-          message.error('删除失败');
+          console.error('删除失败', error);
         }
       },
     });
@@ -113,11 +123,11 @@ const Blocks: React.FC = () => {
 
   const handleClone = async (id: number) => {
     try {
-      await blockApi.cloneBlock(id);
+      await blockApi.clone(id);
       message.success('克隆成功');
       fetchBlocks();
     } catch (error) {
-      message.error('克隆失败');
+      console.error('克隆失败', error);
     }
   };
 
@@ -126,10 +136,15 @@ const Blocks: React.FC = () => {
       const values = await form.validateFields();
 
       if (editingBlock) {
-        await blockApi.updateBlock(editingBlock.id, values);
+        const updateData: BlockUpdateDTO = {
+          id: editingBlock.id,
+          ...values
+        };
+        await blockApi.update(updateData);
         message.success('更新成功');
       } else {
-        await blockApi.createBlock(values);
+        const createData: BlockCreateDTO = values;
+        await blockApi.create(createData);
         message.success('创建成功');
       }
 
@@ -137,8 +152,19 @@ const Blocks: React.FC = () => {
       fetchBlocks();
       fetchTagsStatistics();
     } catch (error) {
-      message.error('保存失败');
+      console.error('保存失败', error);
     }
+  };
+
+  const handleTableChange = (pag: any) => {
+    setPagination(pag);
+    fetchBlocks({
+      ...searchParams,
+      page: {
+        pageNum: pag.current - 1,
+        pageSize: pag.pageSize
+      }
+    });
   };
 
   const columns = [
@@ -323,7 +349,8 @@ const Blocks: React.FC = () => {
         dataSource={blocks}
         loading={loading}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        pagination={pagination}
+        onChange={handleTableChange}
         scroll={{ x: 1200 }}
       />
 
@@ -343,20 +370,6 @@ const Blocks: React.FC = () => {
             rules={[{ required: true, message: '请输入块名称' }]}
           >
             <Input />
-          </Form.Item>
-
-          <Form.Item
-            label="块类型"
-            name="blockTypeId"
-            rules={[{ required: true, message: '请选择块类型' }]}
-          >
-            <Select>
-              {blockTypes.map(type => (
-                <Select.Option key={type.id} value={type.id}>
-                  {type.name}
-                </Select.Option>
-              ))}
-            </Select>
           </Form.Item>
 
           <Form.Item

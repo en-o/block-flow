@@ -1,53 +1,51 @@
 import { http } from './request';
-import type { ApiResponse, PageRequest, PageResponse, Block } from '../types/api';
+import type { ApiResponse, ResultPageVO, Block, BlockPage, BlockCreateDTO, BlockUpdateDTO, BlockTestDTO } from '../types/api';
 
 export const blockApi = {
-  // 获取块列表（支持标签查询）
-  getBlockList(params?: PageRequest & {
-    name?: string;
-    typeCode?: string;
-    category?: string;
-    tag?: string; // 标签模糊查询
-  }): Promise<ApiResponse<PageResponse<Block>>> {
-    return http.post('/blocks/page', params);
-  },
-
-  // 获取块详情
-  getBlockById(id: number): Promise<ApiResponse<Block>> {
-    return http.get(`/blocks/${id}`);
-  },
-
   // 创建块
-  createBlock(data: Partial<Block>): Promise<ApiResponse<Block>> {
+  // POST /blocks
+  create(data: BlockCreateDTO): Promise<ApiResponse<Block>> {
     return http.post('/blocks', data);
   },
 
   // 更新块
-  updateBlock(id: number, data: Partial<Block>): Promise<ApiResponse<Block>> {
-    return http.put(`/blocks/${id}`, data);
+  // PUT /blocks
+  update(data: BlockUpdateDTO): Promise<ApiResponse<Block>> {
+    return http.put('/blocks', data);
   },
 
   // 删除块
-  deleteBlock(id: number): Promise<ApiResponse<void>> {
+  // DELETE /blocks/{id}
+  delete(id: number): Promise<ApiResponse<void>> {
     return http.delete(`/blocks/${id}`);
   },
 
+  // 获取块详情
+  // GET /blocks/{id}
+  getById(id: number): Promise<ApiResponse<Block>> {
+    return http.get(`/blocks/${id}`);
+  },
+
+  // 分页查询块
+  // POST /blocks/page
+  page(params: BlockPage): Promise<ResultPageVO<Block>> {
+    return http.post('/blocks/page', params);
+  },
+
   // 测试块执行
-  testBlock(id: number, inputs: any): Promise<ApiResponse<any>> {
-    return http.post(`/blocks/${id}/test`, { inputs });
+  // POST /blocks/{id}/test
+  test(id: number, data: BlockTestDTO): Promise<ApiResponse<string>> {
+    return http.post(`/blocks/${id}/test`, data);
   },
 
   // 克隆块
-  cloneBlock(id: number): Promise<ApiResponse<Block>> {
+  // POST /blocks/{id}/clone
+  clone(id: number): Promise<ApiResponse<Block>> {
     return http.post(`/blocks/${id}/clone`);
   },
 
-  // 获取块使用统计
-  getBlockUsage(id: number): Promise<ApiResponse<any>> {
-    return http.get(`/blocks/${id}/usage`);
-  },
-
   // 获取标签聚类统计
+  // GET /blocks/tags/statistics
   getTagsStatistics(): Promise<ApiResponse<Record<string, number>>> {
     return http.get('/blocks/tags/statistics');
   },

@@ -50,9 +50,47 @@ request.interceptors.response.use(
         // 请求成功，返回完整的响应对象
         return data;
       } else {
-        // 业务错误，显示错误信息
+        // 业务错误，根据错误码进行不同处理
         const errorMsg = data.message || data.msg || '操作失败';
-        message.error(errorMsg);
+
+        // 处理后端定义的业务异常码
+        switch (data.code) {
+          case 401:
+            // TOKEN_ERROR / REDIS_EXPIRED_USER / REDIS_NO_USER
+            // token校验失败、Redis登录失效、非法登录
+            message.error(errorMsg || '登录失效，请重新登录');
+            authUtils.clearAuth();
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 1000);
+            break;
+
+          case 402:
+            // SYS_AUTHORIZED_PAST - 授权过期
+            message.error(errorMsg || '授权过期，请重新登录');
+            authUtils.clearAuth();
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 1000);
+            break;
+
+          case 403:
+            // UNAUTHENTICATED / UNAUTHENTICATED_PLATFORM
+            // 系统未授权、非法令牌访问未授权系统
+            message.error(errorMsg || '系统未授权，禁止访问');
+            break;
+
+          case 405:
+            // USER_EXIST_ERROR / USER_PASSWORD_ERROR
+            // 账户或密码错误（登录时）
+            message.error(errorMsg || '账户或者密码错误，请检查后重试');
+            break;
+
+          default:
+            // 其他业务错误
+            message.error(errorMsg);
+        }
+
         return Promise.reject(new Error(errorMsg));
       }
     }
