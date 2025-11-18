@@ -29,21 +29,23 @@ const Context: React.FC = () => {
     fetchVariables();
   }, []);
 
-  const fetchVariables = async (page: number = 0, size: number = 10) => {
+  const fetchVariables = async (pageNum: number = 0, pageSize: number = 10) => {
     setLoading(true);
     try {
-      const response = await contextApi.filter({
+      const response = await contextApi.page({
         ...filterParams,
-        page,
-        size,
+        page: {
+          pageNum,
+          pageSize,
+        },
       });
 
       if (response.code === 200 && response.data) {
-        setVariables(response.data.content || []);
+        setVariables(response.data.rows || []);
         setPagination({
-          current: response.data.number + 1, // Spring Page number 从0开始，转为从1开始
-          pageSize: response.data.size,
-          total: response.data.totalElements,
+          current: response.data.currentPage,
+          pageSize: response.data.pageSize,
+          total: response.data.total,
         });
       }
     } catch (error) {
@@ -113,18 +115,20 @@ const Context: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await contextApi.filter({
+      const response = await contextApi.page({
         ...values,
-        page: 0,
-        size: pagination.pageSize,
+        page: {
+          pageNum: 0,
+          pageSize: pagination.pageSize,
+        },
       });
 
       if (response.code === 200 && response.data) {
-        setVariables(response.data.content || []);
+        setVariables(response.data.rows || []);
         setPagination({
-          current: 1,
-          pageSize: response.data.size,
-          total: response.data.totalElements,
+          current: response.data.currentPage,
+          pageSize: response.data.pageSize,
+          total: response.data.total,
         });
       }
     } catch (error) {
