@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, message, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { contextApi } from '../../api/context';
-import type { ContextVariable } from '../../types/api';
+import type { ContextVariable, ContextVariableCreateDTO, ContextVariableUpdateDTO } from '../../types/api';
 
 const Context: React.FC = () => {
   const [variables, setVariables] = useState<ContextVariable[]>([]);
@@ -23,7 +23,7 @@ const Context: React.FC = () => {
         setVariables(response.data);
       }
     } catch (error) {
-      message.error('获取变量列表失败');
+      console.error('获取变量列表失败', error);
     } finally {
       setLoading(false);
     }
@@ -41,17 +41,17 @@ const Context: React.FC = () => {
     setModalVisible(true);
   };
 
-  const handleDelete = (key: string) => {
+  const handleDelete = (id: number) => {
     Modal.confirm({
       title: '确认删除',
       content: '确定要删除这个变量吗？',
       onOk: async () => {
         try {
-          await contextApi.deleteContextVariable(key);
+          await contextApi.deleteContextVariable(id);
           message.success('删除成功');
           fetchVariables();
         } catch (error) {
-          message.error('删除失败');
+          console.error('删除失败', error);
         }
       },
     });
@@ -62,17 +62,22 @@ const Context: React.FC = () => {
       const values = await form.validateFields();
 
       if (editingVariable) {
-        await contextApi.updateContextVariable(editingVariable.varKey, values);
+        const updateData: ContextVariableUpdateDTO = {
+          id: editingVariable.id,
+          ...values
+        };
+        await contextApi.updateContextVariable(updateData);
         message.success('更新成功');
       } else {
-        await contextApi.createContextVariable(values);
+        const createData: ContextVariableCreateDTO = values;
+        await contextApi.createContextVariable(createData);
         message.success('创建成功');
       }
 
       setModalVisible(false);
       fetchVariables();
     } catch (error) {
-      message.error('保存失败');
+      console.error('保存失败', error);
     }
   };
 
@@ -87,13 +92,15 @@ const Context: React.FC = () => {
       title: '变量名',
       dataIndex: 'varKey',
       key: 'varKey',
+      width: 200,
     },
     {
       title: '变量值',
       dataIndex: 'varValue',
       key: 'varValue',
+      width: 250,
       render: (value: string, record: ContextVariable) => {
-        if (record.varType === 'secret') {
+        if (record.varType === 'SECRET') {
           return '******';
         }
         return value.length > 50 ? value.substring(0, 50) + '...' : value;
@@ -103,30 +110,56 @@ const Context: React.FC = () => {
       title: '类型',
       dataIndex: 'varType',
       key: 'varType',
-      render: (type: string) => {
+      width: 100,
+      render: (type: 'TEXT' | 'SECRET' | 'JSON' | 'NUMBER' | 'FILE') => {
         const colorMap: Record<string, string> = {
-          text: 'blue',
-          secret: 'red',
-          json: 'green',
-          file: 'orange',
+          TEXT: 'blue',
+          SECRET: 'red',
+          JSON: 'green',
+          NUMBER: 'cyan',
+          FILE: 'orange',
         };
-        return <Tag color={colorMap[type]}>{type.toUpperCase()}</Tag>;
+        const nameMap: Record<string, string> = {
+          TEXT: '文本',
+          SECRET: '密钥',
+          JSON: 'JSON',
+          NUMBER: '数字',
+          FILE: '文件',
+        };
+        return <Tag color={colorMap[type]}>{nameMap[type]}</Tag>;
       },
     },
     {
       title: '分组',
       dataIndex: 'groupName',
       key: 'groupName',
+      width: 120,
     },
     {
       title: '环境',
       dataIndex: 'environment',
       key: 'environment',
-      render: (env: string) => <Tag>{env}</Tag>,
+      width: 100,
+      render: (env: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD') => {
+        const nameMap: Record<string, string> = {
+          DEFAULT: '默认',
+          DEV: '开发',
+          TEST: '测试',
+          PROD: '生产',
+        };
+        const colorMap: Record<string, string> = {
+          DEFAULT: 'default',
+          DEV: 'blue',
+          TEST: 'orange',
+          PROD: 'red',
+        };
+        return <Tag color={colorMap[env]}>{nameMap[env]}</Tag>;
+      },
     },
     {
       title: '操作',
       key: 'action',
+      width: 200,
       render: (_: any, record: ContextVariable) => (
         <Space>
           <Button
@@ -140,7 +173,7 @@ const Context: React.FC = () => {
             type="link"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.varKey)}
+            onClick={() => handleDelete(record.id)}
           >
             删除
           </Button>
@@ -167,6 +200,7 @@ const Context: React.FC = () => {
         loading={loading}
         rowKey="id"
         pagination={{ pageSize: 10 }}
+        scroll={{ x: 1000 }}
       />
 
       <Modal
@@ -174,6 +208,7 @@ const Context: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
+        width={600}
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -181,7 +216,7 @@ const Context: React.FC = () => {
             name="varKey"
             rules={[{ required: true, message: '请输入变量名' }]}
           >
-            <Input disabled={!!editingVariable} />
+            <Input placeholder="例如: DB_HOST" disabled={!!editingVariable} />
           </Form.Item>
 
           <Form.Item
@@ -189,20 +224,21 @@ const Context: React.FC = () => {
             name="varValue"
             rules={[{ required: true, message: '请输入变量值' }]}
           >
-            <Input.TextArea rows={4} />
+            <Input.TextArea rows={4} placeholder="请输入变量值" />
           </Form.Item>
 
           <Form.Item
             label="类型"
             name="varType"
-            initialValue="text"
+            initialValue="TEXT"
             rules={[{ required: true, message: '请选择类型' }]}
           >
             <Select>
-              <Select.Option value="text">文本</Select.Option>
-              <Select.Option value="secret">密钥</Select.Option>
-              <Select.Option value="json">JSON</Select.Option>
-              <Select.Option value="file">文件</Select.Option>
+              <Select.Option value="TEXT">文本</Select.Option>
+              <Select.Option value="SECRET">密钥（加密存储）</Select.Option>
+              <Select.Option value="JSON">JSON</Select.Option>
+              <Select.Option value="NUMBER">数字</Select.Option>
+              <Select.Option value="FILE">文件</Select.Option>
             </Select>
           </Form.Item>
 
@@ -210,26 +246,26 @@ const Context: React.FC = () => {
             label="分组"
             name="groupName"
           >
-            <Input />
+            <Input placeholder="例如: database" />
           </Form.Item>
 
           <Form.Item
             label="描述"
             name="description"
           >
-            <Input.TextArea rows={2} />
+            <Input.TextArea rows={2} placeholder="请输入描述" />
           </Form.Item>
 
           <Form.Item
             label="环境"
             name="environment"
-            initialValue="default"
+            initialValue="DEFAULT"
           >
             <Select>
-              <Select.Option value="default">默认</Select.Option>
-              <Select.Option value="dev">开发</Select.Option>
-              <Select.Option value="test">测试</Select.Option>
-              <Select.Option value="prod">生产</Select.Option>
+              <Select.Option value="DEFAULT">默认</Select.Option>
+              <Select.Option value="DEV">开发</Select.Option>
+              <Select.Option value="TEST">测试</Select.Option>
+              <Select.Option value="PROD">生产</Select.Option>
             </Select>
           </Form.Item>
         </Form>

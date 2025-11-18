@@ -230,12 +230,6 @@ const Blocks: React.FC = () => {
       ),
     },
     {
-      title: '使用次数',
-      dataIndex: 'usageCount',
-      key: 'usageCount',
-      width: 100,
-    },
-    {
       title: '版本',
       dataIndex: 'version',
       key: 'version',

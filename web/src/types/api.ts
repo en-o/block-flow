@@ -29,7 +29,11 @@ export interface ResultPageVO<T> {
   data: JpaPageResult<T>;
 }
 
-// 登录请求
+// ===================
+// 登录相关
+// ===================
+
+// 登录请求（对应后端 LoginPassword）
 export interface LoginRequest {
   loginName: string;
   password: string;
@@ -41,23 +45,31 @@ export interface LoginResponse {
   role: 'ADMIN' | 'USER' | 'VIEWER'; // UserRole 枚举
 }
 
-// 用户信息
-export interface UserInfo {
+// ===================
+// 用户相关（User Entity）
+// ===================
+
+export interface User {
   id: number;
   username: string;
   email?: string;
   realName?: string;
-  role: string;
+  role: 'ADMIN' | 'USER' | 'VIEWER'; // UserRole 枚举
+  isActive: boolean;
+  lastLoginTime?: string;
+  createTime: string;
+  updateTime: string;
 }
 
-// 块类型
+// ===================
+// 块类型相关（BlockType Entity）
+// ===================
+
 export interface BlockType {
   id: number;
   code: string;
   name: string;
-  description?: string;
-  icon?: string;
-  sortOrder: number;
+  sortOrder: number; // 排序，升序
   createTime: string;
   updateTime: string;
 }
@@ -68,7 +80,25 @@ export interface BlockTypePage {
   page?: PagingSorteds;
 }
 
-// 块
+// 块类型创建DTO
+export interface BlockTypeCreateDTO {
+  code: string; // 必填
+  name: string; // 必填
+  sortOrder?: number;
+}
+
+// 块类型更新DTO
+export interface BlockTypeUpdateDTO {
+  id: number; // 必填
+  code?: string;
+  name?: string;
+  sortOrder?: number;
+}
+
+// ===================
+// 块相关（Block Entity）
+// ===================
+
 export interface Block {
   id: number;
   name: string;
@@ -76,31 +106,30 @@ export interface Block {
   description?: string;
   color: string;
   icon?: string;
-  definitionMode?: 'BLOCKLY' | 'CODE';
+  definitionMode?: 'BLOCKLY' | 'CODE'; // DefinitionMode 枚举
   blocklyDefinition?: string;
   script: string;
   pythonEnvId?: number;
-  inputs?: Record<string, any>;
-  outputs?: Record<string, any>;
+  inputs?: Record<string, any>; // JSONObject
+  outputs?: Record<string, any>; // JSONObject
   tags?: string[]; // 标签列表
   isPublic: boolean;
   authorUsername?: string; // 作者用户名
-  usageCount?: number;
   version?: string;
   createTime: string;
   updateTime: string;
 }
 
-// 块创建DTO
+// 块创建DTO（对应后端 BlockCreateDTO）
 export interface BlockCreateDTO {
-  name: string;
-  typeCode: string;
+  name: string; // 必填
+  typeCode: string; // 必填
   description?: string;
   color?: string;
   icon?: string;
   definitionMode?: 'BLOCKLY' | 'CODE';
   blocklyDefinition?: string;
-  script: string;
+  script: string; // 必填
   pythonEnvId?: number;
   inputs?: Record<string, any>;
   outputs?: Record<string, any>;
@@ -110,9 +139,9 @@ export interface BlockCreateDTO {
   version?: string;
 }
 
-// 块更新DTO
+// 块更新DTO（对应后端 BlockUpdateDTO）
 export interface BlockUpdateDTO {
-  id: number;
+  id: number; // 必填
   name?: string;
   typeCode?: string;
   description?: string;
@@ -127,9 +156,10 @@ export interface BlockUpdateDTO {
   tags?: string[];
   isPublic?: boolean;
   version?: string;
+  // 注意：更新时不允许修改 authorUsername
 }
 
-// 块分页查询参数
+// 块分页查询参数（对应后端 BlockPage）
 export interface BlockPage {
   name?: string; // 块名称（LIKE查询）
   typeCode?: string; // 类型代码（EQ查询）
@@ -139,67 +169,183 @@ export interface BlockPage {
   page?: PagingSorteds; // 分页排序
 }
 
-// 块测试DTO
+// 块测试DTO（对应后端 BlockTestDTO）
 export interface BlockTestDTO {
   inputs: Record<string, any>;
 }
 
-// 上下文变量
+// ===================
+// 上下文变量相关（ContextVariable Entity）
+// ===================
+
 export interface ContextVariable {
   id: number;
   varKey: string;
   varValue: string;
-  varType: 'text' | 'secret' | 'json' | 'file';
+  varType: 'TEXT' | 'SECRET' | 'JSON' | 'NUMBER' | 'FILE'; // VarType 枚举
   groupName?: string;
   description?: string;
   isEncrypted: boolean;
-  environment: string;
+  environment: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD'; // Environment 枚举
   createTime: string;
   updateTime: string;
 }
 
-// Python 环境
+// 上下文变量分页查询参数
+export interface ContextVariablePage {
+  varKey?: string;
+  groupName?: string;
+  environment?: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD';
+  page?: PagingSorteds;
+}
+
+// 上下文变量创建DTO
+export interface ContextVariableCreateDTO {
+  varKey: string; // 必填
+  varValue: string; // 必填
+  varType?: 'TEXT' | 'SECRET' | 'JSON' | 'NUMBER' | 'FILE';
+  groupName?: string;
+  description?: string;
+  isEncrypted?: boolean;
+  environment?: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD';
+}
+
+// 上下文变量更新DTO
+export interface ContextVariableUpdateDTO {
+  id: number; // 必填
+  varKey?: string;
+  varValue?: string;
+  varType?: 'TEXT' | 'SECRET' | 'JSON' | 'NUMBER' | 'FILE';
+  groupName?: string;
+  description?: string;
+  isEncrypted?: boolean;
+  environment?: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD';
+}
+
+// ===================
+// Python环境相关（PythonEnvironment Entity）
+// ===================
+
 export interface PythonEnvironment {
   id: number;
   name: string;
   pythonVersion: string;
   description?: string;
-  packages?: Array<{ name: string; version: string }>;
+  packages?: Record<string, any>; // JSONObject（已安装包列表）
   isDefault: boolean;
   createTime: string;
   updateTime: string;
 }
 
-// 流程
+// Python环境分页查询参数
+export interface PythonEnvironmentPage {
+  name?: string;
+  pythonVersion?: string;
+  page?: PagingSorteds;
+}
+
+// Python环境创建DTO
+export interface PythonEnvironmentCreateDTO {
+  name: string; // 必填
+  pythonVersion: string; // 必填
+  description?: string;
+  packages?: Record<string, any>;
+  isDefault?: boolean;
+}
+
+// Python环境更新DTO
+export interface PythonEnvironmentUpdateDTO {
+  id: number; // 必填
+  name?: string;
+  pythonVersion?: string;
+  description?: string;
+  packages?: Record<string, any>;
+  isDefault?: boolean;
+}
+
+// ===================
+// 流程相关（Workflow Entity）
+// ===================
+
 export interface Workflow {
   id: number;
   name: string;
   description?: string;
-  blocklyXml: string;
-  blocklyJson?: any;
-  authorId?: number;
+  flowDefinition: Record<string, any>; // JSONObject（xyflow流程JSON定义：nodes+edges）
+  authorUsername?: string; // 创建者登录名
   isTemplate: boolean;
-  category?: string;
-  tags?: string[];
+  category?: string; // 流程分类
+  tags?: string; // JSON字段，类型为String
   version: string;
   isActive: boolean;
   createTime: string;
   updateTime: string;
 }
 
-// 执行记录
+// 流程分页查询参数
+export interface WorkflowPage {
+  name?: string;
+  category?: string;
+  isTemplate?: boolean;
+  isActive?: boolean;
+  page?: PagingSorteds;
+}
+
+// 流程创建DTO
+export interface WorkflowCreateDTO {
+  name: string; // 必填
+  description?: string;
+  flowDefinition: Record<string, any>; // 必填
+  authorUsername?: string;
+  isTemplate?: boolean;
+  category?: string;
+  tags?: string;
+  version?: string;
+  isActive?: boolean;
+}
+
+// 流程更新DTO
+export interface WorkflowUpdateDTO {
+  id: number; // 必填
+  name?: string;
+  description?: string;
+  flowDefinition?: Record<string, any>;
+  isTemplate?: boolean;
+  category?: string;
+  tags?: string;
+  version?: string;
+  isActive?: boolean;
+}
+
+// 流程执行DTO
+export interface WorkflowExecuteDTO {
+  inputParams?: Record<string, any>;
+}
+
+// ===================
+// 执行记录相关（ExecutionLog Entity）
+// ===================
+
 export interface ExecutionLog {
-  id: number;
+  id: number; // Long类型，但TypeScript统一用number
   workflowId: number;
   workflowName: string;
-  executorId?: number;
-  status: 'running' | 'success' | 'failed' | 'cancelled';
-  triggerType: 'manual' | 'schedule' | 'webhook' | 'api';
+  executorUsername?: string; // 执行者登录名
+  status: 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED'; // ExecutionStatus 枚举
+  triggerType: 'MANUAL' | 'SCHEDULE' | 'WEBHOOK' | 'API'; // TriggerType 枚举
   logs?: string;
   errorMessage?: string;
-  inputParams?: any;
-  outputResult?: any;
+  inputParams?: Record<string, any>; // JSONObject
+  outputResult?: Record<string, any>; // JSONObject
   startTime: string;
   endTime?: string;
-  duration?: number;
+  duration?: number; // 执行时长（秒）
+}
+
+// 执行记录分页查询参数
+export interface ExecutionLogPage {
+  workflowId?: number;
+  status?: 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+  triggerType?: 'MANUAL' | 'SCHEDULE' | 'WEBHOOK' | 'API';
+  page?: PagingSorteds;
 }

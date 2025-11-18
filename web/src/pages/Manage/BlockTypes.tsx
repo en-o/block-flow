@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Modal, Form, Input, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { blockTypeApi } from '../../api/blockType';
-import type { BlockType } from '../../types/api';
+import type { BlockType, BlockTypeCreateDTO, BlockTypeUpdateDTO } from '../../types/api';
 
 const BlockTypes: React.FC = () => {
   const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
@@ -18,12 +18,12 @@ const BlockTypes: React.FC = () => {
   const fetchBlockTypes = async () => {
     setLoading(true);
     try {
-      const response = await blockTypeApi.getBlockTypeList({ pageNo: 1, pageSize: 100 });
-      if (response.data) {
-        setBlockTypes(response.data.records || []);
+      const response = await blockTypeApi.listAll();
+      if (response.code === 200 && response.data) {
+        setBlockTypes(response.data);
       }
     } catch (error) {
-      message.error('获取块类型列表失败');
+      console.error('获取块类型列表失败', error);
     } finally {
       setLoading(false);
     }
@@ -47,11 +47,11 @@ const BlockTypes: React.FC = () => {
       content: '确定要删除这个块类型吗？',
       onOk: async () => {
         try {
-          await blockTypeApi.deleteBlockType(id);
+          await blockTypeApi.delete(id);
           message.success('删除成功');
           fetchBlockTypes();
         } catch (error) {
-          message.error('删除失败');
+          console.error('删除失败', error);
         }
       },
     });
@@ -62,17 +62,22 @@ const BlockTypes: React.FC = () => {
       const values = await form.validateFields();
 
       if (editingBlockType) {
-        await blockTypeApi.updateBlockType(editingBlockType.id, values);
+        const updateData: BlockTypeUpdateDTO = {
+          id: editingBlockType.id,
+          ...values
+        };
+        await blockTypeApi.update(updateData);
         message.success('更新成功');
       } else {
-        await blockTypeApi.createBlockType(values);
+        const createData: BlockTypeCreateDTO = values;
+        await blockTypeApi.create(createData);
         message.success('创建成功');
       }
 
       setModalVisible(false);
       fetchBlockTypes();
     } catch (error) {
-      message.error('保存失败');
+      console.error('保存失败', error);
     }
   };
 
@@ -87,30 +92,30 @@ const BlockTypes: React.FC = () => {
       title: '类型代码',
       dataIndex: 'code',
       key: 'code',
+      width: 150,
     },
     {
       title: '类型名称',
       dataIndex: 'name',
       key: 'name',
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-    },
-    {
-      title: '图标',
-      dataIndex: 'icon',
-      key: 'icon',
+      width: 150,
     },
     {
       title: '排序',
       dataIndex: 'sortOrder',
       key: 'sortOrder',
+      width: 100,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      width: 180,
     },
     {
       title: '操作',
       key: 'action',
+      width: 200,
       render: (_: any, record: BlockType) => (
         <Space>
           <Button
@@ -165,7 +170,7 @@ const BlockTypes: React.FC = () => {
             name="code"
             rules={[{ required: true, message: '请输入类型代码' }]}
           >
-            <Input />
+            <Input placeholder="例如: ssh_upload" />
           </Form.Item>
 
           <Form.Item
@@ -173,21 +178,7 @@ const BlockTypes: React.FC = () => {
             name="name"
             rules={[{ required: true, message: '请输入类型名称' }]}
           >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            label="描述"
-            name="description"
-          >
-            <Input.TextArea rows={3} />
-          </Form.Item>
-
-          <Form.Item
-            label="图标"
-            name="icon"
-          >
-            <Input placeholder="图标名称或Unicode" />
+            <Input placeholder="例如: SSH上传" />
           </Form.Item>
 
           <Form.Item
@@ -195,7 +186,7 @@ const BlockTypes: React.FC = () => {
             name="sortOrder"
             initialValue={0}
           >
-            <Input type="number" />
+            <Input type="number" placeholder="数字越小越靠前" />
           </Form.Item>
         </Form>
       </Modal>
