@@ -67,7 +67,7 @@ public class ContextVariableController {
         return ResultVO.success(contextVariableService.getByKey(varKey));
     }
 
-    @GetMapping("/page")
+    @PostMapping("/page")
     @Operation(summary = "分页查询变量", description = "分页查询上下文变量列表")
     public ResultPageVO<ContextVariable, JpaPageResult<ContextVariable>> page(@RequestBody @Valid ContextVariablePage where) {
         return ResultPageVO.success(JpaPageResult.toPage(contextVariableService.findPage(where)));

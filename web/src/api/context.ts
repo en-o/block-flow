@@ -4,35 +4,17 @@ import type {
   SpringPage,
   ContextVariable,
   ContextVariableCreateDTO,
-  ContextVariableUpdateDTO
+  ContextVariableUpdateDTO, ContextVariablePage, ResultPageVO
 } from '../types/api';
 
 export const contextApi = {
+
   // 分页查询变量
-  // GET /context/page?page={page}&size={size}
-  page(page: number = 0, size: number = 20): Promise<ApiResponse<SpringPage<ContextVariable>>> {
-    return http.get('/context/page', {
-      params: { page, size }
-    });
+  // POST /context/page
+  page(params: ContextVariablePage): Promise<ResultPageVO<ContextVariable>> {
+    return http.post('/context/page', params);
   },
 
-  // 根据分组和环境分页查询变量
-  // GET /context/filter?groupName={groupName}&environment={environment}&page={page}&size={size}
-  filter(params: {
-    groupName?: string;
-    environment?: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD';
-    page?: number;
-    size?: number;
-  }): Promise<ApiResponse<SpringPage<ContextVariable>>> {
-    return http.get('/context/filter', {
-      params: {
-        groupName: params.groupName,
-        environment: params.environment,
-        page: params.page || 0,
-        size: params.size || 20,
-      }
-    });
-  },
 
   // 获取单个变量（通过ID）
   // GET /context/{id}

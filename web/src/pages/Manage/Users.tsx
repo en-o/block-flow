@@ -106,7 +106,7 @@ const Users: React.FC = () => {
     setModalVisible(true);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     Modal.confirm({
       title: '确认删除',
       content: '确定要删除这个用户吗？删除后将无法恢复。',
@@ -115,8 +115,9 @@ const Users: React.FC = () => {
           await userApi.delete(id);
           message.success('删除成功');
           fetchUsers();
-        } catch (error) {
-          console.error('删除失败', error);
+        } catch (error: any) {
+          message.error(error.message || '删除失败');
+          throw error; // 抛出错误以保持 Modal 打开
         }
       },
     });
