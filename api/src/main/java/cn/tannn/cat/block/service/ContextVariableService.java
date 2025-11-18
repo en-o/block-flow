@@ -1,6 +1,7 @@
 package cn.tannn.cat.block.service;
 
 import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariableCreateDTO;
+import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariablePage;
 import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariableUpdateDTO;
 import cn.tannn.cat.block.entity.ContextVariable;
 import cn.tannn.cat.block.enums.Environment;
@@ -57,49 +58,13 @@ public interface ContextVariableService {
     ContextVariable getByKey(String varKey);
 
     /**
-     * 获取所有变量
+     * 分页查询变量
      *
-     * @param pageable 分页参数
+     * @param where 分页参数和查询条件
      * @return 上下文变量分页列表
      */
-    Page<ContextVariable> listPage(Pageable pageable);
+    Page<ContextVariable> findPage(ContextVariablePage where);
 
-    /**
-     * 根据分组查询变量
-     *
-     * @param groupName 分组名称
-     * @param pageable  分页参数
-     * @return 上下文变量分页列表
-     */
-    Page<ContextVariable> listByGroup(String groupName, Pageable pageable);
-
-    /**
-     * 根据环境查询变量
-     *
-     * @param environment 环境
-     * @param pageable    分页参数
-     * @return 上下文变量分页列表
-     */
-    Page<ContextVariable> listByEnvironment(Environment environment, Pageable pageable);
-
-    /**
-     * 根据分组和环境查询变量
-     *
-     * @param groupName   分组名称
-     * @param environment 环境
-     * @param pageable    分页参数
-     * @return 上下文变量分页列表
-     */
-    Page<ContextVariable> listByGroupAndEnvironment(String groupName, Environment environment, Pageable pageable);
-
-    /**
-     * 搜索变量（变量名或描述包含关键字）
-     *
-     * @param keyword  关键字
-     * @param pageable 分页参数
-     * @return 上下文变量分页列表
-     */
-    Page<ContextVariable> search(String keyword, Pageable pageable);
 
     /**
      * 批量导入变量

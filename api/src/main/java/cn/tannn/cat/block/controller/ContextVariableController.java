@@ -1,14 +1,19 @@
 package cn.tannn.cat.block.controller;
 
+import cn.tannn.cat.block.contansts.JpaPageResult;
 import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariableCreateDTO;
+import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariablePage;
 import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariableUpdateDTO;
 import cn.tannn.cat.block.entity.ContextVariable;
+import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.enums.Environment;
 import cn.tannn.cat.block.service.ContextVariableService;
+import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -64,52 +69,8 @@ public class ContextVariableController {
 
     @GetMapping("/page")
     @Operation(summary = "分页查询变量", description = "分页查询上下文变量列表")
-    public ResultVO<Page<ContextVariable>> listPage(
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(contextVariableService.listPage(pageable));
-    }
-
-    @GetMapping("/group/{groupName}")
-    @Operation(summary = "根据分组查询变量", description = "根据分组名称分页查询变量")
-    public ResultVO<Page<ContextVariable>> listByGroup(
-            @Parameter(description = "分组名称") @PathVariable String groupName,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(contextVariableService.listByGroup(groupName, pageable));
-    }
-
-    @GetMapping("/env/{environment}")
-    @Operation(summary = "根据环境查询变量", description = "根据环境分页查询变量")
-    public ResultVO<Page<ContextVariable>> listByEnvironment(
-            @Parameter(description = "环境") @PathVariable Environment environment,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(contextVariableService.listByEnvironment(environment, pageable));
-    }
-
-    @GetMapping("/filter")
-    @Operation(summary = "根据分组和环境查询变量", description = "根据分组和环境分页查询变量")
-    public ResultVO<Page<ContextVariable>> listByGroupAndEnvironment(
-            @Parameter(description = "分组名称") @RequestParam(required = false) String groupName,
-            @Parameter(description = "环境") @RequestParam(required = false) Environment environment,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(contextVariableService.listByGroupAndEnvironment(groupName, environment, pageable));
-    }
-
-    @GetMapping("/search")
-    @Operation(summary = "搜索变量", description = "根据关键字搜索变量（变量名或描述）")
-    public ResultVO<Page<ContextVariable>> search(
-            @Parameter(description = "关键字") @RequestParam String keyword,
-            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        return ResultVO.success(contextVariableService.search(keyword, pageable));
+    public ResultPageVO<ContextVariable, JpaPageResult<ContextVariable>> page(@RequestBody @Valid ContextVariablePage where) {
+        return ResultPageVO.success(JpaPageResult.toPage(contextVariableService.findPage(where)));
     }
 
     @PostMapping("/import")

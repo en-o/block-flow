@@ -1,17 +1,21 @@
 package cn.tannn.cat.block.service.impl;
 
 import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariableCreateDTO;
+import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariablePage;
 import cn.tannn.cat.block.controller.dto.contextvariable.ContextVariableUpdateDTO;
 import cn.tannn.cat.block.entity.ContextVariable;
+import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.enums.Environment;
 import cn.tannn.cat.block.repository.ContextVariableRepository;
 import cn.tannn.cat.block.service.ContextVariableService;
 import cn.tannn.jdevelops.exception.built.BusinessException;
+import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -131,28 +135,9 @@ public class ContextVariableServiceImpl implements ContextVariableService {
     }
 
     @Override
-    public Page<ContextVariable> listPage(Pageable pageable) {
-        return contextVariableRepository.findAll(pageable);
-    }
-
-    @Override
-    public Page<ContextVariable> listByGroup(String groupName, Pageable pageable) {
-        return contextVariableRepository.findByGroupName(groupName, pageable);
-    }
-
-    @Override
-    public Page<ContextVariable> listByEnvironment(Environment environment, Pageable pageable) {
-        return contextVariableRepository.findByEnvironment(environment, pageable);
-    }
-
-    @Override
-    public Page<ContextVariable> listByGroupAndEnvironment(String groupName, Environment environment, Pageable pageable) {
-        return contextVariableRepository.findByGroupNameAndEnvironment(groupName, environment, pageable);
-    }
-
-    @Override
-    public Page<ContextVariable> search(String keyword, Pageable pageable) {
-        return contextVariableRepository.searchByKeyword(keyword, pageable);
+    public Page<ContextVariable> findPage(ContextVariablePage where) {
+        Specification<ContextVariable> select = EnhanceSpecification.beanWhere(where);
+        return contextVariableRepository.findAll(select, where.getPage().pageable());
     }
 
     @Override
