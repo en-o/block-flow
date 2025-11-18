@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, Tooltip } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, FilterOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { contextApi } from '../../api/context';
 import type { ContextVariable, ContextVariableCreateDTO, ContextVariableUpdateDTO } from '../../types/api';
 
@@ -9,18 +9,42 @@ const Context: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingVariable, setEditingVariable] = useState<ContextVariable | null>(null);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  const [filterParams, setFilterParams] = useState<{
+    groupName?: string;
+    environment?: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD';
+  }>({});
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [form] = Form.useForm();
+  const [filterForm] = Form.useForm();
+  const [searchForm] = Form.useForm();
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importForm] = Form.useForm();
 
   useEffect(() => {
     fetchVariables();
   }, []);
 
-  const fetchVariables = async () => {
+  const fetchVariables = async (page: number = 0, size: number = 10) => {
     setLoading(true);
     try {
-      const response = await contextApi.getContextVariables();
-      if (response.data) {
-        setVariables(response.data);
+      const response = await contextApi.filter({
+        ...filterParams,
+        page,
+        size,
+      });
+
+      if (response.code === 200 && response.data) {
+        setVariables(response.data.content || []);
+        setPagination({
+          current: response.data.number + 1, // Spring Page number 从0开始，转为从1开始
+          pageSize: response.data.size,
+          total: response.data.totalElements,
+        });
       }
     } catch (error) {
       console.error('获取变量列表失败', error);
@@ -49,7 +73,7 @@ const Context: React.FC = () => {
         try {
           await contextApi.deleteContextVariable(id);
           message.success('删除成功');
-          fetchVariables();
+          fetchVariables(pagination.current - 1, pagination.pageSize);
         } catch (error) {
           console.error('删除失败', error);
         }
@@ -75,10 +99,126 @@ const Context: React.FC = () => {
       }
 
       setModalVisible(false);
-      fetchVariables();
+      fetchVariables(pagination.current - 1, pagination.pageSize);
     } catch (error) {
       console.error('保存失败', error);
     }
+  };
+
+  const handleFilter = async () => {
+    const values = await filterForm.validateFields();
+    setFilterParams(values);
+    setPagination(prev => ({ ...prev, current: 1 }));
+
+    setLoading(true);
+    try {
+      const response = await contextApi.filter({
+        ...values,
+        page: 0,
+        size: pagination.pageSize,
+      });
+
+      if (response.code === 200 && response.data) {
+        setVariables(response.data.content || []);
+        setPagination({
+          current: 1,
+          pageSize: response.data.size,
+          total: response.data.totalElements,
+        });
+      }
+    } catch (error) {
+      console.error('筛选失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetFilter = () => {
+    filterForm.resetFields();
+    setFilterParams({});
+    setSearchKeyword('');
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchVariables(0, pagination.pageSize);
+  };
+
+  const handleSearch = async () => {
+    const values = await searchForm.validateFields();
+    const keyword = values.keyword || '';
+    setSearchKeyword(keyword);
+    setPagination(prev => ({ ...prev, current: 1 }));
+
+    if (!keyword) {
+      fetchVariables(0, pagination.pageSize);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await contextApi.search(keyword, 0, pagination.pageSize);
+
+      if (response.code === 200 && response.data) {
+        setVariables(response.data.content || []);
+        setPagination({
+          current: 1,
+          pageSize: response.data.size,
+          total: response.data.totalElements,
+        });
+      }
+    } catch (error) {
+      console.error('搜索失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await contextApi.exportVariables(filterParams);
+      if (response.code === 200 && response.data) {
+        const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `context-variables-${new Date().getTime()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        message.success('导出成功');
+      }
+    } catch (error) {
+      console.error('导出失败', error);
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const values = await importForm.validateFields();
+      const variables = JSON.parse(values.jsonData);
+
+      const response = await contextApi.importVariables(variables, {
+        groupName: values.groupName,
+        environment: values.environment,
+      });
+
+      if (response.code === 200) {
+        message.success(`成功导入 ${response.data} 个变量`);
+        setImportModalVisible(false);
+        importForm.resetFields();
+        fetchVariables(pagination.current - 1, pagination.pageSize);
+      }
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        message.error('JSON格式错误，请检查后重试');
+      } else {
+        console.error('导入失败', error);
+      }
+    }
+  };
+
+  const handleTableChange = (pag: any) => {
+    setPagination(pag);
+    fetchVariables(pag.current - 1, pag.pageSize);
   };
 
   const columns = [
@@ -157,9 +297,24 @@ const Context: React.FC = () => {
       },
     },
     {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      width: 180,
+      render: (time: string) => new Date(time).toLocaleString(),
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      key: 'updateTime',
+      width: 180,
+      render: (time: string) => new Date(time).toLocaleString(),
+    },
+    {
       title: '操作',
       key: 'action',
       width: 200,
+      fixed: 'right' as const,
       render: (_: any, record: ContextVariable) => (
         <Space>
           <Button
@@ -184,31 +339,94 @@ const Context: React.FC = () => {
 
   return (
     <div>
+      {/* 搜索区域 */}
+      <Card style={{ marginBottom: 16 }} size="small" title="搜索">
+        <Form form={searchForm} layout="inline">
+          <Form.Item name="keyword" label="关键字">
+            <Input placeholder="搜索变量名或值" style={{ width: 250 }} />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+                搜索
+              </Button>
+              <Button onClick={() => {
+                searchForm.resetFields();
+                setSearchKeyword('');
+                fetchVariables(0, pagination.pageSize);
+              }}>
+                重置
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      {/* 筛选区域 */}
+      <Card style={{ marginBottom: 16 }} size="small" title="筛选">
+        <Form form={filterForm} layout="inline">
+          <Form.Item name="groupName" label="分组">
+            <Input placeholder="请输入分组名称" style={{ width: 200 }} />
+          </Form.Item>
+          <Form.Item name="environment" label="环境">
+            <Select placeholder="请选择环境" style={{ width: 150 }} allowClear>
+              <Select.Option value="DEFAULT">默认</Select.Option>
+              <Select.Option value="DEV">开发</Select.Option>
+              <Select.Option value="TEST">测试</Select.Option>
+              <Select.Option value="PROD">生产</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" icon={<FilterOutlined />} onClick={handleFilter}>
+                筛选
+              </Button>
+              <Button onClick={handleResetFilter}>
+                重置
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      {/* 操作按钮 */}
       <div style={{ marginBottom: 16 }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAdd}
-        >
-          新建变量
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAdd}
+          >
+            新建变量
+          </Button>
+          <Button icon={<DownloadOutlined />} onClick={handleExport}>
+            导出变量
+          </Button>
+          <Button icon={<UploadOutlined />} onClick={() => setImportModalVisible(true)}>
+            导入变量
+          </Button>
+        </Space>
       </div>
 
+      {/* 表格 */}
       <Table
         columns={columns}
         dataSource={variables}
         loading={loading}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        pagination={pagination}
+        onChange={handleTableChange}
         scroll={{ x: 1000 }}
       />
 
+      {/* 编辑/新建 Modal */}
       <Modal
         title={editingVariable ? '编辑变量' : '新建变量'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={600}
+        destroyOnClose
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -262,6 +480,45 @@ const Context: React.FC = () => {
             initialValue="DEFAULT"
           >
             <Select>
+              <Select.Option value="DEFAULT">默认</Select.Option>
+              <Select.Option value="DEV">开发</Select.Option>
+              <Select.Option value="TEST">测试</Select.Option>
+              <Select.Option value="PROD">生产</Select.Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 导入变量 Modal */}
+      <Modal
+        title="导入变量"
+        open={importModalVisible}
+        onOk={handleImport}
+        onCancel={() => {
+          setImportModalVisible(false);
+          importForm.resetFields();
+        }}
+        width={700}
+      >
+        <Form form={importForm} layout="vertical">
+          <Form.Item
+            label="JSON数据"
+            name="jsonData"
+            rules={[{ required: true, message: '请输入JSON数据' }]}
+            tooltip="格式: { &quot;VAR_NAME&quot;: &quot;value&quot;, ... }"
+          >
+            <Input.TextArea
+              rows={10}
+              placeholder='{"DB_HOST": "localhost", "DB_PORT": "3306"}'
+            />
+          </Form.Item>
+
+          <Form.Item label="分组" name="groupName">
+            <Input placeholder="可选：为导入的变量指定分组" />
+          </Form.Item>
+
+          <Form.Item label="环境" name="environment">
+            <Select placeholder="可选：为导入的变量指定环境" allowClear>
               <Select.Option value="DEFAULT">默认</Select.Option>
               <Select.Option value="DEV">开发</Select.Option>
               <Select.Option value="TEST">测试</Select.Option>

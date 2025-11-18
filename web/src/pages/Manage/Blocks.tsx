@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
 import type { Block, BlockType, BlockPage, BlockCreateDTO, BlockUpdateDTO } from '../../types/api';
-import Editor from '@monaco-editor/react';
+import BlockFormEnhanced from '../../components/BlockFormEnhanced';
 
 const Blocks: React.FC = () => {
+  const navigate = useNavigate();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -238,16 +240,23 @@ const Blocks: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 250,
+      width: 350,
       fixed: 'right' as const,
       render: (_: any, record: Block) => (
         <Space>
           <Button
             type="link"
+            icon={<CodeOutlined />}
+            onClick={() => navigate(`/block-editor/${record.id}`)}
+          >
+            高级编辑
+          </Button>
+          <Button
+            type="link"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
-            编辑
+            快捷编辑
           </Button>
           <Button
             type="link"
@@ -328,13 +337,21 @@ const Blocks: React.FC = () => {
 
       {/* 操作按钮 */}
       <div style={{ marginBottom: 16 }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAdd}
-        >
-          新建块
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleAdd}
+          >
+            快捷新建块
+          </Button>
+          <Button
+            icon={<CodeOutlined />}
+            onClick={() => navigate('/block-editor')}
+          >
+            高级编辑器新建
+          </Button>
+        </Space>
       </div>
 
       {/* 表格 */}
@@ -354,80 +371,15 @@ const Blocks: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={800}
+        width={900}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="块名称"
-            name="name"
-            rules={[{ required: true, message: '请输入块名称' }]}
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            label="类型代码"
-            name="typeCode"
-            rules={[{ required: true, message: '请输入类型代码' }]}
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            label="描述"
-            name="description"
-          >
-            <Input.TextArea rows={2} />
-          </Form.Item>
-
-          <Form.Item
-            label="标签"
-            name="tags"
-            help="输入标签后按回车添加，支持多个标签"
-          >
-            <Select
-              mode="tags"
-              style={{ width: '100%' }}
-              placeholder="请输入标签"
-              tokenSeparators={[',']}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="颜色"
-            name="color"
-            initialValue="#5C7CFA"
-          >
-            <Input type="color" />
-          </Form.Item>
-
-          <Form.Item
-            label="是否公开"
-            name="isPublic"
-            initialValue={true}
-          >
-            <Select>
-              <Select.Option value={true}>公开</Select.Option>
-              <Select.Option value={false}>私有</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="执行脚本"
-            name="script"
-            rules={[{ required: true, message: '请输入执行脚本' }]}
-          >
-            <Editor
-              height="300px"
-              defaultLanguage="python"
-              theme="vs-dark"
-              options={{
-                minimap: { enabled: false },
-              }}
-            />
-          </Form.Item>
-        </Form>
+        <BlockFormEnhanced
+          form={form}
+          editingBlock={editingBlock}
+          blockTypes={blockTypes}
+          onBlockTypesChange={fetchBlockTypes}
+        />
       </Modal>
     </div>
   );

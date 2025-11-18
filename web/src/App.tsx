@@ -3,10 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
 import Login from './pages/Login';
 import Flow from './pages/Flow';
+import BlockEditor from './pages/BlockEditor';
 import Manage from './pages/Manage';
 import Blocks from './pages/Manage/Blocks';
 import BlockTypes from './pages/Manage/BlockTypes';
 import Context from './pages/Manage/Context';
+import PythonEnvironments from './pages/Manage/PythonEnvironments';
 import PrivateRoute from './components/PrivateRoute';
 import { setGlobalMessage } from './utils/messageInstance';
 import './App.css';
@@ -33,6 +35,16 @@ const AppContent: React.FC = () => {
         {/* Flow页面 - 无需鉴权 */}
         <Route path="/flow" element={<Flow />} />
 
+        {/* 块编辑器 - 需要鉴权 */}
+        <Route
+          path="/block-editor/:id?"
+          element={
+            <PrivateRoute>
+              <BlockEditor />
+            </PrivateRoute>
+          }
+        />
+
         {/* 管理后台 - 需要鉴权 */}
         <Route
           path="/manage"
@@ -46,6 +58,7 @@ const AppContent: React.FC = () => {
           <Route index element={<Navigate to="/manage/blocks" replace />} />
           <Route path="blocks" element={<Blocks />} />
           <Route path="block-types" element={<BlockTypes />} />
+          <Route path="python-envs" element={<PythonEnvironments />} />
           <Route path="context" element={<Context />} />
         </Route>
 

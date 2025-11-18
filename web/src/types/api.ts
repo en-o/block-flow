@@ -29,6 +29,36 @@ export interface ResultPageVO<T> {
   data: JpaPageResult<T>;
 }
 
+// Spring Data Page 结构（用于 ContextVariable）
+export interface SpringPage<T> {
+  content: T[]; // 数据列表
+  pageable: {
+    pageNumber: number; // 当前页码，从0开始
+    pageSize: number; // 每页大小
+    sort: {
+      sorted: boolean;
+      unsorted: boolean;
+      empty: boolean;
+    };
+    offset: number;
+    paged: boolean;
+    unpaged: boolean;
+  };
+  totalPages: number; // 总页数
+  totalElements: number; // 总记录数
+  last: boolean; // 是否最后一页
+  size: number; // 每页大小
+  number: number; // 当前页码，从0开始
+  sort: {
+    sorted: boolean;
+    unsorted: boolean;
+    empty: boolean;
+  };
+  numberOfElements: number; // 当前页的记录数
+  first: boolean; // 是否第一页
+  empty: boolean; // 是否为空
+}
+
 // ===================
 // 登录相关
 // ===================

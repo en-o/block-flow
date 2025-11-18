@@ -64,14 +64,6 @@ request.interceptors.response.use(
         const errorMsg = data.message || data.msg || '操作失败';
         const message = getGlobalMessage();
 
-        console.log('❌ 业务失败');
-        console.log('错误码:', data.code);
-        console.log('错误消息:', errorMsg);
-        console.log('全局 message 实例:', message);
-
-        // 强制显示alert确认代码执行
-        alert(`[调试] 业务错误 - code: ${data.code}, message: ${errorMsg}`);
-
         // 处理后端定义的业务异常码
         switch (data.code) {
           case 401:

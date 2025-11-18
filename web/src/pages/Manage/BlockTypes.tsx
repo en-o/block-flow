@@ -1,32 +1,67 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Modal, Form, Input, message, InputNumber, Card } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import { blockTypeApi } from '../../api/blockType';
-import type { BlockType, BlockTypeCreateDTO, BlockTypeUpdateDTO } from '../../types/api';
+import type { BlockType, BlockTypeCreateDTO, BlockTypeUpdateDTO, BlockTypePage } from '../../types/api';
 
 const BlockTypes: React.FC = () => {
   const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingBlockType, setEditingBlockType] = useState<BlockType | null>(null);
+  const [searchParams, setSearchParams] = useState<BlockTypePage>({});
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   const [form] = Form.useForm();
+  const [searchForm] = Form.useForm();
 
   useEffect(() => {
     fetchBlockTypes();
   }, []);
 
-  const fetchBlockTypes = async () => {
+  const fetchBlockTypes = async (params?: BlockTypePage) => {
     setLoading(true);
     try {
-      const response = await blockTypeApi.listAll();
+      const queryParams: BlockTypePage = {
+        ...searchParams,
+        ...params,
+        page: {
+          pageNum: (params?.page?.pageNum !== undefined ? params.page.pageNum : pagination.current - 1),
+          pageSize: (params?.page?.pageSize !== undefined ? params.page.pageSize : pagination.pageSize),
+        }
+      };
+
+      const response = await blockTypeApi.page(queryParams);
       if (response.code === 200 && response.data) {
-        setBlockTypes(response.data);
+        setBlockTypes(response.data.rows || []);
+        setPagination({
+          current: response.data.currentPage,
+          pageSize: response.data.pageSize,
+          total: response.data.total,
+        });
       }
     } catch (error) {
       console.error('获取块类型列表失败', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async () => {
+    const values = await searchForm.validateFields();
+    setSearchParams(values);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchBlockTypes({ ...values, page: { pageNum: 0, pageSize: pagination.pageSize } });
+  };
+
+  const handleResetSearch = () => {
+    searchForm.resetFields();
+    setSearchParams({});
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchBlockTypes({ page: { pageNum: 0, pageSize: pagination.pageSize } });
   };
 
   const handleAdd = () => {
@@ -81,6 +116,17 @@ const BlockTypes: React.FC = () => {
     }
   };
 
+  const handleTableChange = (pag: any) => {
+    setPagination(pag);
+    fetchBlockTypes({
+      ...searchParams,
+      page: {
+        pageNum: pag.current - 1,
+        pageSize: pag.pageSize
+      }
+    });
+  };
+
   const columns = [
     {
       title: 'ID',
@@ -111,6 +157,14 @@ const BlockTypes: React.FC = () => {
       dataIndex: 'createTime',
       key: 'createTime',
       width: 180,
+      render: (time: string) => new Date(time).toLocaleString(),
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      key: 'updateTime',
+      width: 180,
+      render: (time: string) => new Date(time).toLocaleString(),
     },
     {
       title: '操作',
@@ -140,6 +194,25 @@ const BlockTypes: React.FC = () => {
 
   return (
     <div>
+      {/* 搜索区域 */}
+      <Card style={{ marginBottom: 16 }} size="small">
+        <Form form={searchForm} layout="inline">
+          <Form.Item name="name" label="类型名称">
+            <Input placeholder="请输入类型名称" style={{ width: 200 }} />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+                搜索
+              </Button>
+              <Button onClick={handleResetSearch}>
+                重置
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
+
       <div style={{ marginBottom: 16 }}>
         <Button
           type="primary"
@@ -155,7 +228,8 @@ const BlockTypes: React.FC = () => {
         dataSource={blockTypes}
         loading={loading}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
+        pagination={pagination}
+        onChange={handleTableChange}
       />
 
       <Modal
@@ -185,8 +259,9 @@ const BlockTypes: React.FC = () => {
             label="排序"
             name="sortOrder"
             initialValue={0}
+            tooltip="数字越小越靠前"
           >
-            <Input type="number" placeholder="数字越小越靠前" />
+            <InputNumber placeholder="排序值" style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>
