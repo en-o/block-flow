@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: '0.0.0.0',
     proxy: {
       // 代理所有 /api 请求到后端服务器
       '/api': {
