@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Form, Input, Select, InputNumber, Button, Space, Card, Row, Col, Modal, message as antdMessage } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Select, InputNumber, Button, Space, Card, Row, Col, Modal, message as antdMessage, App } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
-import type { Block, BlockType, BlockTypeCreateDTO } from '../types/api';
+import type { Block, BlockType, BlockTypeCreateDTO, PythonEnvironment, PythonEnvironmentCreateDTO } from '../types/api';
 import { blockTypeApi } from '../api/blockType';
+import { pythonEnvApi } from '../api/pythonEnv';
 
 interface BlockFormProps {
   form: any;
@@ -18,8 +19,39 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
   blockTypes,
   onBlockTypesChange
 }) => {
+  const { modal } = App.useApp();
   const [showBlockTypeModal, setShowBlockTypeModal] = useState(false);
+  const [showPythonEnvModal, setShowPythonEnvModal] = useState(false);
+  const [pythonEnvironments, setPythonEnvironments] = useState<PythonEnvironment[]>([]);
+  const [selectedBlockType, setSelectedBlockType] = useState<string | undefined>(
+    editingBlock?.typeCode || form.getFieldValue('typeCode')
+  );
   const [blockTypeForm] = Form.useForm();
+  const [pythonEnvForm] = Form.useForm();
+
+  // 加载Python环境列表
+  useEffect(() => {
+    loadPythonEnvironments();
+  }, []);
+
+  // 当块类型改变时，根据块类型筛选Python环境
+  useEffect(() => {
+    if (selectedBlockType) {
+      // 这里可以根据块类型进行筛选，目前显示所有环境
+      // 未来可以在Python环境中添加 supportedBlockTypes 字段进行匹配
+    }
+  }, [selectedBlockType]);
+
+  const loadPythonEnvironments = async () => {
+    try {
+      const response = await pythonEnvApi.listAll();
+      if (response.code === 200 && response.data) {
+        setPythonEnvironments(response.data);
+      }
+    } catch (error) {
+      console.error('加载Python环境失败', error);
+    }
+  };
 
   // 添加块类型
   const handleAddBlockType = async () => {
@@ -34,6 +66,36 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
     } catch (error) {
       console.error('创建块类型失败', error);
     }
+  };
+
+  // 添加Python环境
+  const handleAddPythonEnv = async () => {
+    try {
+      const values = await pythonEnvForm.validateFields();
+      const createData: PythonEnvironmentCreateDTO = {
+        ...values,
+        isDefault: false,
+      };
+      const response = await pythonEnvApi.create(createData);
+      if (response.code === 200) {
+        antdMessage.success('Python环境创建成功');
+        setShowPythonEnvModal(false);
+        pythonEnvForm.resetFields();
+        await loadPythonEnvironments(); // 刷新环境列表
+
+        // 自动选择新创建的环境
+        if (response.data?.id) {
+          form.setFieldsValue({ pythonEnvId: response.data.id });
+        }
+      }
+    } catch (error) {
+      console.error('创建Python环境失败', error);
+    }
+  };
+
+  // 处理块类型变化
+  const handleBlockTypeChange = (value: string) => {
+    setSelectedBlockType(value);
   };
 
   return (
@@ -58,6 +120,7 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
             >
               <Select
                 placeholder="请选择块类型"
+                onChange={handleBlockTypeChange}
                 dropdownRender={(menu) => (
                   <>
                     {menu}
@@ -138,11 +201,36 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
           </Col>
           <Col span={12}>
             <Form.Item
-              label="Python 环境 ID"
+              label="Python 环境"
               name="pythonEnvId"
-              tooltip="选择执行此块的 Python 环境"
+              tooltip="选择执行此块的 Python 环境（根据块类型匹配）"
             >
-              <InputNumber placeholder="环境 ID (可选)" style={{ width: '100%' }} />
+              <Select
+                placeholder="请选择Python环境"
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Button
+                      type="link"
+                      icon={<PlusOutlined />}
+                      onClick={() => setShowPythonEnvModal(true)}
+                      style={{ width: '100%', textAlign: 'left' }}
+                    >
+                      新增Python环境
+                    </Button>
+                  </>
+                )}
+              >
+                {pythonEnvironments.map((env) => (
+                  <Select.Option key={env.id} value={env.id}>
+                    {env.name} ({env.pythonVersion})
+                    {env.isDefault && <span style={{ color: '#faad14' }}> [默认]</span>}
+                  </Select.Option>
+                ))}
+              </Select>
             </Form.Item>
           </Col>
         </Row>
@@ -217,6 +305,42 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
             initialValue={0}
           >
             <InputNumber placeholder="数字越小越靠前" style={{ width: '100%' }} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 新增Python环境弹窗 */}
+      <Modal
+        title="新增Python环境"
+        open={showPythonEnvModal}
+        onOk={handleAddPythonEnv}
+        onCancel={() => {
+          setShowPythonEnvModal(false);
+          pythonEnvForm.resetFields();
+        }}
+        destroyOnClose
+        width={600}
+      >
+        <Form form={pythonEnvForm} layout="vertical">
+          <Form.Item
+            label="环境名称"
+            name="name"
+            rules={[{ required: true, message: '请输入环境名称' }]}
+          >
+            <Input placeholder="例如: python39-prod" />
+          </Form.Item>
+          <Form.Item
+            label="Python版本"
+            name="pythonVersion"
+            rules={[{ required: true, message: '请输入Python版本' }]}
+          >
+            <Input placeholder="例如: 3.9.16" />
+          </Form.Item>
+          <Form.Item
+            label="描述"
+            name="description"
+          >
+            <Input.TextArea rows={3} placeholder="环境描述" />
           </Form.Item>
         </Form>
       </Modal>

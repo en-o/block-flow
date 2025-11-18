@@ -110,7 +110,14 @@ const Blocks: React.FC = () => {
   const handleDelete = async (id: number) => {
     modal.confirm({
       title: '确认删除',
-      content: '确定要删除这个块吗？',
+      content: (
+        <div>
+          <p>确定要删除这个块吗？</p>
+          <p style={{ color: '#ff4d4f', marginTop: 8 }}>
+            ⚠️ 注意：如果此块正在被流程使用，删除后可能导致流程无法正常执行。
+          </p>
+        </div>
+      ),
       onOk: async () => {
         try {
           await blockApi.delete(id);
