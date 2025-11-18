@@ -168,6 +168,15 @@ export interface BlockTypeUpdateDTO {
 // 块相关（Block Entity）
 // ===================
 
+// 块参数定义
+export interface BlockParameter {
+  name: string; // 参数名称（key）
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any'; // 参数类型
+  description?: string; // 参数描述
+  required?: boolean; // 是否必填
+  defaultValue?: any; // 默认值
+}
+
 export interface Block {
   id: number;
   name: string;

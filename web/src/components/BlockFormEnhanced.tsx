@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, InputNumber, Button, Space, Card, Row, Col, Modal, message as antdMessage, App } from 'antd';
+import { Form, Input, Select, InputNumber, Button, Space, Card, Row, Col, Modal, message as antdMessage, App, Table, Divider } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
-import type { Block, BlockType, BlockTypeCreateDTO, PythonEnvironment, PythonEnvironmentCreateDTO } from '../types/api';
+import type { Block, BlockType, BlockTypeCreateDTO, PythonEnvironment, PythonEnvironmentCreateDTO, BlockParameter } from '../types/api';
 import { blockTypeApi } from '../api/blockType';
 import { pythonEnvApi } from '../api/pythonEnv';
 
@@ -25,6 +25,18 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
   const [pythonEnvironments, setPythonEnvironments] = useState<PythonEnvironment[]>([]);
   const [selectedBlockType, setSelectedBlockType] = useState<string | undefined>(
     editingBlock?.typeCode || form.getFieldValue('typeCode')
+  );
+  const [inputParams, setInputParams] = useState<BlockParameter[]>(
+    editingBlock?.inputs ? Object.entries(editingBlock.inputs).map(([name, param]: [string, any]) => ({
+      name,
+      ...param
+    })) : []
+  );
+  const [outputParams, setOutputParams] = useState<BlockParameter[]>(
+    editingBlock?.outputs ? Object.entries(editingBlock.outputs).map(([name, param]: [string, any]) => ({
+      name,
+      ...param
+    })) : []
   );
   const [blockTypeForm] = Form.useForm();
   const [pythonEnvForm] = Form.useForm();
@@ -93,10 +105,80 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
     }
   };
 
-  // 处理块类型变化
+  //处理块类型变化
   const handleBlockTypeChange = (value: string) => {
     setSelectedBlockType(value);
   };
+
+  // 添加输入参数
+  const handleAddInputParam = () => {
+    setInputParams([...inputParams, {
+      name: '',
+      type: 'string',
+      description: '',
+      required: false,
+      defaultValue: undefined
+    }]);
+  };
+
+  // 添加输出参数
+  const handleAddOutputParam = () => {
+    setOutputParams([...outputParams, {
+      name: '',
+      type: 'string',
+      description: '',
+      required: false,
+      defaultValue: undefined
+    }]);
+  };
+
+  // 更新输入参数
+  const handleUpdateInputParam = (index: number, field: keyof BlockParameter, value: any) => {
+    const newParams = [...inputParams];
+    newParams[index] = { ...newParams[index], [field]: value };
+    setInputParams(newParams);
+  };
+
+  // 更新输出参数
+  const handleUpdateOutputParam = (index: number, field: keyof BlockParameter, value: any) => {
+    const newParams = [...outputParams];
+    newParams[index] = { ...newParams[index], [field]: value };
+    setOutputParams(newParams);
+  };
+
+  // 删除输入参数
+  const handleDeleteInputParam = (index: number) => {
+    setInputParams(inputParams.filter((_, i) => i !== index));
+  };
+
+  // 删除输出参数
+  const handleDeleteOutputParam = (index: number) => {
+    setOutputParams(outputParams.filter((_, i) => i !== index));
+  };
+
+  // 将参数数组转换为对象（供表单使用）
+  const convertParamsToObject = (params: BlockParameter[]): Record<string, any> => {
+    const obj: Record<string, any> = {};
+    params.forEach(param => {
+      if (param.name) {
+        obj[param.name] = {
+          type: param.type,
+          description: param.description,
+          required: param.required,
+          defaultValue: param.defaultValue
+        };
+      }
+    });
+    return obj;
+  };
+
+  // 在表单提交时，需要将参数转换为对象格式
+  useEffect(() => {
+    form.setFieldsValue({
+      inputs: convertParamsToObject(inputParams),
+      outputs: convertParamsToObject(outputParams)
+    });
+  }, [inputParams, outputParams, form]);
 
   return (
     <>
@@ -264,11 +346,140 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
           />
         </Form.Item>
 
-        {/* 提示：inputs 和 outputs 参数配置可在后续版本中添加 */}
+        {/* 隐藏字段用于存储inputs和outputs */}
+        <Form.Item name="inputs" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="outputs" hidden>
+          <Input />
+        </Form.Item>
+
+        {/* 输入参数配置 */}
+        <Divider>输入参数配置</Divider>
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              onClick={handleAddInputParam}
+              style={{ width: '100%' }}
+            >
+              添加输入参数
+            </Button>
+            {inputParams.map((param, index) => (
+              <Card key={index} size="small" type="inner">
+                <Row gutter={8}>
+                  <Col span={6}>
+                    <Input
+                      placeholder="参数名称"
+                      value={param.name}
+                      onChange={(e) => handleUpdateInputParam(index, 'name', e.target.value)}
+                    />
+                  </Col>
+                  <Col span={4}>
+                    <Select
+                      value={param.type}
+                      onChange={(value) => handleUpdateInputParam(index, 'type', value)}
+                      style={{ width: '100%' }}
+                    >
+                      <Select.Option value="string">字符串</Select.Option>
+                      <Select.Option value="number">数字</Select.Option>
+                      <Select.Option value="boolean">布尔</Select.Option>
+                      <Select.Option value="object">对象</Select.Option>
+                      <Select.Option value="array">数组</Select.Option>
+                      <Select.Option value="any">任意</Select.Option>
+                    </Select>
+                  </Col>
+                  <Col span={8}>
+                    <Input
+                      placeholder="描述"
+                      value={param.description}
+                      onChange={(e) => handleUpdateInputParam(index, 'description', e.target.value)}
+                    />
+                  </Col>
+                  <Col span={4}>
+                    <Input
+                      placeholder="默认值"
+                      value={param.defaultValue}
+                      onChange={(e) => handleUpdateInputParam(index, 'defaultValue', e.target.value)}
+                    />
+                  </Col>
+                  <Col span={2}>
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleDeleteInputParam(index)}
+                    />
+                  </Col>
+                </Row>
+              </Card>
+            ))}
+          </Space>
+        </Card>
+
+        {/* 输出参数配置 */}
+        <Divider>输出参数配置</Divider>
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              onClick={handleAddOutputParam}
+              style={{ width: '100%' }}
+            >
+              添加输出参数
+            </Button>
+            {outputParams.map((param, index) => (
+              <Card key={index} size="small" type="inner">
+                <Row gutter={8}>
+                  <Col span={6}>
+                    <Input
+                      placeholder="参数名称"
+                      value={param.name}
+                      onChange={(e) => handleUpdateOutputParam(index, 'name', e.target.value)}
+                    />
+                  </Col>
+                  <Col span={4}>
+                    <Select
+                      value={param.type}
+                      onChange={(value) => handleUpdateOutputParam(index, 'type', value)}
+                      style={{ width: '100%' }}
+                    >
+                      <Select.Option value="string">字符串</Select.Option>
+                      <Select.Option value="number">数字</Select.Option>
+                      <Select.Option value="boolean">布尔</Select.Option>
+                      <Select.Option value="object">对象</Select.Option>
+                      <Select.Option value="array">数组</Select.Option>
+                      <Select.Option value="any">任意</Select.Option>
+                    </Select>
+                  </Col>
+                  <Col span={10}>
+                    <Input
+                      placeholder="描述"
+                      value={param.description}
+                      onChange={(e) => handleUpdateOutputParam(index, 'description', e.target.value)}
+                    />
+                  </Col>
+                  <Col span={2}>
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleDeleteOutputParam(index)}
+                    />
+                  </Col>
+                </Row>
+              </Card>
+            ))}
+          </Space>
+        </Card>
+
+        {/* 提示信息 */}
         <Card size="small" type="inner" style={{ backgroundColor: '#f0f0f0' }}>
           <p style={{ margin: 0, color: '#666' }}>
-            💡 <strong>提示</strong>: 输入/输出参数配置将在块编辑器中完善。
-            当前版本请直接在脚本中定义参数使用。
+            💡 <strong>提示</strong>:
+            <br />- 输入参数：块执行时需要接收的数据
+            <br />- 输出参数：块执行完成后产生的数据
+            <br />- 参数可为空，流程编排时可根据参数定义进行数据传递
           </p>
         </Card>
       </Form>
