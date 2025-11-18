@@ -25,7 +25,7 @@ class BlockFlowApplicationTests {
         admin.setPassword("14159");
         admin.setEmail("550019013@qq.com");
         admin.setRealName("谭宁");
-        admin.setUserRole(UserRole.USER);
+        admin.setUserRole(UserRole.ADMIN);
         userService.register(admin);
     }
 
