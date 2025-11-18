@@ -15,8 +15,8 @@ import {
   Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button, Input, Form, Select, message as antdMessage, Modal, Empty, Spin } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { Button, Input, Form, Select, message as antdMessage, Modal, Empty, Spin, Popconfirm } from 'antd';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
@@ -215,6 +215,31 @@ const Flow: React.FC = () => {
       setCurrentWorkflow(workflow);
       antdMessage.success(`已加载流程: ${workflow.name}`);
       setLoadModalVisible(false);
+    }
+  };
+
+  // 删除流程
+  const handleDeleteWorkflow = async (workflowId: number, workflowName: string) => {
+    try {
+      await workflowApi.delete(workflowId);
+      antdMessage.success(`流程 "${workflowName}" 删除成功`);
+
+      // 如果删除的是当前加载的流程，清空画布
+      if (currentWorkflow && currentWorkflow.id === workflowId) {
+        setNodes([]);
+        setEdges([]);
+        setCurrentWorkflow(null);
+      }
+
+      // 重新加载流程列表
+      const response = await workflowApi.page({
+        page: { pageNum: 0, pageSize: 50 },
+      });
+      if (response.code === 200 && response.data?.rows) {
+        setWorkflows(response.data.rows);
+      }
+    } catch (error: any) {
+      antdMessage.error(error.message || '删除失败');
     }
   };
 
@@ -442,28 +467,65 @@ const Flow: React.FC = () => {
                   marginBottom: '8px',
                   border: '1px solid #d9d9d9',
                   borderRadius: '4px',
-                  cursor: 'pointer',
                   transition: 'all 0.2s',
-                }}
-                onClick={() => handleLoadWorkflow(workflow)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#1890ff';
-                  e.currentTarget.style.background = '#f0f5ff';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#d9d9d9';
-                  e.currentTarget.style.background = 'transparent';
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                  {workflow.name}
+                <div
+                  style={{
+                    flex: 1,
+                    cursor: 'pointer',
+                    minWidth: 0,
+                  }}
+                  onClick={() => handleLoadWorkflow(workflow)}
+                  onMouseEnter={(e) => {
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.style.borderColor = '#1890ff';
+                      parent.style.background = '#f0f5ff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.style.borderColor = '#d9d9d9';
+                      parent.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                    {workflow.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                    {workflow.description || '暂无描述'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#bfbfbf', marginTop: '4px' }}>
+                    更新时间: {new Date(workflow.updateTime).toLocaleString()}
+                  </div>
                 </div>
-                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                  {workflow.description || '暂无描述'}
-                </div>
-                <div style={{ fontSize: '11px', color: '#bfbfbf', marginTop: '4px' }}>
-                  更新时间: {new Date(workflow.updateTime).toLocaleString()}
-                </div>
+                <Popconfirm
+                  title="确认删除"
+                  description={`确定要删除流程 "${workflow.name}" 吗？`}
+                  onConfirm={(e) => {
+                    e?.stopPropagation();
+                    handleDeleteWorkflow(workflow.id, workflow.name);
+                  }}
+                  okText="确认"
+                  cancelText="取消"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    size="small"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    删除
+                  </Button>
+                </Popconfirm>
               </div>
             ))}
           </div>
