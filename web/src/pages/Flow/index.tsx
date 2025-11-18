@@ -33,6 +33,7 @@ const Flow: React.FC = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node<BlockNodeData> | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [loading, setLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [loadModalVisible, setLoadModalVisible] = useState(false);
@@ -148,6 +149,19 @@ const Flow: React.FC = () => {
   // 选中节点
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node as Node<BlockNodeData>);
+    setSelectedEdge(null); // 清除边的选择
+  }, []);
+
+  // 选中边
+  const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
+    setSelectedEdge(edge);
+    setSelectedNode(null); // 清除节点的选择
+  }, []);
+
+  // 点击画布空白处清除选择
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedEdge(null);
   }, []);
 
   // 保存流程
@@ -439,6 +453,8 @@ const Flow: React.FC = () => {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
             fitView
           >
@@ -484,9 +500,72 @@ const Flow: React.FC = () => {
                     disabled
                   />
                 </Form.Item>
+                {/* 显示输入参数 */}
+                {selectedNode.data.inputs && Object.keys(selectedNode.data.inputs).length > 0 && (
+                  <Form.Item label="输入参数">
+                    <div style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                      {Object.entries(selectedNode.data.inputs).map(([name, param]: [string, any]) => (
+                        <div key={name} style={{ marginBottom: '4px', fontSize: '12px' }}>
+                          <strong>{name}</strong>: {param.type} {param.description && `- ${param.description}`}
+                        </div>
+                      ))}
+                    </div>
+                  </Form.Item>
+                )}
+                {/* 显示输出参数 */}
+                {selectedNode.data.outputs && Object.keys(selectedNode.data.outputs).length > 0 && (
+                  <Form.Item label="输出参数">
+                    <div style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                      {Object.entries(selectedNode.data.outputs).map(([name, param]: [string, any]) => (
+                        <div key={name} style={{ marginBottom: '4px', fontSize: '12px' }}>
+                          <strong>{name}</strong>: {param.type} {param.description && `- ${param.description}`}
+                        </div>
+                      ))}
+                    </div>
+                  </Form.Item>
+                )}
+              </Form>
+            ) : selectedEdge ? (
+              <Form layout="vertical">
+                <Form.Item label="连接 ID">
+                  <Input value={selectedEdge.id} disabled />
+                </Form.Item>
+                <Form.Item label="源节点">
+                  <Input value={nodes.find(n => n.id === selectedEdge.source)?.data?.blockName || selectedEdge.source} disabled />
+                </Form.Item>
+                <Form.Item label="源输出">
+                  <Input value={selectedEdge.sourceHandle ? selectedEdge.sourceHandle.replace('output-', '') : '默认输出'} disabled />
+                </Form.Item>
+                <Form.Item label="目标节点">
+                  <Input value={nodes.find(n => n.id === selectedEdge.target)?.data?.blockName || selectedEdge.target} disabled />
+                </Form.Item>
+                <Form.Item label="目标输入">
+                  <Input value={selectedEdge.targetHandle ? selectedEdge.targetHandle.replace('input-', '') : '默认输入'} disabled />
+                </Form.Item>
+                {/* 显示连接详情 */}
+                {selectedEdge.sourceHandle && selectedEdge.targetHandle && (
+                  <Form.Item label="数据流向">
+                    <div style={{ background: '#f0f5ff', padding: '12px', borderRadius: '4px', border: '1px solid #adc6ff' }}>
+                      <div style={{ fontSize: '13px', lineHeight: '20px' }}>
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>从:</strong> {nodes.find(n => n.id === selectedEdge.source)?.data?.blockName}
+                        </div>
+                        <div style={{ marginLeft: '12px', marginBottom: '8px', color: '#1890ff' }}>
+                          ↓ 输出: <strong>{selectedEdge.sourceHandle.replace('output-', '')}</strong>
+                        </div>
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>到:</strong> {nodes.find(n => n.id === selectedEdge.target)?.data?.blockName}
+                        </div>
+                        <div style={{ marginLeft: '12px', color: '#52c41a' }}>
+                          ↓ 输入: <strong>{selectedEdge.targetHandle.replace('input-', '')}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </Form.Item>
+                )}
               </Form>
             ) : (
-              <Empty description="选择节点查看属性" />
+              <Empty description="选择节点或连接查看属性" />
             )}
           </div>
         </div>
