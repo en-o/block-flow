@@ -99,14 +99,13 @@ export interface UserPage {
   page?: PagingSorteds;
 }
 
-// 用户创建DTO
+// 用户创建DTO（对应后端 AccountRegisterAdmin）
 export interface UserCreateDTO {
   username: string; // 必填
   password: string; // 必填
   email?: string;
-  realName?: string;
-  role?: 'ADMIN' | 'USER' | 'VIEWER';
-  isActive?: boolean;
+  realName: string; // 必填
+  userRole: 'ADMIN' | 'USER' | 'VIEWER'; // 必填，对应后端的 userRole 字段
 }
 
 // 用户更新DTO

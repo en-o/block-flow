@@ -1,6 +1,7 @@
 package cn.tannn.cat.block.controller;
 
 import cn.tannn.cat.block.contansts.JpaPageResult;
+import cn.tannn.cat.block.contansts.views.Views;
 import cn.tannn.cat.block.controller.dto.user.*;
 import cn.tannn.cat.block.entity.User;
 import cn.tannn.cat.block.service.UserService;
@@ -8,6 +9,7 @@ import cn.tannn.cat.block.util.UserUtil;
 import cn.tannn.jdevelops.annotations.web.mapping.PathRestController;
 import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
+import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.extensions.Extension;
@@ -43,6 +45,7 @@ public class UserController {
 
     @PutMapping("/users")
     @Operation(summary = "更新用户", description = "更新用户信息")
+    @JsonView(Views.Public.class)
     public ResultVO<User> update(@RequestBody @Valid UserUpdateDTO updateDTO) {
         return ResultVO.success(userService.update(updateDTO));
     }
@@ -56,36 +59,42 @@ public class UserController {
 
     @GetMapping("/users/{id}")
     @Operation(summary = "获取用户详情", description = "根据ID获取用户详情")
+    @JsonView(Views.Public.class)
     public ResultVO<User> getById(@Parameter(description = "用户ID") @PathVariable Integer id) {
         return ResultVO.success(userService.getById(id));
     }
 
     @GetMapping("/users/username/{username}")
     @Operation(summary = "根据用户名获取用户", description = "根据用户名获取用户")
+    @JsonView(Views.Public.class)
     public ResultVO<User> getByUsername(@Parameter(description = "用户名") @PathVariable String username) {
         return ResultVO.success(userService.getByUsername(username));
     }
 
     @GetMapping("/users/list")
     @Operation(summary = "获取所有用户列表", description = "获取所有用户列表")
+    @JsonView(Views.Public.class)
     public ResultVO<List<User>> listAll() {
         return ResultVO.success(userService.listAll());
     }
 
     @PostMapping("/users/page")
     @Operation(summary = "分页查询用户", description = "分页查询用户列表")
+    @JsonView(Views.Public.class)
     public ResultPageVO<User, JpaPageResult<User>> page(@RequestBody @Valid UserPage where) {
         return ResultPageVO.success(JpaPageResult.toPage(userService.findPage(where)));
     }
 
     @GetMapping("/users/search")
     @Operation(summary = "搜索用户", description = "根据关键词搜索用户")
+    @JsonView(Views.Public.class)
     public ResultVO<List<User>> search(@Parameter(description = "搜索关键词") @RequestParam String keyword) {
         return ResultVO.success(userService.search(keyword));
     }
 
     @PutMapping("/users/{id}/toggle-active")
     @Operation(summary = "激活/停用用户", description = "切换用户的激活状态")
+    @JsonView(Views.Public.class)
     public ResultVO<User> toggleActive(@Parameter(description = "用户ID") @PathVariable Integer id) {
         return ResultVO.success(userService.toggleActive(id));
     }
@@ -113,6 +122,7 @@ public class UserController {
 
     @PutMapping("/users/profile")
     @Operation(summary = "更新个人信息", description = "更新自己的个人信息")
+    @JsonView(Views.Public.class)
     public ResultVO<User> updateProfile(
             @RequestBody @Valid UpdateProfileDTO updateProfileDTO,
             HttpServletRequest request) {
@@ -124,6 +134,7 @@ public class UserController {
 
     @GetMapping("/users/profile")
     @Operation(summary = "获取当前用户信息", description = "获取当前登录用户的信息")
+    @JsonView(Views.Public.class)
     public ResultVO<User> getProfile(HttpServletRequest request) {
         // 从JWT token中获取当前登录用户的用户名
         String username = UserUtil.loginName(request);

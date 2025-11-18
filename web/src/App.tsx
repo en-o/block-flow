@@ -36,8 +36,15 @@ const AppContent: React.FC = () => {
         {/* 登录页面 */}
         <Route path="/login" element={<Login />} />
 
-        {/* Flow页面 - 所有人都可以访问 */}
-        <Route path="/flow" element={<Flow />} />
+        {/* Flow页面 - 需要登录，所有角色都可以访问 */}
+        <Route
+          path="/flow"
+          element={
+            <PrivateRoute>
+              <Flow />
+            </PrivateRoute>
+          }
+        />
 
         {/* 块编辑器 - ADMIN 和 USER 可以访问 */}
         <Route

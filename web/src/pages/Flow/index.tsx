@@ -20,6 +20,7 @@ import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined 
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
+import { authUtils } from '../../utils/auth';
 import type { Block, Workflow } from '../../types/api';
 import './index.css';
 
@@ -256,7 +257,10 @@ const Flow: React.FC = () => {
       <div className="flow-header">
         <h1>BlockFlow - 流程编排</h1>
         <div className="flow-actions">
-          <a href="/manage">管理后台</a>
+          {/* 只有 ADMIN 和 USER 可以访问管理后台 */}
+          {authUtils.canAccessManagement() && (
+            <a href="/manage">管理后台</a>
+          )}
         </div>
       </div>
 
