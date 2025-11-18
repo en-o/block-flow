@@ -2,8 +2,12 @@ import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse 
 import { message } from 'antd';
 import { authUtils } from '../utils/auth';
 
-// API基础URL - 根据环境变量配置
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+// API基础URL
+// 开发环境：使用相对路径，通过 Vite proxy 代理到后端
+// 生产环境：使用环境变量配置的完整URL
+const BASE_URL = import.meta.env.MODE === 'development'
+  ? '/api'
+  : (import.meta.env.VITE_API_BASE_URL || '/api');
 
 // 创建axios实例
 const request: AxiosInstance = axios.create({

@@ -2,13 +2,14 @@ import { http } from './request';
 import type { ApiResponse, PageRequest, PageResponse, Block } from '../types/api';
 
 export const blockApi = {
-  // 获取块列表
+  // 获取块列表（支持标签查询）
   getBlockList(params?: PageRequest & {
     name?: string;
     typeCode?: string;
     category?: string;
+    tag?: string; // 标签模糊查询
   }): Promise<ApiResponse<PageResponse<Block>>> {
-    return http.get('/blocks', { params });
+    return http.post('/blocks/page', params);
   },
 
   // 获取块详情
@@ -44,5 +45,10 @@ export const blockApi = {
   // 获取块使用统计
   getBlockUsage(id: number): Promise<ApiResponse<any>> {
     return http.get(`/blocks/${id}/usage`);
+  },
+
+  // 获取标签聚类统计
+  getTagsStatistics(): Promise<ApiResponse<Record<string, number>>> {
+    return http.get('/blocks/tags/statistics');
   },
 };

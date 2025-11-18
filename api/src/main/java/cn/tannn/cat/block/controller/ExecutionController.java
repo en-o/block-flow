@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
  * @author tnnn
  */
 @RestController
-@RequestMapping("/api/executions")
+@RequestMapping("/executions")
 @RequiredArgsConstructor
 @Tag(name = "执行管理", description = "流程执行的管理接口")
 public class ExecutionController {

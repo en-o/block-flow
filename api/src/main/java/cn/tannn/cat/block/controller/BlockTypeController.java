@@ -23,7 +23,7 @@ import java.util.List;
  * @author tnnn
  */
 @RestController
-@RequestMapping("/api/block-types")
+@RequestMapping("/block-types")
 @RequiredArgsConstructor
 @Tag(name = "块类型管理", description = "块类型的增删改查接口")
 public class BlockTypeController {

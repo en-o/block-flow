@@ -24,7 +24,7 @@ import java.util.Map;
  * @author tnnn
  */
 @RestController
-@RequestMapping("/api/context")
+@RequestMapping("/context")
 @RequiredArgsConstructor
 @Tag(name = "上下文变量管理", description = "上下文变量的增删改查接口")
 public class ContextVariableController {

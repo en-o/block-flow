@@ -23,7 +23,7 @@ import java.util.List;
  * @author tnnn
  */
 @RestController
-@RequestMapping("/api/workflows")
+@RequestMapping("/workflows")
 @RequiredArgsConstructor
 @Tag(name = "流程管理", description = "流程的增删改查接口")
 public class WorkflowController {

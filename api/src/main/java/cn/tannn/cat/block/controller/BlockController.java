@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
  * @author tnnn
  */
 @RestController
-@RequestMapping("/api/blocks")
+@RequestMapping("/blocks")
 @RequiredArgsConstructor
 @Tag(name = "块管理", description = "块的增删改查接口")
 public class BlockController {

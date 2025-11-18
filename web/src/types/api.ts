@@ -66,9 +66,11 @@ export interface Block {
   pythonEnvId?: number;
   inputs?: Record<string, any>;
   outputs?: Record<string, any>;
+  tags?: string[]; // 标签列表
   category?: string;
   isPublic: boolean;
   authorId?: number;
+  authorUsername?: string; // 作者用户名
   usageCount: number;
   version: string;
   createTime: string;

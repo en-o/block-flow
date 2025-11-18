@@ -24,7 +24,7 @@ import java.util.List;
  * @author tnnn
  */
 @RestController
-@RequestMapping("/api/python-envs")
+@RequestMapping("/python-envs")
 @RequiredArgsConstructor
 @Tag(name = "Python环境管理", description = "Python环境的增删改查接口")
 public class PythonEnvironmentController {
