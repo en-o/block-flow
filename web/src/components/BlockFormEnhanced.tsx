@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Form, Input, Select, InputNumber, Button, Space, Card, Row, Col, Modal, message as antdMessage, App, Table, Divider } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
@@ -13,12 +13,16 @@ interface BlockFormProps {
   onBlockTypesChange: () => void;
 }
 
-const BlockFormEnhanced: React.FC<BlockFormProps> = ({
+export interface BlockFormEnhancedRef {
+  getFormValues: () => any;
+}
+
+const BlockFormEnhanced = forwardRef<BlockFormEnhancedRef, BlockFormProps>(({
   form,
   editingBlock,
   blockTypes,
   onBlockTypesChange
-}) => {
+}, ref) => {
   const { modal } = App.useApp();
   const [showBlockTypeModal, setShowBlockTypeModal] = useState(false);
   const [showPythonEnvModal, setShowPythonEnvModal] = useState(false);
@@ -38,6 +42,7 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
   useEffect(() => {
     if (editingBlock?.inputs) {
       const params = Object.entries(editingBlock.inputs).map(([name, param]: [string, any]) => ({
+        id: `input-${Date.now()}-${Math.random()}`, // 添加唯一ID
         name,
         ...param
       }));
@@ -48,6 +53,7 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
 
     if (editingBlock?.outputs) {
       const params = Object.entries(editingBlock.outputs).map(([name, param]: [string, any]) => ({
+        id: `output-${Date.now()}-${Math.random()}`, // 添加唯一ID
         name,
         ...param
       }));
@@ -126,6 +132,7 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
   // 添加输入参数
   const handleAddInputParam = () => {
     setInputParams([...inputParams, {
+      id: `input-${Date.now()}-${Math.random()}`, // 添加唯一ID
       name: '',
       type: 'string',
       description: '',
@@ -137,6 +144,7 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
   // 添加输出参数
   const handleAddOutputParam = () => {
     setOutputParams([...outputParams, {
+      id: `output-${Date.now()}-${Math.random()}`, // 添加唯一ID
       name: '',
       type: 'string',
       description: '',
@@ -174,24 +182,28 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
     const obj: Record<string, any> = {};
     params.forEach(param => {
       if (param.name) {
-        obj[param.name] = {
-          type: param.type,
-          description: param.description,
-          required: param.required,
-          defaultValue: param.defaultValue
-        };
+        // 排除 id 字段，只保存实际的参数数据
+        const { id, name, ...paramData } = param as any;
+        obj[name] = paramData;
       }
     });
     return obj;
   };
 
-  // 在表单提交时，需要将参数转换为对象格式
-  useEffect(() => {
-    form.setFieldsValue({
+  // 获取表单值时,动态添加 inputs 和 outputs
+  const getFormValues = () => {
+    const values = form.getFieldsValue();
+    return {
+      ...values,
       inputs: convertParamsToObject(inputParams),
       outputs: convertParamsToObject(outputParams)
-    });
-  }, [inputParams, outputParams, form]);
+    };
+  };
+
+  // 暴露 getFormValues 方法给父组件
+  useImperativeHandle(ref, () => ({
+    getFormValues
+  }));
 
   return (
     <>
@@ -380,7 +392,7 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
               添加输入参数
             </Button>
             {inputParams.map((param, index) => (
-              <Card key={index} size="small" type="inner">
+              <Card key={param.id || index} size="small" type="inner">
                 <Row gutter={8}>
                   <Col span={6}>
                     <Input
@@ -443,7 +455,7 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
               添加输出参数
             </Button>
             {outputParams.map((param, index) => (
-              <Card key={index} size="small" type="inner">
+              <Card key={param.id || index} size="small" type="inner">
                 <Row gutter={8}>
                   <Col span={6}>
                     <Input
@@ -570,6 +582,6 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
       </Modal>
     </>
   );
-};
+});
 
 export default BlockFormEnhanced;

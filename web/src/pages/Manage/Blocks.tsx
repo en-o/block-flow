@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, App } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
 import type { Block, BlockType, BlockPage, BlockCreateDTO, BlockUpdateDTO } from '../../types/api';
-import BlockFormEnhanced from '../../components/BlockFormEnhanced';
+import BlockFormEnhanced, { type BlockFormEnhancedRef } from '../../components/BlockFormEnhanced';
 
 const Blocks: React.FC = () => {
   const navigate = useNavigate();
@@ -24,6 +24,7 @@ const Blocks: React.FC = () => {
   });
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
+  const blockFormRef = useRef<BlockFormEnhancedRef>(null);
 
   useEffect(() => {
     fetchBlocks();
@@ -103,7 +104,9 @@ const Blocks: React.FC = () => {
 
   const handleEdit = (record: Block) => {
     setEditingBlock(record);
-    form.setFieldsValue(record);
+    // 不设置 inputs 和 outputs，由 BlockFormEnhanced 通过 editingBlock 处理
+    const { inputs, outputs, ...otherFields } = record;
+    form.setFieldsValue(otherFields);
     setModalVisible(true);
   };
 
@@ -144,7 +147,16 @@ const Blocks: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
+      // 先验证表单字段
+      await form.validateFields();
+
+      // 从 BlockFormEnhanced 获取完整的表单数据（包括 inputs 和 outputs）
+      const values = blockFormRef.current?.getFormValues();
+
+      if (!values) {
+        message.error('获取表单数据失败');
+        return;
+      }
 
       if (editingBlock) {
         const updateData: BlockUpdateDTO = {
@@ -384,6 +396,7 @@ const Blocks: React.FC = () => {
         destroyOnClose
       >
         <BlockFormEnhanced
+          ref={blockFormRef}
           form={form}
           editingBlock={editingBlock}
           blockTypes={blockTypes}

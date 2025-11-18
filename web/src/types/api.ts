@@ -170,6 +170,7 @@ export interface BlockTypeUpdateDTO {
 
 // 块参数定义
 export interface BlockParameter {
+  id?: string; // 前端使用的唯一ID（仅用于 React key，不保存到后端）
   name: string; // 参数名称（key）
   type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any'; // 参数类型
   description?: string; // 参数描述
