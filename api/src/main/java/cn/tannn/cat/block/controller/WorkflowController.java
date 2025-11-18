@@ -6,11 +6,13 @@ import cn.tannn.cat.block.controller.dto.workflow.WorkflowPage;
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowUpdateDTO;
 import cn.tannn.cat.block.entity.Workflow;
 import cn.tannn.cat.block.service.WorkflowService;
+import cn.tannn.cat.block.util.UserUtil;
 import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -32,8 +34,10 @@ public class WorkflowController {
 
     @PostMapping
     @Operation(summary = "创建流程", description = "创建新的流程")
-    public ResultVO<Workflow> create(@RequestBody WorkflowCreateDTO createDTO) {
-        return ResultVO.success(workflowService.create(createDTO));
+    public ResultVO<Workflow> create(@RequestBody WorkflowCreateDTO createDTO, HttpServletRequest request) {
+        // 从JWT token中获取当前登录用户的用户名
+        String username = UserUtil.loginName(request);
+        return ResultVO.success(workflowService.create(createDTO, username));
     }
 
     @PutMapping
@@ -57,8 +61,10 @@ public class WorkflowController {
 
     @PostMapping("/page")
     @Operation(summary = "分页查询流程", description = "分页查询流程列表")
-    public ResultPageVO<Workflow, JpaPageResult<Workflow>> page(@RequestBody @Valid WorkflowPage where) {
-        return ResultPageVO.success(JpaPageResult.toPage(workflowService.findPage(where)));
+    public ResultPageVO<Workflow, JpaPageResult<Workflow>> page(@RequestBody @Valid WorkflowPage where, HttpServletRequest request) {
+        // 从JWT token中获取当前登录用户的用户名
+        String username = UserUtil.loginName(request);
+        return ResultPageVO.success(JpaPageResult.toPage(workflowService.findPage(where, username)));
     }
 
 

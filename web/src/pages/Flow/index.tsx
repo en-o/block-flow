@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button, Input, Form, Select, message as antdMessage, Modal, Empty, Spin, Popconfirm } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';

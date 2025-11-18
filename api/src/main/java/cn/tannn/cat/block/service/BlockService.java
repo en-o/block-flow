@@ -20,9 +20,10 @@ public interface BlockService {
      * 创建块
      *
      * @param createDTO 创建DTO
+     * @param username 当前用户
      * @return 块
      */
-    Block create(BlockCreateDTO createDTO);
+    Block create(BlockCreateDTO createDTO, String username);
 
     /**
      * 更新块

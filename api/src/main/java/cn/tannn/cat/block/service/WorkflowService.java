@@ -19,9 +19,10 @@ public interface WorkflowService {
      * 创建流程
      *
      * @param createDTO 创建DTO
+     * @param username 当前用户
      * @return 流程
      */
-    Workflow create(WorkflowCreateDTO createDTO);
+    Workflow create(WorkflowCreateDTO createDTO, String username);
 
     /**
      * 更新流程
@@ -49,9 +50,10 @@ public interface WorkflowService {
      * 分页查询流程（使用查询条件）
      *
      * @param where 分页参数和查询条件
+     * @param username 不为空查询自己的
      * @return 流程分页列表
      */
-    Page<Workflow> findPage(WorkflowPage where);
+    Page<Workflow> findPage(WorkflowPage where, String username);
 
 
     /**

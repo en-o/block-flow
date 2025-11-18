@@ -14,6 +14,7 @@ import {
   Divider,
   List,
   Popconfirm,
+  App,
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,6 +30,7 @@ import { pythonEnvApi } from '../../api/pythonEnv';
 import type { PythonEnvironment, PythonEnvironmentCreateDTO, PythonEnvironmentUpdateDTO, PythonEnvironmentPage } from '../../types/api';
 
 const PythonEnvironments: React.FC = () => {
+  const { modal } = App.useApp();
   const [environments, setEnvironments] = useState<PythonEnvironment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -106,7 +108,7 @@ const PythonEnvironments: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '确定要删除这个Python环境吗？',
       onOk: async () => {

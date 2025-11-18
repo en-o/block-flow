@@ -12,6 +12,7 @@ import {
   Card,
   Switch,
   Popconfirm,
+  App,
 } from 'antd';
 import {
   PlusOutlined,
@@ -26,6 +27,7 @@ import { userApi } from '../../api/user';
 import type { User, UserCreateDTO, UserUpdateDTO, UserPage } from '../../types/api';
 
 const Users: React.FC = () => {
+  const { modal } = App.useApp();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -107,7 +109,7 @@ const Users: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '确定要删除这个用户吗？删除后将无法恢复。',
       onOk: async () => {

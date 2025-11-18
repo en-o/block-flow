@@ -37,7 +37,7 @@ public class BlockServiceImpl implements BlockService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Block create(BlockCreateDTO createDTO) {
+    public Block create(BlockCreateDTO createDTO, String username) {
         // 检查块名称是否已存在
         if (blockRepository.existsByName(createDTO.getName())) {
             throw new BusinessException("块名称已存在: " + createDTO.getName());
@@ -55,7 +55,7 @@ public class BlockServiceImpl implements BlockService {
         if (block.getIsPublic() == null) {
             block.setIsPublic(true);
         }
-
+        block.setAuthorUsername(username);
         return blockRepository.save(block);
     }
 

@@ -118,7 +118,10 @@ request.interceptors.response.use(
         }
 
         console.log('返回 Promise.reject');
-        return Promise.reject(new Error(errorMsg));
+        const error = new Error(errorMsg);
+        (error as any).code = data.code;
+        (error as any).response = data;
+        return Promise.reject(error);
       }
     }
 

@@ -9,6 +9,7 @@ import cn.tannn.cat.block.service.WorkflowService;
 import cn.tannn.jdevelops.result.exception.ServiceException;
 import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -30,9 +31,10 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Workflow create(WorkflowCreateDTO createDTO) {
+    public Workflow create(WorkflowCreateDTO createDTO, String username) {
         Workflow workflow = new Workflow();
         BeanUtils.copyProperties(createDTO, workflow);
+        workflow.setAuthorUsername(username);
         return workflowRepository.save(workflow);
     }
 
@@ -82,8 +84,10 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
-    public Page<Workflow> findPage(WorkflowPage where) {
-        Specification<Workflow> select = EnhanceSpecification.beanWhere(where);
+    public Page<Workflow> findPage(WorkflowPage where, String username) {
+        Specification<Workflow> select = EnhanceSpecification.beanWhere(where,x -> {
+            x.eq(StringUtils.isNotBlank(username),"authorUsername",username);
+        });
         return workflowRepository.findAll(select, where.getPage().pageable());
     }
 

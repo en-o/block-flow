@@ -7,11 +7,13 @@ import cn.tannn.cat.block.controller.dto.block.BlockTestDTO;
 import cn.tannn.cat.block.controller.dto.block.BlockUpdateDTO;
 import cn.tannn.cat.block.entity.Block;
 import cn.tannn.cat.block.service.BlockService;
+import cn.tannn.cat.block.util.UserUtil;
 import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -31,8 +33,10 @@ public class BlockController {
 
     @PostMapping
     @Operation(summary = "创建块", description = "创建新的块")
-    public ResultVO<Block> create(@RequestBody BlockCreateDTO createDTO) {
-        return ResultVO.success(blockService.create(createDTO));
+    public ResultVO<Block> create(@RequestBody BlockCreateDTO createDTO, HttpServletRequest request) {
+        // 从JWT token中获取当前登录用户的用户名
+        String username = UserUtil.loginName(request);
+        return ResultVO.success(blockService.create(createDTO,username));
     }
 
     @PutMapping

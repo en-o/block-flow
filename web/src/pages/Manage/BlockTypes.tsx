@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, message, InputNumber, Card } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, message, InputNumber, Card, App } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import { blockTypeApi } from '../../api/blockType';
 import type { BlockType, BlockTypeCreateDTO, BlockTypeUpdateDTO, BlockTypePage } from '../../types/api';
 
 const BlockTypes: React.FC = () => {
+  const { modal } = App.useApp();
   const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -77,7 +78,7 @@ const BlockTypes: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '确定要删除这个块类型吗？',
       onOk: async () => {

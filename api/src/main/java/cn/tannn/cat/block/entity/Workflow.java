@@ -26,6 +26,7 @@ import org.hibernate.type.SqlTypes;
 @AllArgsConstructor
 @Table(name = "workflows", indexes = {
         @Index(name = "idx_author", columnList = "authorUsername"),
+        @Index(name = "idx_author_name", columnList = "authorUsername,name", unique = true),
         @Index(name = "idx_category", columnList = "category"),
         @Index(name = "idx_active", columnList = "isActive")
 })

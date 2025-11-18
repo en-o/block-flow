@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, App } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { blockApi } from '../../api/block';
@@ -9,6 +9,7 @@ import BlockFormEnhanced from '../../components/BlockFormEnhanced';
 
 const Blocks: React.FC = () => {
   const navigate = useNavigate();
+  const { modal } = App.useApp();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -107,7 +108,7 @@ const Blocks: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '确定要删除这个块吗？',
       onOk: async () => {

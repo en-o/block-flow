@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, Tooltip } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, Tooltip, App } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, FilterOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { contextApi } from '../../api/context';
 import type { ContextVariable, ContextVariableCreateDTO, ContextVariableUpdateDTO } from '../../types/api';
 
 const Context: React.FC = () => {
+  const { modal } = App.useApp();
   const [variables, setVariables] = useState<ContextVariable[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -68,7 +69,7 @@ const Context: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '确定要删除这个变量吗？',
       onOk: async () => {
