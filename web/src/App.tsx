@@ -12,6 +12,8 @@ import PythonEnvironments from './pages/Manage/PythonEnvironments';
 import Users from './pages/Manage/Users';
 import Profile from './pages/Manage/Profile';
 import PrivateRoute from './components/PrivateRoute';
+import RoleRoute from './components/RoleRoute';
+import { UserRole } from './utils/auth';
 import { setGlobalMessage } from './utils/messageInstance';
 import './App.css';
 
@@ -34,26 +36,26 @@ const AppContent: React.FC = () => {
         {/* 登录页面 */}
         <Route path="/login" element={<Login />} />
 
-        {/* Flow页面 - 无需鉴权 */}
+        {/* Flow页面 - 所有人都可以访问 */}
         <Route path="/flow" element={<Flow />} />
 
-        {/* 块编辑器 - 需要鉴权 */}
+        {/* 块编辑器 - ADMIN 和 USER 可以访问 */}
         <Route
           path="/block-editor/:id?"
           element={
-            <PrivateRoute>
+            <RoleRoute allowedRoles={[UserRole.ADMIN, UserRole.USER]}>
               <BlockEditor />
-            </PrivateRoute>
+            </RoleRoute>
           }
         />
 
-        {/* 管理后台 - 需要鉴权 */}
+        {/* 管理后台 - ADMIN 和 USER 可以访问 */}
         <Route
           path="/manage"
           element={
-            <PrivateRoute>
+            <RoleRoute allowedRoles={[UserRole.ADMIN, UserRole.USER]}>
               <Manage />
-            </PrivateRoute>
+            </RoleRoute>
           }
         >
           {/* 默认重定向到块管理 */}
@@ -62,7 +64,15 @@ const AppContent: React.FC = () => {
           <Route path="block-types" element={<BlockTypes />} />
           <Route path="python-envs" element={<PythonEnvironments />} />
           <Route path="context" element={<Context />} />
-          <Route path="users" element={<Users />} />
+          {/* 用户管理 - 仅 ADMIN 可以访问 */}
+          <Route
+            path="users"
+            element={
+              <RoleRoute allowedRoles={[UserRole.ADMIN]}>
+                <Users />
+              </RoleRoute>
+            }
+          />
           <Route path="profile" element={<Profile />} />
         </Route>
 

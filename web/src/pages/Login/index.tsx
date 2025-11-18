@@ -3,7 +3,7 @@ import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../../api/auth';
-import { authUtils } from '../../utils/auth';
+import { authUtils, UserRole } from '../../utils/auth';
 import type { LoginRequest } from '../../types/api';
 import './index.css';
 
@@ -26,8 +26,15 @@ const Login: React.FC = () => {
 
         message.success('登录成功');
 
-        // 跳转到管理页面
-        navigate('/manage');
+        // 根据角色跳转到不同页面
+        const role = response.data.role;
+        if (role === UserRole.VIEWER) {
+          // VIEWER 只能访问 /flow 页面
+          navigate('/flow');
+        } else {
+          // ADMIN 和 USER 跳转到管理页面
+          navigate('/manage');
+        }
       }
     } catch (error: any) {
       // 错误已经在拦截器中显示，这里不需要再次显示

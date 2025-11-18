@@ -24,7 +24,8 @@ const Manage: React.FC = () => {
 
   const userInfo = authUtils.getUserInfo();
 
-  const menuItems = [
+  // 根据用户角色过滤菜单项
+  const allMenuItems = [
     {
       key: '/manage/blocks',
       icon: <BlockOutlined />,
@@ -49,8 +50,13 @@ const Manage: React.FC = () => {
       key: '/manage/users',
       icon: <TeamOutlined />,
       label: '用户管理',
+      // 只有 ADMIN 才能看到用户管理菜单
+      visible: authUtils.canAccessUserManagement(),
     },
   ];
+
+  // 过滤掉不可见的菜单项
+  const menuItems = allMenuItems.filter(item => item.visible !== false);
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
