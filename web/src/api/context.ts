@@ -1,10 +1,11 @@
 import { http } from './request';
 import type {
   ApiResponse,
-  SpringPage,
   ContextVariable,
   ContextVariableCreateDTO,
-  ContextVariableUpdateDTO, ContextVariablePage, ResultPageVO
+  ContextVariableUpdateDTO,
+  ContextVariablePage,
+  ResultPageVO
 } from '../types/api';
 
 export const contextApi = {
@@ -74,18 +75,6 @@ export const contextApi = {
   }): Promise<ApiResponse<Record<string, string>>> {
     return http.get('/context/export', {
       params: params
-    });
-  },
-
-  // 搜索变量（根据关键字）
-  // GET /context/search?keyword={keyword}&page={page}&size={size}
-  search(
-    keyword: string,
-    page: number = 0,
-    size: number = 20
-  ): Promise<ApiResponse<SpringPage<ContextVariable>>> {
-    return http.get('/context/search', {
-      params: { keyword, page, size }
     });
   },
 };
