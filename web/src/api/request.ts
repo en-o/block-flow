@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
-import { message } from 'antd';
 import { authUtils } from '../utils/auth';
+import { getGlobalMessage } from '../utils/messageInstance';
 
 // API基础URL
 // 开发环境：使用相对路径，通过 Vite proxy 代理到后端
@@ -33,7 +33,8 @@ request.interceptors.request.use(
   },
   (error) => {
     console.error('Request error:', error);
-    message.error('请求发送失败');
+    const message = getGlobalMessage();
+    message?.error('请求发送失败');
     return Promise.reject(error);
   }
 );
@@ -61,10 +62,12 @@ request.interceptors.response.use(
       } else {
         // 业务错误，根据错误码进行不同处理
         const errorMsg = data.message || data.msg || '操作失败';
+        const message = getGlobalMessage();
 
         console.log('❌ 业务失败');
         console.log('错误码:', data.code);
         console.log('错误消息:', errorMsg);
+        console.log('全局 message 实例:', message);
 
         // 强制显示alert确认代码执行
         alert(`[调试] 业务错误 - code: ${data.code}, message: ${errorMsg}`);
@@ -75,7 +78,8 @@ request.interceptors.response.use(
             // TOKEN_ERROR / REDIS_EXPIRED_USER / REDIS_NO_USER
             // token校验失败、Redis登录失效、非法登录
             console.log('处理401错误 - Token失效');
-            message.error(errorMsg || '登录失效，请重新登录');
+            console.log('调用 message?.error');
+            message?.error(errorMsg || '登录失效，请重新登录');
             authUtils.clearAuth();
             setTimeout(() => {
               window.location.href = '/login';
@@ -85,7 +89,7 @@ request.interceptors.response.use(
           case 402:
             // SYS_AUTHORIZED_PAST - 授权过期
             console.log('处理402错误 - 授权过期');
-            message.error(errorMsg || '授权过期，请重新登录');
+            message?.error(errorMsg || '授权过期，请重新登录');
             authUtils.clearAuth();
             setTimeout(() => {
               window.location.href = '/login';
@@ -96,24 +100,29 @@ request.interceptors.response.use(
             // UNAUTHENTICATED / UNAUTHENTICATED_PLATFORM
             // 系统未授权、非法令牌访问未授权系统
             console.log('处理403错误 - 系统未授权');
-            message.error(errorMsg || '系统未授权，禁止访问');
+            message?.error(errorMsg || '系统未授权，禁止访问');
             break;
 
           case 405:
             // USER_EXIST_ERROR / USER_PASSWORD_ERROR
             // 账户或密码错误（登录时）
             console.log('处理405错误 - 账户密码错误');
-            console.log('即将调用 message.error，参数:', errorMsg);
+            console.log('即将调用 message?.error，参数:', errorMsg);
 
-            // 强制调用message.error
-            const result = message.error(errorMsg || '账户或者密码错误，请检查后重试');
-            console.log('message.error 返回值:', result);
+            if (message) {
+              console.log('message 实例存在，调用 error 方法');
+              const result = message.error(errorMsg || '账户或者密码错误，请检查后重试');
+              console.log('message.error 返回值:', result);
+            } else {
+              console.error('❌ message 实例不存在！');
+              alert('[错误] message 实例未初始化！');
+            }
             break;
 
           default:
             // 其他业务错误
             console.log('处理其他错误 - code:', data.code);
-            message.error(errorMsg);
+            message?.error(errorMsg);
         }
 
         console.log('返回 Promise.reject');
@@ -128,6 +137,7 @@ request.interceptors.response.use(
   (error: AxiosError) => {
     // 处理HTTP错误
     console.error('Response error:', error);
+    const message = getGlobalMessage();
 
     if (error.response) {
       const { status, data } = error.response;
@@ -140,10 +150,10 @@ request.interceptors.response.use(
 
       switch (status) {
         case 400:
-          message.error(errorMsg || '请求参数错误');
+          message?.error(errorMsg || '请求参数错误');
           break;
         case 401:
-          message.error('未授权，请重新登录');
+          message?.error('未授权，请重新登录');
           authUtils.clearAuth();
           // 延迟跳转，确保提示显示
           setTimeout(() => {
@@ -151,32 +161,32 @@ request.interceptors.response.use(
           }, 1000);
           break;
         case 403:
-          message.error('拒绝访问，权限不足');
+          message?.error('拒绝访问，权限不足');
           break;
         case 404:
-          message.error('请求的资源不存在');
+          message?.error('请求的资源不存在');
           break;
         case 500:
-          message.error(errorMsg || '服务器内部错误');
+          message?.error(errorMsg || '服务器内部错误');
           break;
         case 502:
-          message.error('网关错误');
+          message?.error('网关错误');
           break;
         case 503:
-          message.error('服务暂时不可用');
+          message?.error('服务暂时不可用');
           break;
         case 504:
-          message.error('网关超时');
+          message?.error('网关超时');
           break;
         default:
-          message.error(errorMsg);
+          message?.error(errorMsg);
       }
     } else if (error.request) {
       // 请求已发送但没有收到响应
-      message.error('网络错误，请检查网络连接');
+      message?.error('网络错误，请检查网络连接');
     } else {
       // 请求配置出错
-      message.error(error.message || '请求配置错误');
+      message?.error(error.message || '请求配置错误');
     }
 
     return Promise.reject(error);
