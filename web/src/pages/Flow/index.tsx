@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button, Input, Form, Select, message as antdMessage, Modal, Empty, Spin, Popconfirm } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
@@ -38,7 +38,9 @@ const Flow: React.FC = () => {
   const [loadModalVisible, setLoadModalVisible] = useState(false);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [saveForm] = Form.useForm();
+  const [editForm] = Form.useForm();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // 加载块库
@@ -150,13 +152,107 @@ const Flow: React.FC = () => {
 
   // 保存流程
   const handleSave = async () => {
-    setSaveModalVisible(true);
+    // 如果有当前流程，直接更新（不弹窗）
     if (currentWorkflow) {
-      saveForm.setFieldsValue({
-        name: currentWorkflow.name,
+      const flowDefinition = {
+        nodes: nodes.map((node) => ({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: node.data,
+        })),
+        edges: edges.map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+        })),
+      };
+
+      try {
+        await workflowApi.update({
+          id: currentWorkflow.id,
+          name: currentWorkflow.name,
+          description: currentWorkflow.description,
+          category: currentWorkflow.category,
+          flowDefinition,
+        });
+        antdMessage.success('流程更新成功');
+      } catch (error) {
+        console.error('更新流程失败', error);
+      }
+    } else {
+      // 没有当前流程，打开新建流程对话框
+      setSaveModalVisible(true);
+    }
+  };
+
+  // 新建流程
+  const handleNew = () => {
+    // 清空画布
+    setNodes([]);
+    setEdges([]);
+    setCurrentWorkflow(null);
+    setSelectedNode(null);
+    antdMessage.success('已创建新流程');
+  };
+
+  // 编辑流程信息
+  const handleEditInfo = () => {
+    if (currentWorkflow) {
+      editForm.setFieldsValue({
         description: currentWorkflow.description,
         category: currentWorkflow.category,
       });
+      setEditModalVisible(true);
+    } else {
+      antdMessage.warning('请先加载或创建一个流程');
+    }
+  };
+
+  // 确认编辑流程信息
+  const handleEditInfoConfirm = async () => {
+    if (!currentWorkflow) return;
+
+    try {
+      const values = await editForm.validateFields();
+      const flowDefinition = {
+        nodes: nodes.map((node) => ({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: node.data,
+        })),
+        edges: edges.map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+        })),
+      };
+
+      await workflowApi.update({
+        id: currentWorkflow.id,
+        name: currentWorkflow.name, // 名称不变
+        description: values.description,
+        category: values.category,
+        flowDefinition,
+      });
+
+      // 更新本地状态
+      setCurrentWorkflow({
+        ...currentWorkflow,
+        description: values.description,
+        category: values.category,
+      });
+
+      antdMessage.success('流程信息更新成功');
+      setEditModalVisible(false);
+      editForm.resetFields();
+    } catch (error) {
+      console.error('更新流程信息失败', error);
     }
   };
 
@@ -179,26 +275,16 @@ const Flow: React.FC = () => {
         })),
       };
 
-      if (currentWorkflow) {
-        // 更新现有流程
-        await workflowApi.update({
-          id: currentWorkflow.id,
-          ...values,
-          flowDefinition,
-        });
-        antdMessage.success('流程更新成功');
-      } else {
-        // 创建新流程
-        const response = await workflowApi.create({
-          ...values,
-          flowDefinition,
-          version: '1.0.0',
-          isActive: true,
-        });
-        if (response.code === 200) {
-          setCurrentWorkflow(response.data);
-          antdMessage.success('流程保存成功');
-        }
+      // 创建新流程
+      const response = await workflowApi.create({
+        ...values,
+        flowDefinition,
+        version: '1.0.0',
+        isActive: true,
+      });
+      if (response.code === 200) {
+        setCurrentWorkflow(response.data);
+        antdMessage.success('流程保存成功');
       }
 
       setSaveModalVisible(false);
@@ -409,6 +495,13 @@ const Flow: React.FC = () => {
       <div className="flow-footer">
         <Button
           type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleNew}
+        >
+          新建流程
+        </Button>
+        <Button
+          type="primary"
           icon={<SaveOutlined />}
           onClick={handleSave}
         >
@@ -425,6 +518,11 @@ const Flow: React.FC = () => {
         <Button icon={<FolderOpenOutlined />} onClick={handleLoad}>
           加载流程
         </Button>
+        {currentWorkflow && (
+          <Button icon={<EditOutlined />} onClick={handleEditInfo}>
+            编辑流程信息
+          </Button>
+        )}
         <Button icon={<DownloadOutlined />} onClick={handleExport}>
           导出
         </Button>
@@ -542,6 +640,35 @@ const Flow: React.FC = () => {
             ))}
           </div>
         )}
+      </Modal>
+
+      {/* 编辑流程信息弹窗 */}
+      <Modal
+        title={`编辑流程信息 - ${currentWorkflow?.name || ''}`}
+        open={editModalVisible}
+        onOk={handleEditInfoConfirm}
+        onCancel={() => {
+          setEditModalVisible(false);
+          editForm.resetFields();
+        }}
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item label="流程名称">
+            <Input value={currentWorkflow?.name} disabled />
+          </Form.Item>
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={3} placeholder="流程功能描述" />
+          </Form.Item>
+          <Form.Item label="分类" name="category">
+            <Select placeholder="选择流程分类">
+              <Select.Option value="build">构建</Select.Option>
+              <Select.Option value="deploy">部署</Select.Option>
+              <Select.Option value="test">测试</Select.Option>
+              <Select.Option value="notification">通知</Select.Option>
+              <Select.Option value="other">其他</Select.Option>
+            </Select>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );
