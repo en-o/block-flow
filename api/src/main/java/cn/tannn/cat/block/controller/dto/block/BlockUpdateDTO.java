@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * 块更新请求DTO
@@ -57,4 +58,7 @@ public class BlockUpdateDTO implements Serializable {
 
     @Schema(description = "版本号", example = "1.0.0")
     private String version;
+
+    @Schema(description = "标签列表", example = "[\"网络\", \"SSH\", \"上传\"]")
+    private List<String> tags;
 }

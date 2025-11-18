@@ -13,6 +13,8 @@ import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.List;
+
 /**
  * 块定义表
  *
@@ -108,5 +110,11 @@ public class Block extends EntityPfield {
     @Schema(description = "版本号")
     @ColumnDefault("'1.0.0'")
     private String version;
+
+    @Column(columnDefinition = "JSON")
+    @Schema(description = "标签列表")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Comment("标签列表，用于typecode的细分表示")
+    private List<String> tags;
 
 }

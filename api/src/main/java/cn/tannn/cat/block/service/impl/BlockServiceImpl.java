@@ -16,8 +16,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 块Service实现类
@@ -96,6 +100,9 @@ public class BlockServiceImpl implements BlockService {
         if (updateDTO.getIsPublic() != null) {
             block.setIsPublic(updateDTO.getIsPublic());
         }
+        if (updateDTO.getTags() != null) {
+            block.setTags(updateDTO.getTags());
+        }
         block.setUpdateTime(LocalDateTime.now());
 
         return blockRepository.save(block);
@@ -118,8 +125,23 @@ public class BlockServiceImpl implements BlockService {
 
     @Override
     public Page<Block> findPage(BlockPage where) {
-        Specification<Block> select = EnhanceSpecification.beanWhere(where);
-        return blockRepository.findAll(select, where.getPage().pageable());
+        Specification<Block> baseSpec = EnhanceSpecification.beanWhere(where);
+
+        // 如果有标签查询，添加标签模糊查询条件
+        if (StringUtils.hasText(where.getTag())) {
+            Specification<Block> tagSpec = (root, query, criteriaBuilder) -> {
+                // 使用 JSON_CONTAINS 或 LIKE 查询 JSON 数组
+                // 由于 JPA 对 JSON 字段的支持有限，这里使用 LIKE 进行模糊匹配
+                String tagPattern = "%" + where.getTag() + "%";
+                return criteriaBuilder.like(
+                    criteriaBuilder.function("JSON_UNQUOTE", String.class, root.get("tags")),
+                    tagPattern
+                );
+            };
+            baseSpec = baseSpec.and(tagSpec);
+        }
+
+        return blockRepository.findAll(baseSpec, where.getPage().pageable());
     }
 
 
@@ -148,5 +170,20 @@ public class BlockServiceImpl implements BlockService {
         cloned.setUpdateTime(LocalDateTime.now());
 
         return blockRepository.save(cloned);
+    }
+
+    @Override
+    public Map<String, Long> getTagsStatistics() {
+        // 获取所有块
+        List<Block> allBlocks = blockRepository.findAll();
+
+        // 统计标签使用次数
+        return allBlocks.stream()
+                .filter(block -> block.getTags() != null && !block.getTags().isEmpty())
+                .flatMap(block -> block.getTags().stream())
+                .collect(Collectors.groupingBy(
+                        tag -> tag,
+                        Collectors.counting()
+                ));
     }
 }

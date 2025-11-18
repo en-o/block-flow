@@ -50,6 +50,13 @@ public class BlockPage {
     private Boolean isPublic;
 
     /**
+     * 标签查询（模糊匹配，支持多标签查询）
+     */
+    @Schema(description = "标签查询（模糊匹配）")
+    @JpaSelectIgnoreField
+    private String tag;
+
+    /**
      * 分页排序
      */
     @Schema(description = "分页排序")

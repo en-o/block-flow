@@ -7,6 +7,8 @@ import cn.tannn.cat.block.controller.dto.block.BlockUpdateDTO;
 import cn.tannn.cat.block.entity.Block;
 import org.springframework.data.domain.Page;
 
+import java.util.Map;
+
 /**
  * 块Service接口
  *
@@ -71,4 +73,11 @@ public interface BlockService {
      * @return 新块
      */
     Block clone(Integer id);
+
+    /**
+     * 获取标签聚类统计
+     *
+     * @return 标签及其使用次数的Map
+     */
+    Map<String, Long> getTagsStatistics();
 }

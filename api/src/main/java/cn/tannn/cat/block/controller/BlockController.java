@@ -74,4 +74,10 @@ public class BlockController {
     public ResultVO<Block> clone(@Parameter(description = "块ID") @PathVariable Integer id) {
         return ResultVO.success(blockService.clone(id));
     }
+
+    @GetMapping("/tags/statistics")
+    @Operation(summary = "标签聚类统计", description = "获取所有标签及其使用次数")
+    public ResultVO<java.util.Map<String, Long>> getTagsStatistics() {
+        return ResultVO.success(blockService.getTagsStatistics());
+    }
 }
