@@ -47,33 +47,34 @@ request.interceptors.response.use(
     // 成功的响应格式：{ code: 200, message: "success", data: {...} }
     // 失败的响应格式：{ code: 非200, message: "错误信息", data: null }
 
-    if (DEBUG) {
-      console.log('[Response Interceptor] Response data:', data);
-    }
+    console.log('=== 响应拦截器执行 ===');
+    console.log('Response data:', data);
+    console.log('data.code:', data.code);
+    console.log('data.message:', data.message);
 
     if (data.code !== undefined) {
-      if (DEBUG) {
-        console.log('[Response Interceptor] Business code:', data.code);
-      }
-
       // 检查业务状态码
       if (data.code === 200) {
+        console.log('✅ 业务成功，返回数据');
         // 请求成功，返回完整的响应对象
         return data;
       } else {
         // 业务错误，根据错误码进行不同处理
         const errorMsg = data.message || data.msg || '操作失败';
 
-        if (DEBUG) {
-          console.log('[Response Interceptor] Business error:', data.code, errorMsg);
-        }
+        console.log('❌ 业务失败');
+        console.log('错误码:', data.code);
+        console.log('错误消息:', errorMsg);
+
+        // 强制显示alert确认代码执行
+        alert(`[调试] 业务错误 - code: ${data.code}, message: ${errorMsg}`);
 
         // 处理后端定义的业务异常码
         switch (data.code) {
           case 401:
             // TOKEN_ERROR / REDIS_EXPIRED_USER / REDIS_NO_USER
             // token校验失败、Redis登录失效、非法登录
-            if (DEBUG) console.log('[Response Interceptor] Handling 401 - Token失效，跳转登录');
+            console.log('处理401错误 - Token失效');
             message.error(errorMsg || '登录失效，请重新登录');
             authUtils.clearAuth();
             setTimeout(() => {
@@ -83,7 +84,7 @@ request.interceptors.response.use(
 
           case 402:
             // SYS_AUTHORIZED_PAST - 授权过期
-            if (DEBUG) console.log('[Response Interceptor] Handling 402 - 授权过期，跳转登录');
+            console.log('处理402错误 - 授权过期');
             message.error(errorMsg || '授权过期，请重新登录');
             authUtils.clearAuth();
             setTimeout(() => {
@@ -94,31 +95,34 @@ request.interceptors.response.use(
           case 403:
             // UNAUTHENTICATED / UNAUTHENTICATED_PLATFORM
             // 系统未授权、非法令牌访问未授权系统
-            if (DEBUG) console.log('[Response Interceptor] Handling 403 - 系统未授权');
+            console.log('处理403错误 - 系统未授权');
             message.error(errorMsg || '系统未授权，禁止访问');
             break;
 
           case 405:
             // USER_EXIST_ERROR / USER_PASSWORD_ERROR
             // 账户或密码错误（登录时）
-            if (DEBUG) console.log('[Response Interceptor] Handling 405 - 账户密码错误');
-            message.error(errorMsg || '账户或者密码错误，请检查后重试');
+            console.log('处理405错误 - 账户密码错误');
+            console.log('即将调用 message.error，参数:', errorMsg);
+
+            // 强制调用message.error
+            const result = message.error(errorMsg || '账户或者密码错误，请检查后重试');
+            console.log('message.error 返回值:', result);
             break;
 
           default:
             // 其他业务错误
-            if (DEBUG) console.log('[Response Interceptor] Handling other error:', data.code);
+            console.log('处理其他错误 - code:', data.code);
             message.error(errorMsg);
         }
 
+        console.log('返回 Promise.reject');
         return Promise.reject(new Error(errorMsg));
       }
     }
 
     // 如果没有code字段，直接返回data（兼容其他格式）
-    if (DEBUG) {
-      console.log('[Response Interceptor] No code field, returning data as is');
-    }
+    console.log('⚠️ 没有code字段，直接返回数据');
     return data;
   },
   (error: AxiosError) => {
