@@ -46,6 +46,22 @@ const Flow: React.FC = () => {
     loadBlocks();
   }, []);
 
+  // 监听 Ctrl+S 快捷键保存流程
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault(); // 阻止浏览器默认的保存行为
+        handleSave();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [currentWorkflow, nodes, edges]);
+
   const loadBlocks = async () => {
     try {
       setLoading(true);
@@ -508,13 +524,9 @@ const Flow: React.FC = () => {
                 <Popconfirm
                   title="确认删除"
                   description={`确定要删除流程 "${workflow.name}" 吗？`}
-                  onConfirm={(e) => {
-                    e?.stopPropagation();
-                    handleDeleteWorkflow(workflow.id, workflow.name);
-                  }}
+                  onConfirm={() => handleDeleteWorkflow(workflow.id, workflow.name)}
                   okText="确认"
                   cancelText="取消"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <Button
                     type="text"
