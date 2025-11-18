@@ -47,11 +47,8 @@ public class WorkflowServiceImpl implements WorkflowService {
         if (updateDTO.getDescription() != null) {
             workflow.setDescription(updateDTO.getDescription());
         }
-        if (updateDTO.getBlocklyXml() != null) {
-            workflow.setBlocklyXml(updateDTO.getBlocklyXml());
-        }
-        if (updateDTO.getBlocklyJson() != null) {
-            workflow.setBlocklyJson(updateDTO.getBlocklyJson());
+        if (updateDTO.getFlowDefinition() != null) {
+            workflow.setFlowDefinition(updateDTO.getFlowDefinition());
         }
         if (updateDTO.getIsTemplate() != null) {
             workflow.setIsTemplate(updateDTO.getIsTemplate());
