@@ -34,6 +34,7 @@ const Flow: React.FC = () => {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node<BlockNodeData> | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [copiedNode, setCopiedNode] = useState<Node<BlockNodeData> | null>(null);
   const [loading, setLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [loadModalVisible, setLoadModalVisible] = useState(false);
@@ -64,6 +65,75 @@ const Flow: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [currentWorkflow, nodes, edges]);
+
+  // 监听 Delete/Ctrl+X/Ctrl+C/Ctrl+V 快捷键
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 忽略在输入框中的按键
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Delete 或 Ctrl+X: 删除选中的节点或边
+      if (event.key === 'Delete' || ((event.ctrlKey || event.metaKey) && event.key === 'x')) {
+        event.preventDefault();
+        if (selectedNode) {
+          // 如果是 Ctrl+X，先复制再删除
+          if ((event.ctrlKey || event.metaKey) && event.key === 'x') {
+            setCopiedNode(selectedNode);
+            antdMessage.success('已剪切节点');
+          }
+          // 删除节点
+          setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
+          // 同时删除与该节点相关的所有连接
+          setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
+          setSelectedNode(null);
+          if (event.key === 'Delete') {
+            antdMessage.success('已删除节点');
+          }
+        } else if (selectedEdge) {
+          // 删除边
+          setEdges((eds) => eds.filter((e) => e.id !== selectedEdge.id));
+          setSelectedEdge(null);
+          antdMessage.success('已删除连接');
+        }
+      }
+
+      // Ctrl+C: 复制选中的节点
+      if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+        event.preventDefault();
+        if (selectedNode) {
+          setCopiedNode(selectedNode);
+          antdMessage.success('已复制节点');
+        }
+      }
+
+      // Ctrl+V: 粘贴节点
+      if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+        event.preventDefault();
+        if (copiedNode) {
+          const newNode: Node<BlockNodeData> = {
+            ...copiedNode,
+            id: `node-${Date.now()}-${Math.random()}`,
+            position: {
+              x: copiedNode.position.x + 50,
+              y: copiedNode.position.y + 50,
+            },
+          };
+          setNodes((nds) => nds.concat(newNode));
+          setSelectedNode(newNode);
+          antdMessage.success('已粘贴节点');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedNode, selectedEdge, copiedNode, setNodes, setEdges]);
 
   const loadBlocks = async () => {
     try {
