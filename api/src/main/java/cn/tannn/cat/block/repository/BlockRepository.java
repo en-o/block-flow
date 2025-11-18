@@ -54,6 +54,15 @@ public interface BlockRepository extends JpaRepository<Block, Integer> , JpaSpec
     boolean existsByName(String name);
 
     /**
+     * 检查块名称是否存在
+     *
+     * @param name 块名称
+     * @param authorUsername 创建者
+     * @return 是否存在
+     */
+    boolean existsByNameAndAuthorUsername(String name, String authorUsername);
+
+    /**
      * 搜索块（名称或描述包含关键字）
      *
      * @param keyword  关键字

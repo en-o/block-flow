@@ -33,7 +33,7 @@ public class BlockController {
 
     @PostMapping
     @Operation(summary = "创建块", description = "创建新的块")
-    public ResultVO<Block> create(@RequestBody BlockCreateDTO createDTO, HttpServletRequest request) {
+    public ResultVO<Block> create(@RequestBody  @Valid BlockCreateDTO createDTO, HttpServletRequest request) {
         // 从JWT token中获取当前登录用户的用户名
         String username = UserUtil.loginName(request);
         return ResultVO.success(blockService.create(createDTO,username));
@@ -41,8 +41,10 @@ public class BlockController {
 
     @PutMapping
     @Operation(summary = "更新块", description = "更新块信息")
-    public ResultVO<Block> update(@RequestBody BlockUpdateDTO updateDTO) {
-        return ResultVO.success(blockService.update(updateDTO));
+    public ResultVO<Block> update(@RequestBody @Valid BlockUpdateDTO updateDTO, HttpServletRequest request) {
+        // 从JWT token中获取当前登录用户的用户名
+        String username = UserUtil.loginName(request);
+        return ResultVO.success(blockService.update(updateDTO,username));
     }
 
     @DeleteMapping("/{id}")

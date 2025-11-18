@@ -39,7 +39,7 @@ public class BlockServiceImpl implements BlockService {
     @Transactional(rollbackFor = Exception.class)
     public Block create(BlockCreateDTO createDTO, String username) {
         // 检查块名称是否已存在
-        if (blockRepository.existsByName(createDTO.getName())) {
+        if (blockRepository.existsByNameAndAuthorUsername(createDTO.getName(), username)) {
             throw new BusinessException("块名称已存在: " + createDTO.getName());
         }
 
@@ -61,13 +61,13 @@ public class BlockServiceImpl implements BlockService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Block update(BlockUpdateDTO updateDTO) {
+    public Block update(BlockUpdateDTO updateDTO, String username) {
         Block block = blockRepository.findById(updateDTO.getId())
                 .orElseThrow(() -> new BusinessException("块不存在: " + updateDTO.getId()));
 
         // 检查块名称是否被其他记录使用
         if (updateDTO.getName() != null && !updateDTO.getName().equals(block.getName())) {
-            if (blockRepository.existsByName(updateDTO.getName())) {
+            if (blockRepository.existsByNameAndAuthorUsername(updateDTO.getName(), username)) {
                 throw new BusinessException("块名称已存在: " + updateDTO.getName());
             }
         }
@@ -134,8 +134,8 @@ public class BlockServiceImpl implements BlockService {
                 // 由于 JPA 对 JSON 字段的支持有限，这里使用 LIKE 进行模糊匹配
                 String tagPattern = "%" + where.getTag() + "%";
                 return criteriaBuilder.like(
-                    criteriaBuilder.function("JSON_UNQUOTE", String.class, root.get("tags")),
-                    tagPattern
+                        criteriaBuilder.function("JSON_UNQUOTE", String.class, root.get("tags")),
+                        tagPattern
                 );
             };
             baseSpec = baseSpec.and(tagSpec);
