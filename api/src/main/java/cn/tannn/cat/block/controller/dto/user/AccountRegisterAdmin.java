@@ -39,7 +39,7 @@ public class AccountRegisterAdmin {
      */
     @Schema(description = "密码", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotEmpty(message = "密码不允许为空")
-    @Size(min = 3, max = 50, message = "登录名长度必须在3-50个字符之间")
+    @Size(min = 3, max = 50, message = "密码长度必须在3-50个字符之间")
     private String password;
 
     /**
