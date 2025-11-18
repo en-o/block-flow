@@ -9,6 +9,9 @@ const BASE_URL = import.meta.env.MODE === 'development'
   ? '/api'
   : (import.meta.env.VITE_API_BASE_URL || '/api');
 
+// 是否启用调试日志
+const DEBUG = import.meta.env.MODE === 'development';
+
 // 创建axios实例
 const request: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -44,7 +47,15 @@ request.interceptors.response.use(
     // 成功的响应格式：{ code: 200, message: "success", data: {...} }
     // 失败的响应格式：{ code: 非200, message: "错误信息", data: null }
 
+    if (DEBUG) {
+      console.log('[Response Interceptor] Response data:', data);
+    }
+
     if (data.code !== undefined) {
+      if (DEBUG) {
+        console.log('[Response Interceptor] Business code:', data.code);
+      }
+
       // 检查业务状态码
       if (data.code === 200) {
         // 请求成功，返回完整的响应对象
@@ -53,11 +64,16 @@ request.interceptors.response.use(
         // 业务错误，根据错误码进行不同处理
         const errorMsg = data.message || data.msg || '操作失败';
 
+        if (DEBUG) {
+          console.log('[Response Interceptor] Business error:', data.code, errorMsg);
+        }
+
         // 处理后端定义的业务异常码
         switch (data.code) {
           case 401:
             // TOKEN_ERROR / REDIS_EXPIRED_USER / REDIS_NO_USER
             // token校验失败、Redis登录失效、非法登录
+            if (DEBUG) console.log('[Response Interceptor] Handling 401 - Token失效，跳转登录');
             message.error(errorMsg || '登录失效，请重新登录');
             authUtils.clearAuth();
             setTimeout(() => {
@@ -67,6 +83,7 @@ request.interceptors.response.use(
 
           case 402:
             // SYS_AUTHORIZED_PAST - 授权过期
+            if (DEBUG) console.log('[Response Interceptor] Handling 402 - 授权过期，跳转登录');
             message.error(errorMsg || '授权过期，请重新登录');
             authUtils.clearAuth();
             setTimeout(() => {
@@ -77,17 +94,20 @@ request.interceptors.response.use(
           case 403:
             // UNAUTHENTICATED / UNAUTHENTICATED_PLATFORM
             // 系统未授权、非法令牌访问未授权系统
+            if (DEBUG) console.log('[Response Interceptor] Handling 403 - 系统未授权');
             message.error(errorMsg || '系统未授权，禁止访问');
             break;
 
           case 405:
             // USER_EXIST_ERROR / USER_PASSWORD_ERROR
             // 账户或密码错误（登录时）
+            if (DEBUG) console.log('[Response Interceptor] Handling 405 - 账户密码错误');
             message.error(errorMsg || '账户或者密码错误，请检查后重试');
             break;
 
           default:
             // 其他业务错误
+            if (DEBUG) console.log('[Response Interceptor] Handling other error:', data.code);
             message.error(errorMsg);
         }
 
@@ -96,6 +116,9 @@ request.interceptors.response.use(
     }
 
     // 如果没有code字段，直接返回data（兼容其他格式）
+    if (DEBUG) {
+      console.log('[Response Interceptor] No code field, returning data as is');
+    }
     return data;
   },
   (error: AxiosError) => {

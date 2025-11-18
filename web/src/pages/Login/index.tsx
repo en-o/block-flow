@@ -20,7 +20,7 @@ const Login: React.FC = () => {
       if (response.data) {
         authUtils.setToken(response.data.token);
         authUtils.setUserInfo({
-          username: response.data.username,
+          username: values.loginName,  // 使用输入的登录名作为username
           role: response.data.role,
         });
 
@@ -30,7 +30,8 @@ const Login: React.FC = () => {
         navigate('/manage');
       }
     } catch (error: any) {
-      message.error(error.message || '登录失败');
+      // 错误已经在拦截器中显示，这里不需要再次显示
+      console.error('登录失败:', error);
     } finally {
       setLoading(false);
     }
