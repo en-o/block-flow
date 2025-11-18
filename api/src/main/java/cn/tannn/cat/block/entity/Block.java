@@ -1,6 +1,7 @@
 package cn.tannn.cat.block.entity;
 
 import cn.tannn.cat.block.contansts.EntityPfield;
+import cn.tannn.cat.block.enums.DefinitionMode;
 import com.alibaba.fastjson2.JSONObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -50,9 +51,27 @@ public class Block extends EntityPfield {
     @ColumnDefault("'#5C7CFA'")
     private String color;
 
+    @Column(length = 50)
+    @Comment("块图标")
+    @Schema(description = "块图标")
+    private String icon;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Comment("定义模式:blockly-可视化,code-代码")
+    @Schema(description = "定义模式")
+    @ColumnDefault("'CODE'")
+    private DefinitionMode definitionMode;
+
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    @Comment("Blockly XML定义(仅blockly模式)")
+    @Schema(description = "Blockly XML定义")
+    private String blocklyDefinition;
+
     @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
-    @Comment("执行脚本")
+    @Comment("Python执行脚本(可由Blockly生成或手动编写)")
     @Schema(description = "执行脚本")
     private String script;
 
@@ -82,5 +101,12 @@ public class Block extends EntityPfield {
     @Comment("创建者登录名")
     @Schema(description = "创建者登录名")
     private String authorUsername;
+
+
+    @Column(length = 20)
+    @Comment("版本号")
+    @Schema(description = "版本号")
+    @ColumnDefault("'1.0.0'")
+    private String version;
 
 }

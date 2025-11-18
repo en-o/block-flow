@@ -21,11 +21,8 @@ public class WorkflowCreateDTO implements Serializable {
     @Schema(description = "流程描述", example = "React项目的完整部署流程")
     private String description;
 
-    @Schema(description = "Blockly XML数据", requiredMode = Schema.RequiredMode.REQUIRED)
-    private String blocklyXml;
-
-    @Schema(description = "Blockly JSON数据")
-    private JSONObject blocklyJson;
+    @Schema(description = "xyflow流程JSON定义(nodes+edges)", requiredMode = Schema.RequiredMode.REQUIRED)
+    private JSONObject flowDefinition;
 
     @Schema(description = "创建者登录名", example = "admin")
     private String authorUsername;
@@ -38,6 +35,9 @@ public class WorkflowCreateDTO implements Serializable {
 
     @Schema(description = "标签", example = "[\"React\", \"Docker\"]")
     private String tags;
+
+    @Schema(description = "版本号", example = "1.0.0")
+    private String version;
 
     @Schema(description = "是否启用", example = "true")
     private Boolean isActive;

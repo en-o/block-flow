@@ -40,17 +40,11 @@ public class Workflow extends EntityPfield {
     @Schema(description = "流程描述")
     private String description;
 
-    @Lob
-    @Column(nullable = false, columnDefinition = "TEXT")
-    @Comment("Blockly XML数据")
-    @Schema(description = "Blockly XML数据")
-    private String blocklyXml;
-
-    @Column(columnDefinition = "JSON")
+    @Column(nullable = false, columnDefinition = "JSON")
     @JdbcTypeCode(SqlTypes.JSON)
-    @Comment("Blockly JSON数据")
-    @Schema(description = "Blockly JSON数据")
-    private JSONObject blocklyJson;
+    @Comment("xyflow流程JSON定义(nodes+edges)")
+    @Schema(description = "xyflow流程JSON定义")
+    private JSONObject flowDefinition;
 
     @Column()
     @Comment("创建者登录名")
@@ -72,6 +66,12 @@ public class Workflow extends EntityPfield {
     @Comment("标签")
     @Schema(description = "标签")
     private String tags;
+
+    @Column(length = 20)
+    @Comment("版本号")
+    @Schema(description = "版本号")
+    @ColumnDefault("'1.0.0'")
+    private String version;
 
     @Comment("是否启用")
     @ColumnDefault("1")

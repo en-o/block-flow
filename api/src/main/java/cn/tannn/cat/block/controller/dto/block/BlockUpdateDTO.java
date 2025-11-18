@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.controller.dto.block;
 
+import cn.tannn.cat.block.enums.DefinitionMode;
 import com.alibaba.fastjson2.JSONObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -30,6 +31,15 @@ public class BlockUpdateDTO implements Serializable {
     @Schema(description = "块颜色", example = "#5C7CFA")
     private String color;
 
+    @Schema(description = "块图标", example = "upload")
+    private String icon;
+
+    @Schema(description = "定义模式", example = "CODE")
+    private DefinitionMode definitionMode;
+
+    @Schema(description = "Blockly XML定义(仅blockly模式)")
+    private String blocklyDefinition;
+
     @Schema(description = "执行脚本")
     private String script;
 
@@ -44,4 +54,7 @@ public class BlockUpdateDTO implements Serializable {
 
     @Schema(description = "是否公开", example = "true")
     private Boolean isPublic;
+
+    @Schema(description = "版本号", example = "1.0.0")
+    private String version;
 }
