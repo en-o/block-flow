@@ -14,7 +14,7 @@ export const userApi = {
   // 创建用户
   // POST /users
   create(data: UserCreateDTO): Promise<ApiResponse<User>> {
-    return http.post('/users', data);
+    return http.post('/register/system', data);
   },
 
   // 更新用户

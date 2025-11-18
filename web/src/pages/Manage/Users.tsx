@@ -401,7 +401,7 @@ const Users: React.FC = () => {
 
           <Form.Item
             label="角色"
-            name="role"
+            name="userRole"
             initialValue="USER"
             rules={[{ required: true, message: '请选择角色' }]}
           >

@@ -114,7 +114,7 @@ export interface UserUpdateDTO {
   username?: string;
   email?: string;
   realName?: string;
-  role?: 'ADMIN' | 'USER' | 'VIEWER';
+  userRole?: 'ADMIN' | 'USER' | 'VIEWER';
   isActive?: boolean;
 }
 
