@@ -23,21 +23,9 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
   const [showBlockTypeModal, setShowBlockTypeModal] = useState(false);
   const [showPythonEnvModal, setShowPythonEnvModal] = useState(false);
   const [pythonEnvironments, setPythonEnvironments] = useState<PythonEnvironment[]>([]);
-  const [selectedBlockType, setSelectedBlockType] = useState<string | undefined>(
-    editingBlock?.typeCode || form.getFieldValue('typeCode')
-  );
-  const [inputParams, setInputParams] = useState<BlockParameter[]>(
-    editingBlock?.inputs ? Object.entries(editingBlock.inputs).map(([name, param]: [string, any]) => ({
-      name,
-      ...param
-    })) : []
-  );
-  const [outputParams, setOutputParams] = useState<BlockParameter[]>(
-    editingBlock?.outputs ? Object.entries(editingBlock.outputs).map(([name, param]: [string, any]) => ({
-      name,
-      ...param
-    })) : []
-  );
+  const [selectedBlockType, setSelectedBlockType] = useState<string | undefined>(undefined);
+  const [inputParams, setInputParams] = useState<BlockParameter[]>([]);
+  const [outputParams, setOutputParams] = useState<BlockParameter[]>([]);
   const [blockTypeForm] = Form.useForm();
   const [pythonEnvForm] = Form.useForm();
 
@@ -45,6 +33,31 @@ const BlockFormEnhanced: React.FC<BlockFormProps> = ({
   useEffect(() => {
     loadPythonEnvironments();
   }, []);
+
+  // 当editingBlock改变时，重新初始化参数
+  useEffect(() => {
+    if (editingBlock?.inputs) {
+      const params = Object.entries(editingBlock.inputs).map(([name, param]: [string, any]) => ({
+        name,
+        ...param
+      }));
+      setInputParams(params);
+    } else {
+      setInputParams([]);
+    }
+
+    if (editingBlock?.outputs) {
+      const params = Object.entries(editingBlock.outputs).map(([name, param]: [string, any]) => ({
+        name,
+        ...param
+      }));
+      setOutputParams(params);
+    } else {
+      setOutputParams([]);
+    }
+
+    setSelectedBlockType(editingBlock?.typeCode);
+  }, [editingBlock]);
 
   // 当块类型改变时，根据块类型筛选Python环境
   useEffect(() => {
