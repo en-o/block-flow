@@ -89,9 +89,16 @@
   - **代码编辑模式**:直接编写 Python 执行脚本(Monaco Editor)
   - 两种模式可互相转换和同步
 - 配置输入/输出参数
+- **标签管理**:为块添加标签,支持动态增减,用于细分分类
 - 块版本管理
 - 块权限控制(公开/私有)
 - 块使用统计
+
+**标签功能**
+- 为块添加/编辑/删除标签
+- 支持按标签模糊查询块
+- 标签聚类统计(查看所有标签及其使用次数)
+- 标签作为 type_code 的细分维度
 
 **块测试**
 - 一键测试功能
@@ -150,6 +157,7 @@
       "description": "远程文件路径"
     }
   },
+  "tags": ["网络", "SSH", "文件传输", "部署"],
   "is_public": true,
   "author_username": "admin",
   "create_time": "2025-01-15T10:00:00",
@@ -161,6 +169,7 @@
 > - `definition_mode`:块定义模式,可选值 `blockly`(可视化)或 `code`(代码)
 > - `blockly_definition`:Blockly XML 定义(仅在 blockly 模式下使用)
 > - `script`:最终的 Python 执行脚本(可由 Blockly 生成或手动编写)
+> - `tags`:标签列表,用于对块进行细分分类,支持动态增减和模糊查询
 
 #### 内置块库(建议预置)
 
@@ -691,6 +700,7 @@ CREATE TABLE blocks (
   python_env_id BIGINT COMMENT 'Python环境ID',
   inputs JSON COMMENT '输入参数定义',
   outputs JSON COMMENT '输出参数定义',
+  tags JSON COMMENT '标签列表，用于typecode的细分表示',
   category VARCHAR(50) COMMENT '分类',
   is_public BOOLEAN DEFAULT TRUE COMMENT '是否公开',
   author_id BIGINT COMMENT '创建者ID',
@@ -838,6 +848,7 @@ GET    /api/blocks/:id/usage     # 获取块使用统计
 POST   /api/blocks/:id/clone     # 克隆块
 PUT    /api/blocks/:id/mode      # 切换定义模式(blockly ↔ code)
 POST   /api/blocks/:id/parse-blockly  # 将Blockly定义解析为Python代码
+GET    /api/blocks/tags/statistics    # 获取标签聚类统计(返回所有标签及其使用次数)
 ```
 
 ### 上下文变量接口
@@ -1034,6 +1045,8 @@ GET    /api/stats/executions     # 执行成功率统计
 
 ---
 
-**文档版本**: v2.0
+**文档版本**: v2.1
 **最后更新**: 2025-11-18
-**更新说明**: 将流程编排引擎从 Blockly 替换为 xyflow,保留 Blockly 用于块编辑,增加手动代码输入支持
+**更新说明**:
+- v2.0: 将流程编排引擎从 Blockly 替换为 xyflow,保留 Blockly 用于块编辑,增加手动代码输入支持
+- v2.1: 为Block实体添加tags字段支持标签管理,实现标签模糊查询和聚类统计功能
