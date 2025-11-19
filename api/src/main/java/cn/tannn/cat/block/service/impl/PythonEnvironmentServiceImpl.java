@@ -201,6 +201,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         String packageName = packageDTO.getPackageName();
         String version = packageDTO.getVersion();
 
+        // 检查包是否已存在（仅验证，不阻止安装）
+        String existingVersion = verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+        if (existingVersion != null) {
+            log.info("包 {} 已存在，当前版本: {}，用户请求安装版本: {}",
+                    packageName, existingVersion, version != null ? version : "最新版本");
+        }
+
         // 构建pip install命令
         List<String> command = new ArrayList<>();
         command.add(environment.getPythonExecutable());
