@@ -42,6 +42,12 @@ const BlockFormEnhanced = forwardRef<BlockFormEnhancedRef, BlockFormProps>(({
 # - 示例: name = inputs.get('name', '默认值')
 # - 示例: count = int(inputs.get('count', 0))  # 注意类型转换
 #
+# 上下文变量使用说明:
+# - 系统自动注入所有上下文变量，格式: ctx.变量名
+# - 示例: db_host = inputs.get('ctx.DB_HOST', 'localhost')
+# - 示例: db_port = int(inputs.get('ctx.DB_PORT', '3306'))
+# - 上下文变量在"上下文变量管理"配置，测试和执行时自动注入
+#
 # 输出结果使用说明:
 # - 将结果赋值给 outputs 变量(必须是字典类型)
 # - 示例: outputs = {"result": "success", "data": result_data}
@@ -63,6 +69,11 @@ const BlockFormEnhanced = forwardRef<BlockFormEnhancedRef, BlockFormProps>(({
 
 # 布尔类型（需要转换）:
 # param4 = inputs.get('param4', 'false').lower() == 'true'
+
+# 上下文变量（自动注入，需要转换）:
+# user_name = inputs.get('ctx.USER_NAME', '默认用户')
+# db_host = inputs.get('ctx.DB_HOST', 'localhost')
+# db_port = int(inputs.get('ctx.DB_PORT', '3306'))
 
 # 2. 执行业务逻辑
 # 示例:
