@@ -15,7 +15,7 @@ import {
   Tooltip,
   Tag,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
 import Editor from '@monaco-editor/react';
 import { blockApi } from '../../api/block';
@@ -333,6 +333,91 @@ const BlockEditor: React.FC = () => {
     }
   };
 
+  // 从脚本解析输入输出参数
+  const handleParseScriptParameters = () => {
+    if (!scriptCode) {
+      antdMessage.warning('请先输入脚本代码');
+      return;
+    }
+
+    // 解析输入参数
+    const inputMatches = new Set<string>();
+    const inputTypes: Record<string, string> = {};
+
+    // 匹配 inputs.get('xxx') 或 inputs.get("xxx")
+    const inputRegex = /inputs\.get\(['"]((?!ctx\.)[^'"]+)['"]/g;
+    let match;
+    while ((match = inputRegex.exec(scriptCode)) !== null) {
+      const paramName = match[1];
+      if (!paramName.startsWith('ctx.')) {
+        inputMatches.add(paramName);
+      }
+    }
+
+    // 推断类型
+    inputMatches.forEach(paramName => {
+      // 检查是否有类型转换函数
+      const safeIntPattern = new RegExp(`safe_int\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const intPattern = new RegExp(`int\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const safeFloatPattern = new RegExp(`safe_float\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const floatPattern = new RegExp(`float\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const safeBoolPattern = new RegExp(`safe_bool\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+
+      if (safeIntPattern.test(scriptCode) || intPattern.test(scriptCode)) {
+        inputTypes[paramName] = 'number';
+      } else if (safeFloatPattern.test(scriptCode) || floatPattern.test(scriptCode)) {
+        inputTypes[paramName] = 'number';
+      } else if (safeBoolPattern.test(scriptCode)) {
+        inputTypes[paramName] = 'boolean';
+      } else {
+        inputTypes[paramName] = 'string';
+      }
+    });
+
+    // 解析输出参数
+    const outputMatches = new Set<string>();
+
+    // 匹配 outputs = { "key": value, 'key': value }
+    const outputsBlockRegex = /outputs\s*=\s*\{([^}]+)\}/s;
+    const outputsBlock = outputsBlockRegex.exec(scriptCode);
+
+    if (outputsBlock) {
+      const outputContent = outputsBlock[1];
+      // 匹配键名: "xxx" 或 'xxx'
+      const keyRegex = /['"]([^'"]+)['"]\s*:/g;
+      let keyMatch;
+      while ((keyMatch = keyRegex.exec(outputContent)) !== null) {
+        const keyName = keyMatch[1];
+        if (keyName !== '_console_output') { // 排除内部使用的字段
+          outputMatches.add(keyName);
+        }
+      }
+    }
+
+    // 转换为参数数组
+    const newInputParams = Array.from(inputMatches).map(name => ({
+      name,
+      type: inputTypes[name] || 'string',
+      defaultValue: '',
+      description: ''
+    }));
+
+    const newOutputParams = Array.from(outputMatches).map(name => ({
+      name,
+      type: 'string',
+      description: ''
+    }));
+
+    // 更新参数列表
+    if (newInputParams.length > 0 || newOutputParams.length > 0) {
+      setInputParams(newInputParams);
+      setOutputParams(newOutputParams);
+      antdMessage.success(`已解析 ${newInputParams.length} 个输入参数和 ${newOutputParams.length} 个输出参数`);
+    } else {
+      antdMessage.info('未从脚本中解析到输入输出参数');
+    }
+  };
+
   const handleSave = useCallback(async () => {
     try {
       const values = await form.validateFields();
@@ -471,6 +556,20 @@ const BlockEditor: React.FC = () => {
             </Form.Item>
 
             <Divider />
+
+            {/* 参数解析按钮 */}
+            <div style={{ marginBottom: 16, textAlign: 'center' }}>
+              <Tooltip title="自动从脚本中提取输入输出参数（不包括描述）">
+                <Button
+                  icon={<ThunderboltOutlined />}
+                  onClick={handleParseScriptParameters}
+                  type="dashed"
+                  block
+                >
+                  从脚本自动解析参数
+                </Button>
+              </Tooltip>
+            </div>
 
             <Card
               size="small"

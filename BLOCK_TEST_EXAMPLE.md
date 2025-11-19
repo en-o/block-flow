@@ -11,11 +11,27 @@ b = inputs.get('b', 0)  # ❌ 默认值0不会被使用
 product = a * b         # ❌ 错误：can't multiply sequence by non-int
 ```
 
-**正确的写法：**
+**空字符串问题：**
 ```python
-a = int(inputs.get('a', 0))  # ✅ 强制转换为整数
-b = int(inputs.get('b', 0))  # ✅ 无论输入是什么类型，都转换
-product = a * b              # ✅ 正确：两个整数相乘
+a = int(inputs.get('a', 2))  # ❌ 如果a=""，会报错：invalid literal for int()
+# 原因：inputs.get('a', 2) 当 a 存在时返回 ""，不会使用默认值 2
+# int("") 会抛出 ValueError
+```
+
+**正确的写法（使用安全转换函数）：**
+```python
+def safe_int(value, default=0):
+    """安全地转换为整数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+a = safe_int(inputs.get('a'), 2)  # ✅ 安全转换，空字符串返回默认值
+b = safe_int(inputs.get('b'), 0)  # ✅ 无论输入是什么，都能正确处理
+product = a * b                    # ✅ 正确：两个整数相乘
 ```
 
 ## 上下文变量自动注入

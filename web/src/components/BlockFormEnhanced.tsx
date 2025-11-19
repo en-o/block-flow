@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { Form, Input, Select, InputNumber, Button, Space, Card, Row, Col, Modal, message as antdMessage, App, Table, Divider } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Form, Input, Select, InputNumber, Button, Space, Card, Row, Col, Modal, message as antdMessage, App, Table, Divider, Tooltip } from 'antd';
+import { PlusOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import type { Block, BlockType, BlockTypeCreateDTO, PythonEnvironment, PythonEnvironmentCreateDTO, BlockParameter } from '../types/api';
 import { blockTypeApi } from '../api/blockType';
@@ -40,12 +40,12 @@ const BlockFormEnhanced = forwardRef<BlockFormEnhancedRef, BlockFormProps>(({
 # 输入参数使用说明:
 # - 通过 inputs 字典获取输入参数
 # - 示例: name = inputs.get('name', '默认值')
-# - 示例: count = int(inputs.get('count', 0))  # 注意类型转换
+# - 示例: count = safe_int(inputs.get('count'), 0)  # 使用安全转换函数
 #
 # 上下文变量使用说明:
 # - 系统自动注入所有上下文变量，格式: ctx.变量名
 # - 示例: db_host = inputs.get('ctx.DB_HOST', 'localhost')
-# - 示例: db_port = int(inputs.get('ctx.DB_PORT', '3306'))
+# - 示例: db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)
 # - 上下文变量在"上下文变量管理"配置，测试和执行时自动注入
 #
 # 输出结果使用说明:
@@ -58,28 +58,62 @@ const BlockFormEnhanced = forwardRef<BlockFormEnhancedRef, BlockFormProps>(({
 # - 可以使用已安装在Python环境中的第三方库
 # - 执行超时时间为60秒
 # - **重要**: inputs中的所有值都是字符串或对象，数字需要转换
+# - **重要**: 空字符串会导致类型转换失败，使用安全转换函数
 
-# 1. 获取输入参数（注意类型转换）
-# 字符串类型:
+# ========== 安全类型转换函数（处理空值、None、类型错误） ==========
+
+def safe_int(value, default=0):
+    """安全地转换为整数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_float(value, default=0.0):
+    """安全地转换为浮点数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_bool(value, default=False):
+    """安全地转换为布尔值"""
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ['true', '1', 'yes', 'on']
+    return bool(value)
+
+# ========== 获取输入参数 ==========
+
+# 1. 字符串类型（无需转换）
 # param1 = inputs.get('param1', '')
 
-# 数字类型（需要转换）:
-# param2 = int(inputs.get('param2', '0'))
-# param3 = float(inputs.get('param3', '0.0'))
+# 2. 数字类型（使用安全转换函数）
+# param2 = safe_int(inputs.get('param2'), 0)
+# param3 = safe_float(inputs.get('param3'), 0.0)
 
-# 布尔类型（需要转换）:
-# param4 = inputs.get('param4', 'false').lower() == 'true'
+# 3. 布尔类型（使用安全转换函数）
+# param4 = safe_bool(inputs.get('param4'), False)
 
-# 上下文变量（自动注入，需要转换）:
+# 4. 上下文变量（自动注入，使用安全转换）
 # user_name = inputs.get('ctx.USER_NAME', '默认用户')
 # db_host = inputs.get('ctx.DB_HOST', 'localhost')
-# db_port = int(inputs.get('ctx.DB_PORT', '3306'))
+# db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)
 
-# 2. 执行业务逻辑
+# ========== 执行业务逻辑 ==========
+
 # 示例:
 # result = f"Hello {param1}, count: {param2}"
 
-# 3. 设置输出结果（必需）
+# ========== 设置输出结果（必需） ==========
+
 outputs = {
     "success": True,
     "message": "执行成功",
@@ -242,6 +276,97 @@ outputs = {
       }
     });
     return obj;
+  };
+
+  // 从脚本解析输入输出参数
+  const parseScriptParameters = () => {
+    const script = form.getFieldValue('script');
+    if (!script) {
+      antdMessage.warning('请先输入脚本代码');
+      return;
+    }
+
+    // 解析输入参数
+    const inputMatches = new Set<string>();
+    const inputTypes: Record<string, string> = {};
+
+    // 匹配 inputs.get('xxx') 或 inputs.get("xxx")
+    const inputRegex = /inputs\.get\(['"]((?!ctx\.)[^'"]+)['"]/g;
+    let match;
+    while ((match = inputRegex.exec(script)) !== null) {
+      const paramName = match[1];
+      if (!paramName.startsWith('ctx.')) {
+        inputMatches.add(paramName);
+      }
+    }
+
+    // 推断类型
+    inputMatches.forEach(paramName => {
+      // 检查是否有类型转换函数
+      const safeIntPattern = new RegExp(`safe_int\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const intPattern = new RegExp(`int\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const safeFloatPattern = new RegExp(`safe_float\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const floatPattern = new RegExp(`float\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+      const safeBoolPattern = new RegExp(`safe_bool\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
+
+      if (safeIntPattern.test(script) || intPattern.test(script)) {
+        inputTypes[paramName] = 'number';
+      } else if (safeFloatPattern.test(script) || floatPattern.test(script)) {
+        inputTypes[paramName] = 'number';
+      } else if (safeBoolPattern.test(script)) {
+        inputTypes[paramName] = 'boolean';
+      } else {
+        inputTypes[paramName] = 'string';
+      }
+    });
+
+    // 解析输出参数
+    const outputMatches = new Set<string>();
+
+    // 匹配 outputs = { "key": value, 'key': value }
+    const outputsBlockRegex = /outputs\s*=\s*\{([^}]+)\}/s;
+    const outputsBlock = outputsBlockRegex.exec(script);
+
+    if (outputsBlock) {
+      const outputContent = outputsBlock[1];
+      // 匹配键名: "xxx" 或 'xxx'
+      const keyRegex = /['"]([^'"]+)['"]\s*:/g;
+      let keyMatch;
+      while ((keyMatch = keyRegex.exec(outputContent)) !== null) {
+        const keyName = keyMatch[1];
+        if (keyName !== '_console_output') { // 排除内部使用的字段
+          outputMatches.add(keyName);
+        }
+      }
+    }
+
+    // 转换为参数数组
+    const newInputParams: BlockParameter[] = Array.from(inputMatches).map(name => ({
+      id: `input-${Date.now()}-${Math.random()}`,
+      name,
+      type: inputTypes[name] || 'string',
+      description: '',
+      required: false,
+      defaultValue: undefined
+    }));
+
+    const newOutputParams: BlockParameter[] = Array.from(outputMatches).map(name => ({
+      id: `output-${Date.now()}-${Math.random()}`,
+      name,
+      type: 'any', // 输出类型默认为 any
+      description: '',
+      required: false,
+      defaultValue: undefined
+    }));
+
+    // 更新参数列表
+    if (newInputParams.length > 0 || newOutputParams.length > 0) {
+      setInputParams(newInputParams);
+      setOutputParams(newOutputParams);
+      antdMessage.success(`已解析 ${newInputParams.length} 个输入参数和 ${newOutputParams.length} 个输出参数`);
+    } else {
+      antdMessage.info('未从脚本中解析到输入输出参数');
+    }
   };
 
   // 获取表单值时,动态添加 inputs 和 outputs
@@ -438,6 +563,20 @@ outputs = {
         <Form.Item name="outputs" hidden>
           <Input />
         </Form.Item>
+
+        {/* 参数解析按钮 */}
+        <div style={{ marginBottom: 16, textAlign: 'center' }}>
+          <Tooltip title="自动从脚本中提取输入输出参数（不包括描述）">
+            <Button
+              icon={<ThunderboltOutlined />}
+              onClick={parseScriptParameters}
+              type="dashed"
+              size="large"
+            >
+              从脚本自动解析参数
+            </Button>
+          </Tooltip>
+        </div>
 
         {/* 输入参数配置 */}
         <Divider>输入参数配置</Divider>
