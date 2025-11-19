@@ -193,6 +193,11 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "未配置site-packages路径，无法安装包");
         }
 
+        // 检查pip是否可用
+        if (!checkPipAvailable(environment.getPythonExecutable())) {
+            throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
+        }
+
         String packageName = packageDTO.getPackageName();
         String version = packageDTO.getVersion();
 
@@ -632,6 +637,43 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
+     * 检查pip是否可用
+     */
+    private boolean checkPipAvailable(String pythonExecutable) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    pythonExecutable,
+                    "-m",
+                    "pip",
+                    "--version"
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                log.info("pip可用: {}", output.toString().trim());
+                return true;
+            }
+
+            log.warn("pip不可用，退出代码: {}, 输出: {}", exitCode, output);
+            return false;
+
+        } catch (Exception e) {
+            log.warn("检查pip可用性时出错", e);
+            return false;
+        }
+    }
+
+    /**
      * 验证包是否已安装并获取版本
      * 使用 python -m pip show <package> 命令
      */
@@ -800,6 +842,12 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 检测Python版本
         String pythonVersion = detectPythonVersion(pythonExecutable);
+
+        // 检测pip是否可用
+        boolean hasPip = checkPipAvailable(pythonExecutable);
+        if (!hasPip) {
+            log.warn("上传的Python环境不包含pip模块，将无法在线安装包。建议使用离线包功能。");
+        }
 
         // 检测site-packages路径
         String sitePackagesPath = detectSitePackagesPath(extractPath);
