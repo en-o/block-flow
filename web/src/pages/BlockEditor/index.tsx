@@ -687,11 +687,40 @@ outputs = {
       return;
     }
 
+    // 在可视化模式下，需要先生成代码
+    let codeToTest = scriptCode;
+    if (definitionMode === 'BLOCKLY') {
+      if (workspaceRef.current) {
+        try {
+          const pythonCode = pythonGenerator.workspaceToCode(workspaceRef.current);
+          if (!pythonCode || pythonCode.trim().length === 0) {
+            message.warning('可视化工作区为空，请先添加块');
+            return;
+          }
+          codeToTest = pythonCode;
+          console.log('🧪 可视化模式测试，生成的代码:', pythonCode);
+          message.info('正在测试可视化模式构建的代码...', 2);
+        } catch (error) {
+          console.error('生成代码失败', error);
+          message.error('生成代码失败，请检查可视化块是否正确');
+          return;
+        }
+      } else {
+        message.error('可视化编辑器未初始化');
+        return;
+      }
+    }
+
     setTesting(true);
     setTestResult(null);
 
     try {
-      const response = await blockApi.test(block.id, { inputs: testInputs });
+      // 使用临时代码测试（不保存块）
+      const response = await blockApi.test(block.id, {
+        inputs: testInputs,
+        tempScript: codeToTest, // 传入临时代码用于测试
+      });
+
       if (response.code === 200) {
         // 尝试解析 JSON
         try {

@@ -251,6 +251,7 @@ export interface BlockPage {
 // 块测试DTO（对应后端 BlockTestDTO）
 export interface BlockTestDTO {
   inputs: Record<string, any>;
+  tempScript?: string; // 临时脚本（用于可视化模式测试）
 }
 
 // ===================
