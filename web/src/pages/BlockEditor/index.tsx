@@ -8,7 +8,7 @@ import {
   Radio,
   InputNumber,
   Divider,
-  message as antdMessage,
+  message,
   Card,
   Space,
   Modal,
@@ -152,34 +152,80 @@ outputs = {
 
   // 初始化 Blockly 工作区
   useEffect(() => {
-    if (definitionMode === 'BLOCKLY' && blocklyDivRef.current && !workspaceRef.current) {
-      workspaceRef.current = Blockly.inject(blocklyDivRef.current, {
-        toolbox: getBlocklyToolbox(),
-        grid: {
-          spacing: 20,
-          length: 3,
-          colour: '#ccc',
-          snap: true,
-        },
-        zoom: {
-          controls: true,
-          wheel: true,
-          startScale: 1.0,
-          maxScale: 3,
-          minScale: 0.3,
-          scaleSpeed: 1.2,
-        },
-        trashcan: true,
-      });
+    // 清理旧的workspace
+    if (workspaceRef.current) {
+      try {
+        workspaceRef.current.dispose();
+      } catch (error) {
+        console.error('清理Blockly workspace失败', error);
+      }
+      workspaceRef.current = null;
     }
 
-    return () => {
-      if (workspaceRef.current) {
-        workspaceRef.current.dispose();
-        workspaceRef.current = null;
-      }
-    };
-  }, [definitionMode]);
+    // 如果是BLOCKLY模式，创建新的workspace
+    if (definitionMode === 'BLOCKLY') {
+      // 使用setTimeout确保DOM已渲染
+      const timer = setTimeout(() => {
+        if (blocklyDivRef.current && !workspaceRef.current) {
+          try {
+            console.log('正在初始化Blockly workspace...');
+            workspaceRef.current = Blockly.inject(blocklyDivRef.current, {
+              toolbox: getBlocklyToolbox(),
+              grid: {
+                spacing: 20,
+                length: 3,
+                colour: '#ccc',
+                snap: true,
+              },
+              zoom: {
+                controls: true,
+                wheel: true,
+                startScale: 1.0,
+                maxScale: 3,
+                minScale: 0.3,
+                scaleSpeed: 1.2,
+              },
+              trashcan: true,
+            });
+            console.log('Blockly workspace初始化成功');
+
+            // 如果有已保存的Blockly定义，加载它
+            if (block?.blocklyDefinition) {
+              try {
+                const xml = Blockly.utils.xml.textToDom(block.blocklyDefinition);
+                Blockly.Xml.domToWorkspace(xml, workspaceRef.current);
+                console.log('已加载Blockly定义');
+              } catch (error) {
+                console.error('加载Blockly定义失败', error);
+              }
+            }
+          } catch (error) {
+            console.error('初始化Blockly失败', error);
+            message.error('初始化可视化编辑器失败，请查看控制台');
+          }
+        } else {
+          if (!blocklyDivRef.current) {
+            console.error('blocklyDivRef.current为空');
+          }
+          if (workspaceRef.current) {
+            console.log('workspace已存在，跳过初始化');
+          }
+        }
+      }, 150);
+
+      return () => {
+        clearTimeout(timer);
+        if (workspaceRef.current) {
+          try {
+            workspaceRef.current.dispose();
+          } catch (error) {
+            console.error('清理Blockly workspace失败', error);
+          }
+          workspaceRef.current = null;
+        }
+      };
+    }
+  }, [definitionMode, block?.blocklyDefinition]);
 
   const loadBlockTypes = async () => {
     try {
@@ -414,10 +460,10 @@ outputs = {
           // 生成Python代码
           const pythonCode = pythonGenerator.workspaceToCode(workspaceRef.current);
           setScriptCode(pythonCode);
-          antdMessage.success('已将可视化块转换为Python代码');
+          message.success('已将可视化块转换为Python代码');
         } catch (error) {
           console.error('转换失败', error);
-          antdMessage.error('转换失败，请检查Blockly块是否正确');
+          message.error('转换失败，请检查Blockly块是否正确');
         }
       }
     } else if (mode === 'BLOCKLY' && definitionMode === 'CODE') {
@@ -535,7 +581,7 @@ outputs = {
   // 执行测试
   const handleTest = async () => {
     if (!block) {
-      antdMessage.warning('请先保存块后再进行测试');
+      message.warning('请先保存块后再进行测试');
       return;
     }
 
@@ -577,7 +623,7 @@ outputs = {
   // 从脚本解析输入输出参数
   const handleParseScriptParameters = () => {
     if (!scriptCode) {
-      antdMessage.warning('请先输入脚本代码');
+      message.warning('请先输入脚本代码');
       return;
     }
 
@@ -666,9 +712,9 @@ outputs = {
     if (newInputParams.length > 0 || newOutputParams.length > 0) {
       setInputParams(newInputParams);
       setOutputParams(newOutputParams);
-      antdMessage.success(`已解析 ${newInputParams.length} 个输入参数和 ${newOutputParams.length} 个输出参数`);
+      message.success(`已解析 ${newInputParams.length} 个输入参数和 ${newOutputParams.length} 个输出参数`);
     } else {
-      antdMessage.info('未从脚本中解析到输入输出参数');
+      message.info('未从脚本中解析到输入输出参数');
     }
   };
 
@@ -699,7 +745,7 @@ outputs = {
         };
         const response = await blockApi.update(updateData);
         if (response.code === 200) {
-          antdMessage.success('块更新成功');
+          message.success('块更新成功');
           // 重新加载当前块数据，而不是跳转
           await loadBlock(block.id);
         }
@@ -708,7 +754,7 @@ outputs = {
         const createData: BlockCreateDTO = blockData;
         const response = await blockApi.create(createData);
         if (response.code === 200) {
-          antdMessage.success('块创建成功');
+          message.success('块创建成功');
           // 创建后跳转到列表
           navigate('/manage/blocks');
         }

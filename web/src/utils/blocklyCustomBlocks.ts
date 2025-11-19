@@ -5,45 +5,56 @@
 import * as Blockly from 'blockly';
 import { pythonGenerator, Order } from 'blockly/python';
 
+// 确保生成器已初始化
+if (!pythonGenerator) {
+  console.error('Python生成器未正确加载');
+}
+
 /**
  * 初始化所有自定义块
  */
 export function initCustomBlocks() {
-  // Python输入参数块
-  definePythonInputBlock();
+  try {
+    // Python输入参数块
+    definePythonInputBlock();
 
-  // Python输出块
-  definePythonOutputBlock();
+    // Python输出块
+    definePythonOutputBlock();
 
-  // 字典创建块
-  defineDictCreateBlock();
+    // 字典创建块
+    defineDictCreateBlock();
 
-  // 字典设置键值块
-  defineDictSetBlock();
+    // 字典设置键值块
+    defineDictSetBlock();
 
-  // 字典获取值块
-  defineDictGetBlock();
+    // 字典获取值块
+    defineDictGetBlock();
 
-  // 列表操作块
-  defineListOperationBlocks();
+    // 列表操作块
+    defineListOperationBlocks();
 
-  // 文件读取块
-  defineFileReadBlock();
+    // 文件读取块
+    defineFileReadBlock();
 
-  // 文件写入块
-  defineFileWriteBlock();
+    // 文件写入块
+    defineFileWriteBlock();
 
-  // HTTP请求块
-  defineHttpRequestBlock();
+    // HTTP请求块
+    defineHttpRequestBlock();
 
-  // JSON解析块
-  defineJsonParseBlock();
+    // JSON解析块
+    defineJsonParseBlock();
 
-  // JSON序列化块
-  defineJsonStringifyBlock();
+    // JSON序列化块
+    defineJsonStringifyBlock();
 
-  // 安全类型转换块
-  defineSafeConversionBlocks();
+    // 安全类型转换块
+    defineSafeConversionBlocks();
+
+    console.log('Blockly自定义块初始化成功');
+  } catch (error) {
+    console.error('Blockly自定义块初始化失败', error);
+  }
 }
 
 /**
