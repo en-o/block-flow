@@ -45,12 +45,10 @@ public class WorkflowPage {
     @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
     private Boolean isTemplate;
 
-    /**
-     * 是否启用
-     */
-    @Schema(description = "是否启用")
+
+    @Schema(description = "是否公开")
     @JpaSelectOperator(operatorWrapper = SQLOperatorWrapper.EQ)
-    private Boolean isActive;
+    private Boolean isPublic;
 
     /**
      * 分页排序
@@ -62,8 +60,8 @@ public class WorkflowPage {
 
     public PagingSorteds getPage() {
         if (page == null) {
-            return new PagingSorteds().fixSort(1, "isActive");
+            return new PagingSorteds().fixSort(1, "name");
         }
-        return page.append(1, "isActive");
+        return page.append(1, "name");
     }
 }

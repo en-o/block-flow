@@ -67,6 +67,13 @@ public class WorkflowController {
         return ResultPageVO.success(JpaPageResult.toPage(workflowService.findPage(where, username)));
     }
 
+    @PostMapping("/page/public")
+    @Operation(summary = "分页查询公共流程", description = "分页查询流程列表")
+    public ResultPageVO<Workflow, JpaPageResult<Workflow>> pagePublic(@RequestBody @Valid WorkflowPage where) {
+        where.setIsPublic(true);
+        return ResultPageVO.success(JpaPageResult.toPage(workflowService.findPage(where, null)));
+    }
+
 
     @PostMapping("/{id}/clone")
     @Operation(summary = "克隆流程", description = "复制一个现有的流程")
