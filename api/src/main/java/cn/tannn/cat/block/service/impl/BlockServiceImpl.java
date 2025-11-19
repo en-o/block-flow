@@ -92,6 +92,18 @@ public class BlockServiceImpl implements BlockService {
         if (updateDTO.getColor() != null) {
             block.setColor(updateDTO.getColor());
         }
+        if (updateDTO.getIcon() != null) {
+            block.setIcon(updateDTO.getIcon());
+        }
+        if (updateDTO.getVersion() != null) {
+            block.setVersion(updateDTO.getVersion());
+        }
+        if (updateDTO.getDefinitionMode() != null) {
+            block.setDefinitionMode(updateDTO.getDefinitionMode());
+        }
+        if (updateDTO.getBlocklyDefinition() != null) {
+            block.setBlocklyDefinition(updateDTO.getBlocklyDefinition());
+        }
         if (updateDTO.getScript() != null) {
             block.setScript(updateDTO.getScript());
         }
