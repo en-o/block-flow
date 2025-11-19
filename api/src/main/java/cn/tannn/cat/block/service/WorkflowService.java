@@ -55,6 +55,15 @@ public interface WorkflowService {
      */
     Page<Workflow> findPage(WorkflowPage where, String username);
 
+    /**
+     * 分页查询流程（使用查询条件）
+     *
+     * @param where 分页参数和查询条件
+     * @param username 不等于自己的公开流程
+     * @return 流程分页列表
+     */
+    Page<Workflow> findPagePublic(WorkflowPage where, String username);
+
 
     /**
      * 克隆流程

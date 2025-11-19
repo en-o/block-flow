@@ -95,6 +95,16 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
+    public Page<Workflow> findPagePublic(WorkflowPage where, String username) {
+        where.setIsPublic(true);
+        where.setIsActive(true);
+        Specification<Workflow> select = EnhanceSpecification.beanWhere(where,x -> {
+            x.ne(true,"authorUsername",username);
+        });
+        return workflowRepository.findAll(select, where.getPage().pageable());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Workflow clone(Integer id) {
         Workflow original = getById(id);
