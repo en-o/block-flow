@@ -59,7 +59,6 @@ const PythonEnvironments: React.FC = () => {
   const [uploadedFilesModalVisible, setUploadedFilesModalVisible] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [installingPackage, setInstallingPackage] = useState<string | null>(null);
   const [uploadingRuntime, setUploadingRuntime] = useState(false);
   const [detectingPython, setDetectingPython] = useState(false);
   const [configMode, setConfigMode] = useState<'manual' | 'upload' | 'later'>('manual'); // Python配置模式
@@ -179,17 +178,39 @@ const PythonEnvironments: React.FC = () => {
               const uploadResponse = await pythonEnvApi.uploadPythonRuntime(newEnvId, runtimeFile);
               if (uploadResponse.code === 200 && uploadResponse.data) {
                 message.success('环境创建并配置成功');
-                modal.info({
-                  title: 'Python运行时配置成功',
-                  width: 600,
-                  content: (
-                    <div>
-                      <p><strong>Python路径:</strong> {uploadResponse.data.pythonExecutable || '未检测到'}</p>
-                      <p><strong>Python版本:</strong> {uploadResponse.data.pythonVersion || '未检测到'}</p>
-                      <p><strong>site-packages:</strong> {uploadResponse.data.sitePackagesPath || '未检测到'}</p>
-                    </div>
-                  ),
-                });
+
+                // 构建提示内容
+                const content = (
+                  <div>
+                    <p><strong>Python路径:</strong> {uploadResponse.data.pythonExecutable || '未检测到'}</p>
+                    <p><strong>Python版本:</strong> {uploadResponse.data.pythonVersion || '未检测到'}</p>
+                    <p><strong>site-packages:</strong> {uploadResponse.data.sitePackagesPath || '未检测到'}</p>
+                    <p><strong>pip状态:</strong> {uploadResponse.data.hasPip ? <Tag color="green">已安装</Tag> : <Tag color="orange">未安装</Tag>}</p>
+                    {uploadResponse.data.message && (
+                      <Alert
+                        message={uploadResponse.data.message}
+                        type={uploadResponse.data.hasPip ? "info" : "warning"}
+                        showIcon
+                        style={{ marginTop: 12 }}
+                      />
+                    )}
+                  </div>
+                );
+
+                // 根据pip状态显示不同类型的弹窗
+                if (uploadResponse.data.hasPip) {
+                  modal.success({
+                    title: 'Python运行时配置成功',
+                    width: 700,
+                    content: content,
+                  });
+                } else {
+                  modal.warning({
+                    title: 'Python运行时配置成功（但缺少pip）',
+                    width: 700,
+                    content: content,
+                  });
+                }
               }
             } catch (error: any) {
               message.warning('环境创建成功，但运行时上传失败: ' + (error.message || '未知错误'));
@@ -398,8 +419,9 @@ const PythonEnvironments: React.FC = () => {
     try {
       const response = await pythonEnvApi.uploadPackageFile(selectedEnv.id, file);
       if (response.code === 200) {
-        message.success('上传成功');
-        // 刷新列表
+        message.success('上传并安装成功');
+        // 刷新环境列表和包列表
+        await fetchEnvironments();
         const listResponse = await pythonEnvApi.listUploadedPackageFiles(selectedEnv.id);
         if (listResponse.code === 200 && listResponse.data) {
           setUploadedFiles(listResponse.data);
@@ -411,26 +433,6 @@ const PythonEnvironments: React.FC = () => {
       setUploadingFile(false);
     }
     return false; // 阻止默认上传行为
-  };
-
-  const handleInstallPackageFile = async (fileName: string) => {
-    if (!selectedEnv) return;
-
-    setInstallingPackage(fileName);
-    try {
-      await pythonEnvApi.installPackageFile(selectedEnv.id, fileName);
-      message.success('安装成功');
-      // 刷新环境和包列表
-      fetchEnvironments();
-      const listResponse = await pythonEnvApi.listUploadedPackageFiles(selectedEnv.id);
-      if (listResponse.code === 200 && listResponse.data) {
-        setUploadedFiles(listResponse.data);
-      }
-    } catch (error: any) {
-      message.error(error.message || '安装失败');
-    } finally {
-      setInstallingPackage(null);
-    }
   };
 
   const handleDeletePackageFile = async (fileName: string) => {
@@ -471,21 +473,43 @@ const PythonEnvironments: React.FC = () => {
       const response = await pythonEnvApi.uploadPythonRuntime(selectedEnv.id, file);
       if (response.code === 200 && response.data) {
         message.success('Python运行时上传并配置成功');
-        // 显示检测到的信息
-        modal.success({
-          title: 'Python运行时配置成功',
-          width: 600,
-          content: (
-            <div>
-              <p><strong>文件名:</strong> {response.data.fileName}</p>
-              <p><strong>文件大小:</strong> {(response.data.fileSize / 1024 / 1024).toFixed(2)} MB</p>
-              <p><strong>解压路径:</strong> {response.data.extractPath}</p>
-              <p><strong>Python路径:</strong> {response.data.pythonExecutable || '未检测到'}</p>
-              <p><strong>Python版本:</strong> {response.data.pythonVersion || '未检测到'}</p>
-              <p><strong>site-packages:</strong> {response.data.sitePackagesPath || '未检测到'}</p>
-            </div>
-          ),
-        });
+
+        // 构建提示内容
+        const content = (
+          <div>
+            <p><strong>文件名:</strong> {response.data.fileName}</p>
+            <p><strong>文件大小:</strong> {(response.data.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+            <p><strong>解压路径:</strong> {response.data.extractPath}</p>
+            <p><strong>Python路径:</strong> {response.data.pythonExecutable || '未检测到'}</p>
+            <p><strong>Python版本:</strong> {response.data.pythonVersion || '未检测到'}</p>
+            <p><strong>site-packages:</strong> {response.data.sitePackagesPath || '未检测到'}</p>
+            <p><strong>pip状态:</strong> {response.data.hasPip ? <Tag color="green">已安装</Tag> : <Tag color="orange">未安装</Tag>}</p>
+            {response.data.message && (
+              <Alert
+                message={response.data.message}
+                type={response.data.hasPip ? "info" : "warning"}
+                showIcon
+                style={{ marginTop: 12 }}
+              />
+            )}
+          </div>
+        );
+
+        // 根据pip状态显示不同类型的弹窗
+        if (response.data.hasPip) {
+          modal.success({
+            title: 'Python运行时配置成功',
+            width: 700,
+            content: content,
+          });
+        } else {
+          modal.warning({
+            title: 'Python运行时配置成功（但缺少pip）',
+            width: 700,
+            content: content,
+          });
+        }
+
         // 刷新环境列表
         fetchEnvironments();
       }
@@ -806,6 +830,10 @@ const PythonEnvironments: React.FC = () => {
                     • 文件大小限制 2GB
                     <br />
                     • 系统将自动解压并检测Python路径、版本和site-packages
+                    <br />
+                    • <strong>Python下载：</strong>
+                    <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>官方FTP</a> |
+                    <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>淘宝镜像</a>
                   </div>
                   {runtimeFile && (
                     <Alert
@@ -872,9 +900,26 @@ const PythonEnvironments: React.FC = () => {
         <Alert
           message="Python运行时配置"
           description={
-            selectedEnv?.pythonExecutable
-              ? "当前环境已配置Python运行时，您可以重新上传或检测以更新配置"
-              : "当前环境尚未配置Python运行时，请先上传Python环境或自动检测"
+            <div>
+              {selectedEnv?.pythonExecutable
+                ? "当前环境已配置Python运行时，您可以重新上传或检测以更新配置"
+                : "当前环境尚未配置Python运行时，请先上传Python环境或自动检测"}
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                <strong>Python下载地址：</strong>
+                <br />
+                • Windows: <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer">Python官方FTP</a> 或 <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer">淘宝镜像</a>
+                <br />
+                • Linux: <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer">Python官方FTP</a> 或使用系统包管理器
+                <br />
+                <strong>pip离线包下载：</strong>
+                <br />
+                • PyPI官方: <a href="https://pypi.org/project/pip/#files" target="_blank" rel="noopener noreferrer">https://pypi.org/project/pip/#files</a>
+                <br />
+                • 清华镜像: <a href="https://pypi.tuna.tsinghua.edu.cn/simple/pip/" target="_blank" rel="noopener noreferrer">https://pypi.tuna.tsinghua.edu.cn/simple/pip/</a>
+                <br />
+                • 推荐下载: <code>pip-24.0-py3-none-any.whl</code>（适用于所有Python 3.x）
+              </div>
+            </div>
           }
           type={selectedEnv?.pythonExecutable ? "success" : "warning"}
           showIcon
@@ -924,6 +969,10 @@ const PythonEnvironments: React.FC = () => {
               • 文件大小限制 2GB
               <br />
               • 系统将自动检测并配置 Python 解释器路径、版本和 site-packages 路径
+              <br />
+              • <strong>Python下载：</strong>
+              <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>官方FTP</a> |
+              <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>淘宝镜像</a>
             </div>
             {selectedEnv?.pythonExecutable ? (
               <Alert
@@ -970,24 +1019,33 @@ const PythonEnvironments: React.FC = () => {
 
         <Divider style={{ margin: '16px 0' }} />
 
-        <Card size="small" title="上传离线包" style={{ marginBottom: 16 }}>
+        <Card size="small" title="上传离线包（上传即安装）" style={{ marginBottom: 16 }}>
           <Upload
             beforeUpload={handleFileUpload}
             showUploadList={false}
             accept=".whl,.tar.gz"
           >
             <Button icon={<UploadOutlined />} loading={uploadingFile}>
-              {uploadingFile ? '上传中...' : '选择文件上传 (.whl 或 .tar.gz)'}
+              {uploadingFile ? '上传中...' : '选择文件上传并安装 (.whl 或 .tar.gz)'}
             </Button>
           </Upload>
           <div style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
             • 支持 .whl 和 .tar.gz 格式
             <br />
             • 文件大小限制 500MB
+            <br />
+            • 上传后将立即安装到环境（无需pip）
+            <br />
+            • 如果Python环境没有pip，可上传pip的whl包来启用pip功能
+            <br />
+            • <strong>pip下载：</strong>
+            <a href="https://pypi.org/project/pip/#files" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>PyPI官方</a> |
+            <a href="https://pypi.tuna.tsinghua.edu.cn/simple/pip/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>清华镜像</a>
+            （推荐: <code>pip-24.0-py3-none-any.whl</code>）
           </div>
         </Card>
 
-        <Card size="small" title="已上传包文件">
+        <Card size="small" title="已上传/已安装的包文件">
           {uploadedFiles.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
               暂无已上传的包文件
@@ -998,17 +1056,6 @@ const PythonEnvironments: React.FC = () => {
               renderItem={(file: any) => (
                 <List.Item
                   actions={[
-                    <Button
-                      key="install"
-                      type="primary"
-                      size="small"
-                      icon={file.installed ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
-                      onClick={() => handleInstallPackageFile(file.fileName)}
-                      loading={installingPackage === file.fileName}
-                      disabled={file.installed}
-                    >
-                      {file.installed ? '已安装' : '安装'}
-                    </Button>,
                     <Popconfirm
                       key="delete"
                       title="确定删除这个包文件吗？"
@@ -1024,11 +1071,11 @@ const PythonEnvironments: React.FC = () => {
                     title={
                       <Space>
                         <span>{file.fileName}</span>
-                        {file.installed && <Tag color="green">已安装</Tag>}
+                        <Tag color="green" icon={<CheckCircleOutlined />}>已安装</Tag>
                       </Space>
                     }
                     description={
-                      <Space split="|分">
+                      <Space split="|">
                         <span>大小: {(file.fileSize / 1024 / 1024).toFixed(2)} MB</span>
                         <span>类型: {file.fileType}</span>
                         <span>上传时间: {new Date(file.uploadTime).toLocaleString()}</span>

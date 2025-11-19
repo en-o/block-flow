@@ -356,6 +356,8 @@ export interface PythonRuntimeUploadResultDTO {
   pythonExecutable?: string;
   pythonVersion?: string;
   sitePackagesPath?: string;
+  hasPip?: boolean;
+  message?: string;
 }
 
 // ===================
