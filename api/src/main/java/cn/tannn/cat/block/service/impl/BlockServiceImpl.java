@@ -169,9 +169,19 @@ public class BlockServiceImpl implements BlockService {
     public String test(Integer id, BlockTestDTO testDTO) {
         Block block = getById(id);
 
+        // 确定要执行的脚本：如果提供了tempScript则使用tempScript，否则使用block.getScript()
+        String scriptToExecute;
+        if (testDTO.getTempScript() != null && !testDTO.getTempScript().isEmpty()) {
+            scriptToExecute = testDTO.getTempScript();
+            log.info("使用临时脚本测试块: {}", block.getName());
+        } else {
+            scriptToExecute = block.getScript();
+            log.info("使用块的脚本测试: {}", block.getName());
+        }
+
         // 验证脚本是否存在
-        if (block.getScript() == null || block.getScript().isEmpty()) {
-            throw new BusinessException("块脚本为空，无法测试");
+        if (scriptToExecute == null || scriptToExecute.isEmpty()) {
+            throw new BusinessException("脚本为空，无法测试");
         }
 
         log.info("开始测试块: {}, 输入参数: {}", block.getName(), testDTO.getInputs());
@@ -194,10 +204,10 @@ public class BlockServiceImpl implements BlockService {
             log.info("合并后的输入参数数量: {}, 其中上下文变量: {}",
                     mergedInputs.size(), contextVariables.size());
 
-            // 执行Python脚本
+            // 执行Python脚本（使用确定的脚本）
             PythonScriptExecutor.ExecutionResult result = pythonScriptExecutor.execute(
                     block.getPythonEnvId(),
-                    block.getScript(),
+                    scriptToExecute,
                     mergedInputs
             );
 
