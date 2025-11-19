@@ -67,8 +67,8 @@ public class BlockPage {
 
     public PagingSorteds getPage() {
         if (page == null) {
-            return new PagingSorteds().fixSort(0, "typeCode");
+            return new PagingSorteds().fixSort(1, "id");
         }
-        return page.append(0,"typeCode");
+        return page.append(1,"id");
     }
 }
