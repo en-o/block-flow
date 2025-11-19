@@ -9,10 +9,10 @@ spring:
     multipart:
       # 启用限制，默认启用的这里写是为了后面要改知道
       enabled: true
-      # 单个文件大小
-      max-file-size: ${FILE_MAX_SIZE:500MB}
+      # 单个文件大小（离线包最大500MB，运行时最大2GB）
+      max-file-size: ${FILE_MAX_SIZE:2GB}
       # 总上传的文件大小
-      max-request-size: ${FILE_MAX_REQUEST:500MB}
+      max-request-size: ${FILE_MAX_REQUEST:2GB}
 
 jdevelops:
   swagger:
@@ -40,4 +40,14 @@ knife4j:
 # Python环境配置
 python:
   env:
-    root-path: ${user.dir}/python-envs  # Python环境根目录
+    # Python环境根目录（可通过环境变量PYTHON_ENV_ROOT_PATH覆盖）
+    root-path: ${PYTHON_ENV_ROOT_PATH:${user.dir}/python-envs}
+    # 目录结构说明：
+    # ${root-path}/
+    #   ├── {env-id}/              # 每个环境的独立目录
+    #   │   ├── runtime/           # Python运行时目录
+    #   │   │   ├── python/        # 解压后的Python环境
+    #   │   │   └── *.zip/*.tar.gz # 上传的运行时压缩包
+    #   │   ├── lib/               # 依赖包目录
+    #   │   │   └── site-packages/ # pip安装目标
+    #   │   └── packages/          # 离线包存储目录

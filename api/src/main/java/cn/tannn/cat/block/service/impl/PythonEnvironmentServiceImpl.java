@@ -5,6 +5,7 @@ import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageUploadResultDT
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonRuntimeUploadResultDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDTO;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.repository.PythonEnvironmentRepository;
@@ -36,6 +37,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.stream.Stream;
 
 /**
  * Python环境Service实现
@@ -561,5 +565,444 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
         int lastDot = fileName.lastIndexOf('.');
         return lastDot > 0 ? fileName.substring(lastDot + 1) : "";
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PythonRuntimeUploadResultDTO uploadPythonRuntime(Integer id, MultipartFile file) {
+        PythonEnvironment environment = getById(id);
+
+        if (environment.getEnvRootPath() == null) {
+            throw new ServiceException(500, "环境未初始化，请先初始化环境");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isEmpty()) {
+            throw new ServiceException(400, "文件名不能为空");
+        }
+
+        // 验证文件类型 - 支持 zip 和 tar.gz
+        boolean isZip = originalFilename.endsWith(".zip");
+        boolean isTarGz = originalFilename.endsWith(".tar.gz") || originalFilename.endsWith(".tgz");
+
+        if (!isZip && !isTarGz) {
+            throw new ServiceException(400, "仅支持.zip和.tar.gz格式的压缩包");
+        }
+
+        // 验证文件大小（最大2GB）
+        long maxSize = 2L * 1024 * 1024 * 1024;
+        if (file.getSize() > maxSize) {
+            throw new ServiceException(400, "文件大小不能超过2GB");
+        }
+
+        // 创建runtime目录
+        String runtimeDir = environment.getEnvRootPath() + File.separator + "runtime";
+        try {
+            Files.createDirectories(Paths.get(runtimeDir));
+        } catch (IOException e) {
+            log.error("创建runtime目录失败", e);
+            throw new ServiceException(500, "创建runtime目录失败: " + e.getMessage());
+        }
+
+        // 保存上传的压缩包
+        Path uploadPath = Paths.get(runtimeDir, originalFilename);
+        try {
+            Files.copy(file.getInputStream(), uploadPath, StandardCopyOption.REPLACE_EXISTING);
+            log.info("Python运行时上传成功: {}", uploadPath);
+        } catch (IOException e) {
+            log.error("保存运行时文件失败", e);
+            throw new ServiceException(500, "保存运行时文件失败: " + e.getMessage());
+        }
+
+        // 解压到runtime目录
+        String extractPath = runtimeDir + File.separator + "python";
+        try {
+            // 如果已存在解压目录，先删除
+            Path extractPathObj = Paths.get(extractPath);
+            if (Files.exists(extractPathObj)) {
+                deleteDirectory(extractPathObj.toFile());
+            }
+            Files.createDirectories(extractPathObj);
+
+            if (isZip) {
+                extractZip(uploadPath.toString(), extractPath);
+            } else {
+                extractTarGz(uploadPath.toString(), extractPath);
+            }
+
+            log.info("Python运行时解压成功: {}", extractPath);
+        } catch (Exception e) {
+            log.error("解压运行时文件失败", e);
+            throw new ServiceException(500, "解压运行时文件失败: " + e.getMessage());
+        }
+
+        // 自动检测Python可执行文件
+        String pythonExecutable = detectPythonExecutableInDirectory(extractPath);
+        if (pythonExecutable == null) {
+            throw new ServiceException(500, "未能在解压目录中检测到Python可执行文件");
+        }
+
+        // 检测Python版本
+        String pythonVersion = detectPythonVersion(pythonExecutable);
+
+        // 检测site-packages路径
+        String sitePackagesPath = detectSitePackagesPath(extractPath);
+
+        // 更新环境配置
+        environment.setPythonExecutable(pythonExecutable);
+        if (pythonVersion != null && !pythonVersion.isEmpty()) {
+            environment.setPythonVersion(pythonVersion);
+        }
+        if (sitePackagesPath != null && !sitePackagesPath.isEmpty()) {
+            environment.setSitePackagesPath(sitePackagesPath);
+        }
+        pythonEnvironmentRepository.save(environment);
+
+        // 返回结果
+        PythonRuntimeUploadResultDTO result = new PythonRuntimeUploadResultDTO();
+        result.setFileName(originalFilename);
+        result.setFileSize(file.getSize());
+        result.setUploadTime(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        result.setExtractPath(extractPath);
+        result.setPythonExecutable(pythonExecutable);
+        result.setPythonVersion(pythonVersion);
+        result.setSitePackagesPath(sitePackagesPath);
+
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PythonEnvironment detectPythonExecutable(Integer id) {
+        PythonEnvironment environment = getById(id);
+
+        if (environment.getEnvRootPath() == null) {
+            throw new ServiceException(500, "环境未初始化，请先初始化环境");
+        }
+
+        // 检测Python可执行文件
+        String pythonExecutable = detectPythonExecutableInDirectory(environment.getEnvRootPath());
+        if (pythonExecutable == null) {
+            throw new ServiceException(500, "未能检测到Python可执行文件");
+        }
+
+        // 检测Python版本
+        String pythonVersion = detectPythonVersion(pythonExecutable);
+
+        // 检测site-packages路径
+        String sitePackagesPath = detectSitePackagesPath(environment.getEnvRootPath());
+
+        // 更新环境配置
+        environment.setPythonExecutable(pythonExecutable);
+        if (pythonVersion != null && !pythonVersion.isEmpty()) {
+            environment.setPythonVersion(pythonVersion);
+        }
+        if (sitePackagesPath != null && !sitePackagesPath.isEmpty()) {
+            environment.setSitePackagesPath(sitePackagesPath);
+        }
+
+        return pythonEnvironmentRepository.save(environment);
+    }
+
+    /**
+     * 在指定目录中检测Python可执行文件
+     */
+    private String detectPythonExecutableInDirectory(String directory) {
+        File dir = new File(directory);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null;
+        }
+
+        // 常见的Python可执行文件名
+        String[] pythonNames = {"python3", "python", "python.exe", "python3.exe"};
+
+        // 常见的Python可执行文件路径（相对于根目录）
+        String[] commonPaths = {
+                "",                                    // 根目录
+                "bin",                                 // Unix/Linux标准路径
+                "Scripts",                             // Windows虚拟环境
+                "python" + File.separator + "bin",     // 可能的嵌套结构
+                "python" + File.separator + "Scripts"
+        };
+
+        for (String path : commonPaths) {
+            String searchDir = path.isEmpty() ? directory : directory + File.separator + path;
+            for (String pythonName : pythonNames) {
+                String pythonPath = searchDir + File.separator + pythonName;
+                File pythonFile = new File(pythonPath);
+                if (pythonFile.exists() && pythonFile.canExecute()) {
+                    log.info("检测到Python可执行文件: {}", pythonPath);
+                    return pythonPath;
+                }
+            }
+        }
+
+        // 递归搜索（限制深度为3层）
+        try {
+            String found = findPythonExecutableRecursively(dir, 0, 3);
+            if (found != null) {
+                log.info("通过递归搜索检测到Python可执行文件: {}", found);
+                return found;
+            }
+        } catch (Exception e) {
+            log.warn("递归搜索Python可执行文件时出错", e);
+        }
+
+        return null;
+    }
+
+    /**
+     * 递归搜索Python可执行文件
+     */
+    private String findPythonExecutableRecursively(File dir, int depth, int maxDepth) {
+        if (depth > maxDepth) {
+            return null;
+        }
+
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return null;
+        }
+
+        // 先检查当前目录
+        for (File file : files) {
+            if (file.isFile() && file.canExecute()) {
+                String name = file.getName().toLowerCase();
+                if (name.equals("python") || name.equals("python3") ||
+                        name.equals("python.exe") || name.equals("python3.exe")) {
+                    return file.getAbsolutePath();
+                }
+            }
+        }
+
+        // 然后递归检查子目录
+        for (File file : files) {
+            if (file.isDirectory() && !file.getName().startsWith(".")) {
+                String found = findPythonExecutableRecursively(file, depth + 1, maxDepth);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 检测Python版本
+     */
+    private String detectPythonVersion(String pythonExecutable) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(pythonExecutable, "--version");
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line);
+                }
+            }
+
+            process.waitFor();
+
+            // 解析版本号（例如：Python 3.11.0）
+            String versionOutput = output.toString().trim();
+            if (versionOutput.startsWith("Python ")) {
+                String version = versionOutput.substring(7).trim();
+                log.info("检测到Python版本: {}", version);
+                return version;
+            }
+
+        } catch (Exception e) {
+            log.warn("检测Python版本失败", e);
+        }
+
+        return "";
+    }
+
+    /**
+     * 检测site-packages路径
+     */
+    private String detectSitePackagesPath(String directory) {
+        File dir = new File(directory);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null;
+        }
+
+        // 常见的site-packages路径
+        String[] commonPaths = {
+                "lib" + File.separator + "site-packages",
+                "Lib" + File.separator + "site-packages",
+                "lib" + File.separator + "python3" + File.separator + "site-packages",
+                "python" + File.separator + "lib" + File.separator + "site-packages",
+                "python" + File.separator + "Lib" + File.separator + "site-packages"
+        };
+
+        for (String path : commonPaths) {
+            String fullPath = directory + File.separator + path;
+            File sitePackagesDir = new File(fullPath);
+            if (sitePackagesDir.exists() && sitePackagesDir.isDirectory()) {
+                log.info("检测到site-packages路径: {}", fullPath);
+                return fullPath;
+            }
+        }
+
+        // 递归搜索site-packages目录（限制深度）
+        try {
+            String found = findSitePackagesRecursively(dir, 0, 5);
+            if (found != null) {
+                log.info("通过递归搜索检测到site-packages路径: {}", found);
+                return found;
+            }
+        } catch (Exception e) {
+            log.warn("递归搜索site-packages时出错", e);
+        }
+
+        return null;
+    }
+
+    /**
+     * 递归搜索site-packages目录
+     */
+    private String findSitePackagesRecursively(File dir, int depth, int maxDepth) {
+        if (depth > maxDepth) {
+            return null;
+        }
+
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return null;
+        }
+
+        // 检查当前目录
+        for (File file : files) {
+            if (file.isDirectory() && file.getName().equals("site-packages")) {
+                return file.getAbsolutePath();
+            }
+        }
+
+        // 递归检查子目录
+        for (File file : files) {
+            if (file.isDirectory() && !file.getName().startsWith(".")) {
+                String found = findSitePackagesRecursively(file, depth + 1, maxDepth);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 解压ZIP文件
+     */
+    private void extractZip(String zipFilePath, String destDirectory) throws IOException {
+        File destDir = new File(destDirectory);
+        if (!destDir.exists()) {
+            destDir.mkdirs();
+        }
+
+        try (ZipInputStream zipIn = new ZipInputStream(Files.newInputStream(Paths.get(zipFilePath)))) {
+            ZipEntry entry = zipIn.getNextEntry();
+            while (entry != null) {
+                String filePath = destDirectory + File.separator + entry.getName();
+                if (!entry.isDirectory()) {
+                    // 确保父目录存在
+                    File parent = new File(filePath).getParentFile();
+                    if (!parent.exists()) {
+                        parent.mkdirs();
+                    }
+                    // 提取文件
+                    Files.copy(zipIn, Paths.get(filePath), StandardCopyOption.REPLACE_EXISTING);
+
+                    // 在Unix/Linux系统上设置可执行权限
+                    File extractedFile = new File(filePath);
+                    if (entry.getName().contains("/bin/") || entry.getName().contains("/Scripts/")) {
+                        extractedFile.setExecutable(true);
+                    }
+                } else {
+                    File dir = new File(filePath);
+                    dir.mkdirs();
+                }
+                zipIn.closeEntry();
+                entry = zipIn.getNextEntry();
+            }
+        }
+    }
+
+    /**
+     * 解压tar.gz文件
+     */
+    private void extractTarGz(String tarGzFilePath, String destDirectory) throws IOException, InterruptedException {
+        // 使用系统命令解压tar.gz
+        ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tarGzFilePath, "-C", destDirectory);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("tar命令执行失败，退出代码: " + exitCode + "，输出: " + output);
+        }
+
+        // 设置bin目录下的文件为可执行
+        File destDir = new File(destDirectory);
+        setBinExecutable(destDir);
+    }
+
+    /**
+     * 设置bin目录下的文件为可执行
+     */
+    private void setBinExecutable(File directory) {
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                if (file.getName().equals("bin") || file.getName().equals("Scripts")) {
+                    // 设置bin或Scripts目录下所有文件为可执行
+                    File[] binFiles = file.listFiles();
+                    if (binFiles != null) {
+                        for (File binFile : binFiles) {
+                            if (binFile.isFile()) {
+                                binFile.setExecutable(true);
+                            }
+                        }
+                    }
+                } else {
+                    // 递归处理子目录
+                    setBinExecutable(file);
+                }
+            }
+        }
+    }
+
+    /**
+     * 递归删除目录
+     */
+    private void deleteDirectory(File directory) throws IOException {
+        if (directory.isDirectory()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    deleteDirectory(file);
+                }
+            }
+        }
+        if (!directory.delete()) {
+            throw new IOException("无法删除: " + directory.getAbsolutePath());
+        }
     }
 }

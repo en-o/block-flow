@@ -6,6 +6,7 @@ import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageUploadResultDT
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonRuntimeUploadResultDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDTO;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
@@ -165,5 +166,20 @@ public class PythonEnvironmentController {
             @Parameter(description = "包文件名") @PathVariable String fileName) {
         pythonEnvironmentService.deletePackageFile(id, fileName);
         return ResultVO.success();
+    }
+
+    @PostMapping(value = "/{id}/runtime/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "上传Python运行时", description = "上传完整的Python运行时环境（.zip或.tar.gz格式），系统将自动检测Python可执行文件路径")
+    public ResultVO<PythonRuntimeUploadResultDTO> uploadPythonRuntime(
+            @Parameter(description = "环境ID") @PathVariable Integer id,
+            @Parameter(description = "Python运行时压缩包") @RequestParam("file") MultipartFile file) {
+        return ResultVO.success(pythonEnvironmentService.uploadPythonRuntime(id, file));
+    }
+
+    @PostMapping("/{id}/detect-python")
+    @Operation(summary = "自动检测Python路径", description = "自动检测环境目录中的Python可执行文件路径并更新配置")
+    public ResultVO<PythonEnvironment> detectPythonExecutable(
+            @Parameter(description = "环境ID") @PathVariable Integer id) {
+        return ResultVO.success(pythonEnvironmentService.detectPythonExecutable(id));
     }
 }

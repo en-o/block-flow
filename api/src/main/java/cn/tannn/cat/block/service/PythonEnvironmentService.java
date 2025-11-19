@@ -5,6 +5,7 @@ import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageUploadResultDT
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonRuntimeUploadResultDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDTO;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import org.springframework.data.domain.Page;
@@ -172,4 +173,21 @@ public interface PythonEnvironmentService {
      * @param fileName 包文件名
      */
     void deletePackageFile(Integer id, String fileName);
+
+    /**
+     * 上传Python运行时环境压缩包
+     *
+     * @param id   环境ID
+     * @param file 运行时压缩包（zip或tar.gz格式）
+     * @return 上传结果（包含检测到的Python路径）
+     */
+    PythonRuntimeUploadResultDTO uploadPythonRuntime(Integer id, MultipartFile file);
+
+    /**
+     * 自动检测Python可执行文件路径
+     *
+     * @param id 环境ID
+     * @return Python环境（已更新pythonExecutable字段）
+     */
+    PythonEnvironment detectPythonExecutable(Integer id);
 }
