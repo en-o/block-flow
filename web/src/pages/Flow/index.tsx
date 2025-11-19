@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined } from '@ant-design/icons';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
@@ -596,6 +596,25 @@ const Flow: React.FC = () => {
     }
   };
 
+  // 切换流程公开/私有状态
+  const handleTogglePublic = async (workflowId: number, currentIsPublic: boolean, workflowName: string) => {
+    try {
+      await workflowApi.togglePublic(workflowId);
+      const newStatus = !currentIsPublic;
+      message.success(`流程 "${workflowName}" 已${newStatus ? '公开' : '设为私有'}`);
+
+      // 重新加载我的流程列表
+      loadMyWorkflows();
+
+      // 如果当前查看的是公共流程，也刷新公共流程列表（因为状态变化可能影响公共流程列表）
+      if (workflowViewType === 'public') {
+        loadPublicWorkflows();
+      }
+    } catch (error: any) {
+      message.error(error.message || '操作失败');
+    }
+  };
+
   // 执行流程
   const handleExecute = async () => {
     if (!currentWorkflow) {
@@ -648,7 +667,22 @@ const Flow: React.FC = () => {
         <div className="flow-toolbox">
           <Tabs
             activeKey={leftPanelTab}
-            onChange={(key) => setLeftPanelTab(key as 'blocks' | 'workflows')}
+            onChange={(key) => {
+              const newTab = key as 'blocks' | 'workflows';
+              setLeftPanelTab(newTab);
+
+              // 切换tab时重新加载数据
+              if (newTab === 'blocks') {
+                loadBlocks(); // 重新加载块库
+              } else if (newTab === 'workflows') {
+                // 根据当前选择的类型重新加载流程
+                if (workflowViewType === 'public') {
+                  loadPublicWorkflows();
+                } else {
+                  loadMyWorkflows();
+                }
+              }
+            }}
             items={[
               {
                 key: 'blocks',
@@ -700,7 +734,17 @@ const Flow: React.FC = () => {
                     <div style={{ padding: '8px' }}>
                       <Radio.Group
                         value={workflowViewType}
-                        onChange={(e) => setWorkflowViewType(e.target.value)}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          setWorkflowViewType(newType);
+
+                          // 切换公共/私有时重新加载数据
+                          if (newType === 'public') {
+                            loadPublicWorkflows();
+                          } else {
+                            loadMyWorkflows();
+                          }
+                        }}
                         style={{ marginBottom: '12px', width: '100%' }}
                       >
                         <Radio.Button value="public" style={{ width: '50%', textAlign: 'center' }}>
@@ -772,12 +816,12 @@ const Flow: React.FC = () => {
                                   className="workflow-item"
                                   style={{
                                     display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
+                                    gap: '12px',
+                                    alignItems: 'flex-start',
                                   }}
                                 >
                                   <div
-                                    style={{ flex: 1, minWidth: 0 }}
+                                    style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
                                     onClick={() => handleLoadWorkflow(workflow)}
                                   >
                                     <div className="workflow-item-name">
@@ -792,23 +836,47 @@ const Flow: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
-                                  <Popconfirm
-                                    title="确认删除"
-                                    description={`确定要删除流程 "${workflow.name}" 吗？`}
-                                    onConfirm={() => handleDeleteWorkflow(workflow.id, workflow.name)}
-                                    okText="确认"
-                                    cancelText="取消"
-                                  >
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                                    {/* 公开/私有切换按钮 */}
                                     <Button
                                       type="text"
-                                      danger
-                                      icon={<DeleteOutlined />}
+                                      icon={workflow.isPublic ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                                       size="small"
-                                      onClick={(e) => e.stopPropagation()}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleTogglePublic(workflow.id, workflow.isPublic, workflow.name);
+                                      }}
+                                      title={workflow.isPublic ? '点击设为私有' : '点击公开'}
+                                      style={{
+                                        padding: '0 4px',
+                                        height: '20px',
+                                        fontSize: '12px',
+                                        color: workflow.isPublic ? '#52c41a' : '#8c8c8c'
+                                      }}
+                                    />
+
+                                    {/* 删除按钮 */}
+                                    <Popconfirm
+                                      title="确认删除"
+                                      description={`确定要删除流程 "${workflow.name}" 吗？`}
+                                      onConfirm={() => handleDeleteWorkflow(workflow.id, workflow.name)}
+                                      okText="确认"
+                                      cancelText="取消"
                                     >
-                                      删除
-                                    </Button>
-                                  </Popconfirm>
+                                      <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        size="small"
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{
+                                          padding: '0 4px',
+                                          height: '20px',
+                                          fontSize: '12px'
+                                        }}
+                                      />
+                                    </Popconfirm>
+                                  </div>
                                 </div>
                               ))}
                             </div>

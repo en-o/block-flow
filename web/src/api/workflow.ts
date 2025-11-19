@@ -64,4 +64,10 @@ export const workflowApi = {
   toggleActive(id: number): Promise<ApiResponse<Workflow>> {
     return http.put(`/workflows/${id}/toggle-active`);
   },
+
+  // 切换流程公开/私有状态
+  // PUT /workflows/{id}/toggle-public
+  togglePublic(id: number): Promise<ApiResponse<Workflow>> {
+    return http.put(`/workflows/${id}/toggle-public`);
+  },
 };

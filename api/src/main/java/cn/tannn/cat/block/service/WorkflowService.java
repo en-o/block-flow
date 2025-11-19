@@ -74,6 +74,14 @@ public interface WorkflowService {
     Workflow clone(Integer id);
 
     /**
+     * 切换流程公开/私有状态
+     *
+     * @param id 流程ID
+     * @return 更新后的流程
+     */
+    Workflow togglePublic(Integer id);
+
+    /**
      * 获取所有分类
      *
      * @return 分类列表

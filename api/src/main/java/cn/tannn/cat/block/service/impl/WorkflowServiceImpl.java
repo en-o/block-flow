@@ -117,6 +117,15 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Workflow togglePublic(Integer id) {
+        Workflow workflow = getById(id);
+        // 切换公开/私有状态
+        workflow.setIsPublic(!workflow.getIsPublic());
+        return workflowRepository.save(workflow);
+    }
+
+    @Override
     public List<String> getAllCategories() {
         return workflowRepository.findDistinctCategories();
     }

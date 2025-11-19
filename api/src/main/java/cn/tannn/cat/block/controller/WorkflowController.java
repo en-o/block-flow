@@ -81,6 +81,12 @@ public class WorkflowController {
         return ResultVO.success(workflowService.clone(id));
     }
 
+    @PutMapping("/{id}/toggle-public")
+    @Operation(summary = "切换流程公开/私有状态", description = "切换流程的isPublic字段，公开变私有，私有变公开")
+    public ResultVO<Workflow> togglePublic(@Parameter(description = "流程ID") @PathVariable Integer id) {
+        return ResultVO.success(workflowService.togglePublic(id));
+    }
+
     @GetMapping("/categories")
     @Operation(summary = "获取所有分类", description = "获取所有流程分类列表")
     public ResultVO<List<String>> getAllCategories() {
