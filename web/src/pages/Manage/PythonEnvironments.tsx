@@ -208,11 +208,28 @@ const PythonEnvironments: React.FC = () => {
                     content: content,
                   });
                 } else {
-                  modal.warning({
-                    title: 'Python运行时配置成功（但缺少pip）',
-                    width: 700,
-                    content: content,
-                  });
+                  // 没有pip，刷新环境列表并打开离线包上传弹窗
+                  await fetchEnvironments();
+
+                  // 获取新创建的环境
+                  const newEnvResponse = await pythonEnvApi.getById(newEnvId);
+                  if (newEnvResponse.code === 200 && newEnvResponse.data) {
+                    setSelectedEnv(newEnvResponse.data);
+
+                    // 获取已上传的包列表
+                    const listResponse = await pythonEnvApi.listUploadedPackageFiles(newEnvId);
+                    if (listResponse.code === 200 && listResponse.data) {
+                      setUploadedFiles(listResponse.data);
+                    }
+
+                    // 关闭创建弹窗，打开离线包上传弹窗
+                    setModalVisible(false);
+                    setUploadedFilesModalVisible(true);
+
+                    // 显示提示
+                    message.warning('Python运行时缺少pip，请上传pip包以启用在线安装功能');
+                  }
+                  return; // 提前返回，避免后面的setModalVisible和fetchEnvironments
                 }
               }
             } catch (error: any) {
