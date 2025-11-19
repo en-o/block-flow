@@ -11,6 +11,18 @@ message.config({
   maxCount: 3,
 });
 
+// 抑制 antd React 19 兼容性警告
+const originalError = console.error;
+console.error = (...args) => {
+  if (
+    typeof args[0] === 'string' &&
+    args[0].includes('[antd: compatible]')
+  ) {
+    return;
+  }
+  originalError.apply(console, args);
+};
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

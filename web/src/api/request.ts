@@ -49,9 +49,9 @@ request.interceptors.response.use(
     // 失败的响应格式：{ code: 非200, message: "错误信息", data: null }
 
     console.log('=== 响应拦截器执行 ===');
-    console.log('Response data:', data);
-    console.log('data.code:', data.code);
-    console.log('data.message:', data.message);
+    // console.log('Response data:', data);
+    // console.log('data.code:', data.code);
+    // console.log('data.message:', data.message);
 
     if (data.code !== undefined) {
       // 检查业务状态码
