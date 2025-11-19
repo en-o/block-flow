@@ -433,6 +433,9 @@ const PythonEnvironments: React.FC = () => {
       return false;
     }
 
+    // 检测是否是pip包
+    const isPipPackage = fileName.startsWith('pip-') || fileName.includes('pip-');
+
     // 显示安装日志窗口
     setInstallLogs([`开始上传并安装 ${file.name}...`]);
     setInstallLogVisible(true);
@@ -443,12 +446,25 @@ const PythonEnvironments: React.FC = () => {
       setInstallLogs(prev => [...prev, '正在上传文件...']);
       setInstallLogs(prev => [...prev, `文件大小: ${(file.size / 1024 / 1024).toFixed(2)} MB`]);
 
+      if (isPipPackage) {
+        setInstallLogs(prev => [...prev, '检测到pip包，安装后将自动配置Python环境']);
+      }
+
       const response = await pythonEnvApi.uploadPackageFile(selectedEnv.id, file);
 
       if (response.code === 200) {
         setInstallLogs(prev => [...prev, '✓ 文件上传成功']);
-        setInstallLogs(prev => [...prev, '正在安装到环境...']);
+        setInstallLogs(prev => [...prev, '正在解压并安装到环境...']);
+
+        if (isPipPackage) {
+          setInstallLogs(prev => [...prev, '配置Python模块搜索路径（._pth文件）...']);
+        }
+
         setInstallLogs(prev => [...prev, '✓ 包安装成功！']);
+
+        if (isPipPackage) {
+          setInstallLogs(prev => [...prev, '✓ pip环境配置完成，现在可以使用在线安装功能']);
+        }
 
         setIsInstalling(false);
         message.success('上传并安装成功');
@@ -456,7 +472,7 @@ const PythonEnvironments: React.FC = () => {
         // 延迟关闭日志窗口
         setTimeout(() => {
           setInstallLogVisible(false);
-        }, 2000);
+        }, isPipPackage ? 3000 : 2000); // pip包多显示1秒
 
         // 刷新环境列表和包列表
         await fetchEnvironments();

@@ -505,6 +505,17 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             String packageName = extractPackageName(originalFilename);
             String version = extractPackageVersion(originalFilename);
 
+            // 如果安装的是pip包，立即配置._pth文件
+            if ("pip".equalsIgnoreCase(packageName)) {
+                log.info("检测到pip包安装，开始配置Python路径...");
+                if (environment.getPythonExecutable() != null && environment.getSitePackagesPath() != null) {
+                    configurePythonPath(environment.getPythonExecutable(), environment.getSitePackagesPath());
+                    log.info("pip安装后，._pth文件已配置");
+                } else {
+                    log.warn("Python路径或site-packages路径未配置，无法自动配置._pth文件");
+                }
+            }
+
             // 更新环境的packages字段
             JSONObject packages = environment.getPackages();
             if (packages == null) {
@@ -559,6 +570,17 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             // 提取包名和版本
             String packageName = extractPackageName(fileName);
             String version = extractPackageVersion(fileName);
+
+            // 如果安装的是pip包，立即配置._pth文件
+            if ("pip".equalsIgnoreCase(packageName)) {
+                log.info("检测到pip包安装，开始配置Python路径...");
+                if (environment.getPythonExecutable() != null && environment.getSitePackagesPath() != null) {
+                    configurePythonPath(environment.getPythonExecutable(), environment.getSitePackagesPath());
+                    log.info("pip安装后，._pth文件已配置");
+                } else {
+                    log.warn("Python路径或site-packages路径未配置，无法自动配置._pth文件");
+                }
+            }
 
             // 更新环境的packages字段
             JSONObject packages = environment.getPackages();
