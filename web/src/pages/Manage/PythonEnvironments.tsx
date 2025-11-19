@@ -18,6 +18,8 @@ import {
   Upload,
   Tooltip,
   Progress,
+  Radio,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -60,6 +62,8 @@ const PythonEnvironments: React.FC = () => {
   const [installingPackage, setInstallingPackage] = useState<string | null>(null);
   const [uploadingRuntime, setUploadingRuntime] = useState(false);
   const [detectingPython, setDetectingPython] = useState(false);
+  const [configMode, setConfigMode] = useState<'manual' | 'upload' | 'later'>('manual'); // Python配置模式
+  const [runtimeFile, setRuntimeFile] = useState<File | null>(null); // 待上传的运行时文件
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -112,12 +116,16 @@ const PythonEnvironments: React.FC = () => {
   const handleAdd = () => {
     setEditingEnv(null);
     form.resetFields();
+    setConfigMode('manual');
+    setRuntimeFile(null);
     setModalVisible(true);
   };
 
   const handleEdit = (record: PythonEnvironment) => {
     setEditingEnv(record);
     form.setFieldsValue(record);
+    setConfigMode('manual');
+    setRuntimeFile(null);
     setModalVisible(true);
   };
 
@@ -143,20 +151,61 @@ const PythonEnvironments: React.FC = () => {
       const values = await form.validateFields();
 
       if (editingEnv) {
+        // 编辑模式
         const updateData: PythonEnvironmentUpdateDTO = {
           id: editingEnv.id,
           ...values
         };
         await pythonEnvApi.update(updateData);
         message.success('更新成功');
+        setModalVisible(false);
+        fetchEnvironments();
       } else {
+        // 创建模式
         const createData: PythonEnvironmentCreateDTO = values;
-        await pythonEnvApi.create(createData);
-        message.success('创建成功');
-      }
+        const createResponse = await pythonEnvApi.create(createData);
 
-      setModalVisible(false);
-      fetchEnvironments();
+        if (createResponse.code === 200 && createResponse.data) {
+          const newEnvId = createResponse.data.id;
+
+          // 初始化环境目录
+          await pythonEnvApi.initializeEnvironment(newEnvId);
+
+          // 根据配置模式进行后续操作
+          if (configMode === 'upload' && runtimeFile) {
+            // 上传Python运行时
+            setUploadingRuntime(true);
+            try {
+              const uploadResponse = await pythonEnvApi.uploadPythonRuntime(newEnvId, runtimeFile);
+              if (uploadResponse.code === 200 && uploadResponse.data) {
+                message.success('环境创建并配置成功');
+                modal.info({
+                  title: 'Python运行时配置成功',
+                  width: 600,
+                  content: (
+                    <div>
+                      <p><strong>Python路径:</strong> {uploadResponse.data.pythonExecutable || '未检测到'}</p>
+                      <p><strong>Python版本:</strong> {uploadResponse.data.pythonVersion || '未检测到'}</p>
+                      <p><strong>site-packages:</strong> {uploadResponse.data.sitePackagesPath || '未检测到'}</p>
+                    </div>
+                  ),
+                });
+              }
+            } catch (error: any) {
+              message.warning('环境创建成功，但运行时上传失败: ' + (error.message || '未知错误'));
+            } finally {
+              setUploadingRuntime(false);
+            }
+          } else if (configMode === 'manual' && values.pythonExecutable) {
+            message.success('环境创建成功，已配置Python路径');
+          } else {
+            message.success('环境创建成功，请稍后配置Python运行时');
+          }
+
+          setModalVisible(false);
+          fetchEnvironments();
+        }
+      }
     } catch (error) {
       console.error('保存失败', error);
     }
@@ -473,22 +522,10 @@ const PythonEnvironments: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 380,
+      width: 320,
       fixed: 'right' as const,
       render: (_: any, record: PythonEnvironment) => (
         <Space>
-          {!record.envRootPath && (
-            <Tooltip title="初始化环境目录结构">
-              <Button
-                type="primary"
-                icon={<ThunderboltOutlined />}
-                onClick={() => handleInitializeEnvironment(record)}
-                size="small"
-              >
-                初始化
-              </Button>
-            </Tooltip>
-          )}
           {!record.isDefault && (
             <Button
               type="link"
@@ -505,13 +542,16 @@ const PythonEnvironments: React.FC = () => {
             管理包
           </Button>
           {record.envRootPath && (
-            <Button
-              type="link"
-              icon={<UploadOutlined />}
-              onClick={() => handleShowUploadedFiles(record)}
-            >
-              离线包
-            </Button>
+            <Tooltip title={record.pythonExecutable ? "管理Python运行时和离线包" : "配置Python运行时（必需）"}>
+              <Button
+                type="link"
+                icon={<UploadOutlined />}
+                onClick={() => handleShowUploadedFiles(record)}
+                danger={!record.pythonExecutable}
+              >
+                配置/离线包
+              </Button>
+            </Tooltip>
           )}
           <Button
             type="link"
@@ -593,7 +633,8 @@ const PythonEnvironments: React.FC = () => {
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={600}
+        width={700}
+        confirmLoading={uploadingRuntime}
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -601,7 +642,7 @@ const PythonEnvironments: React.FC = () => {
             name="name"
             rules={[{ required: true, message: '请输入环境名称' }]}
           >
-            <Input placeholder="例如: python39-prod" />
+            <Input placeholder="例如: python311-prod" />
           </Form.Item>
 
           <Form.Item
@@ -609,16 +650,115 @@ const PythonEnvironments: React.FC = () => {
             name="pythonVersion"
             rules={[{ required: true, message: '请输入Python版本' }]}
           >
-            <Input placeholder="例如: 3.9.16" />
+            <Input placeholder="例如: 3.11.7" />
           </Form.Item>
 
           <Form.Item label="描述" name="description">
-            <Input.TextArea rows={3} placeholder="环境描述" />
+            <Input.TextArea rows={2} placeholder="环境描述" />
           </Form.Item>
 
-          <Form.Item label="Python解释器路径" name="pythonExecutable">
-            <Input placeholder="例如: C:\Python39\python.exe 或 /usr/bin/python3" />
-          </Form.Item>
+          {!editingEnv && (
+            <>
+              <Divider>Python运行时配置</Divider>
+
+              <Form.Item label="配置方式">
+                <Radio.Group value={configMode} onChange={(e) => setConfigMode(e.target.value)}>
+                  <Space direction="vertical">
+                    <Radio value="manual">
+                      <Space>
+                        <span>手动配置路径</span>
+                        <Tag color="blue">适合系统已安装Python</Tag>
+                      </Space>
+                    </Radio>
+                    <Radio value="upload">
+                      <Space>
+                        <span>上传Python运行时</span>
+                        <Tag color="green">推荐离线环境</Tag>
+                      </Space>
+                    </Radio>
+                    <Radio value="later">
+                      <Space>
+                        <span>稍后配置</span>
+                        <Tag>延迟配置</Tag>
+                      </Space>
+                    </Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+
+              {configMode === 'manual' && (
+                <Form.Item
+                  label="Python解释器路径"
+                  name="pythonExecutable"
+                  rules={[{ required: true, message: '请输入Python解释器路径' }]}
+                >
+                  <Input placeholder="例如: C:\Python311\python.exe 或 /usr/bin/python3" />
+                </Form.Item>
+              )}
+
+              {configMode === 'upload' && (
+                <Form.Item label="Python运行时压缩包">
+                  <Upload
+                    beforeUpload={(file) => {
+                      // 验证文件类型
+                      const fileName = file.name.toLowerCase();
+                      if (!fileName.endsWith('.zip') && !fileName.endsWith('.tar.gz') && !fileName.endsWith('.tgz')) {
+                        message.error('仅支持 .zip、.tar.gz 和 .tgz 格式');
+                        return false;
+                      }
+                      // 验证文件大小
+                      const maxSize = 2 * 1024 * 1024 * 1024;
+                      if (file.size > maxSize) {
+                        message.error('文件大小不能超过 2GB');
+                        return false;
+                      }
+                      setRuntimeFile(file);
+                      message.success(`已选择文件: ${file.name}`);
+                      return false; // 阻止自动上传
+                    }}
+                    onRemove={() => {
+                      setRuntimeFile(null);
+                    }}
+                    maxCount={1}
+                    accept=".zip,.tar.gz,.tgz"
+                  >
+                    <Button icon={<RocketOutlined />}>选择Python运行时文件</Button>
+                  </Upload>
+                  <div style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
+                    • 支持 .zip、.tar.gz 和 .tgz 格式
+                    <br />
+                    • 文件大小限制 2GB
+                    <br />
+                    • 系统将自动解压并检测Python路径、版本和site-packages
+                  </div>
+                  {runtimeFile && (
+                    <Alert
+                      message={`已选择: ${runtimeFile.name} (${(runtimeFile.size / 1024 / 1024).toFixed(2)} MB)`}
+                      type="success"
+                      style={{ marginTop: 8 }}
+                      closable
+                      onClose={() => setRuntimeFile(null)}
+                    />
+                  )}
+                </Form.Item>
+              )}
+
+              {configMode === 'later' && (
+                <Alert
+                  message="稍后配置"
+                  description="环境创建后，您可以在"离线包"管理中上传Python运行时或手动配置路径"
+                  type="info"
+                  showIcon
+                />
+              )}
+            </>
+          )}
+
+          {editingEnv && (
+            <Form.Item label="Python解释器路径" name="pythonExecutable">
+              <Input placeholder="例如: C:\Python311\python.exe 或 /usr/bin/python3" />
+            </Form.Item>
+          )}
 
           <Form.Item
             label="是否默认"
@@ -631,32 +771,50 @@ const PythonEnvironments: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* 离线包管理 Modal */}
+      {/* 配置/离线包管理 Modal */}
       <Modal
-        title={`离线包管理 - ${selectedEnv?.name}`}
+        title={
+          <Space>
+            <UploadOutlined />
+            <span>配置与离线包管理 - {selectedEnv?.name}</span>
+          </Space>
+        }
         open={uploadedFilesModalVisible}
         onCancel={() => {
           setUploadedFilesModalVisible(false);
           setSelectedEnv(null);
           setUploadedFiles([]);
         }}
-        width={800}
+        width={900}
         footer={[
           <Button key="close" onClick={() => setUploadedFilesModalVisible(false)}>
             关闭
           </Button>,
         ]}
       >
-        {/* Python运行时上传 */}
+        {/* Python运行时配置区域 */}
+        <Alert
+          message="Python运行时配置"
+          description={
+            selectedEnv?.pythonExecutable
+              ? "当前环境已配置Python运行时，您可以重新上传或检测以更新配置"
+              : "当前环境尚未配置Python运行时，请先上传Python环境或自动检测"
+          }
+          type={selectedEnv?.pythonExecutable ? "success" : "warning"}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+
         <Card
           size="small"
           title={
             <Space>
               <RocketOutlined />
-              <span>上传Python运行时环境</span>
+              <span>Python运行时环境配置</span>
+              {selectedEnv?.pythonExecutable && <Tag color="green">已配置</Tag>}
             </Space>
           }
-          style={{ marginBottom: 16, borderColor: '#1890ff' }}
+          style={{ marginBottom: 16, borderColor: selectedEnv?.pythonExecutable ? '#52c41a' : '#1890ff' }}
         >
           <Space direction="vertical" style={{ width: '100%' }}>
             <div style={{ marginBottom: 8 }}>
@@ -691,13 +849,45 @@ const PythonEnvironments: React.FC = () => {
               <br />
               • 系统将自动检测并配置 Python 解释器路径、版本和 site-packages 路径
             </div>
-            {selectedEnv?.pythonExecutable && (
-              <div style={{ marginTop: 8, padding: 8, background: '#f0f0f0', borderRadius: 4 }}>
-                <div><strong>当前配置:</strong></div>
-                <div>Python路径: {selectedEnv.pythonExecutable}</div>
-                {selectedEnv.pythonVersion && <div>Python版本: {selectedEnv.pythonVersion}</div>}
-                {selectedEnv.sitePackagesPath && <div>site-packages: {selectedEnv.sitePackagesPath}</div>}
-              </div>
+            {selectedEnv?.pythonExecutable ? (
+              <Alert
+                message="当前Python配置"
+                description={
+                  <div style={{ fontSize: 13 }}>
+                    <div style={{ marginBottom: 4 }}>
+                      <strong>解释器路径：</strong>
+                      <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>
+                        {selectedEnv.pythonExecutable}
+                      </code>
+                    </div>
+                    {selectedEnv.pythonVersion && (
+                      <div style={{ marginBottom: 4 }}>
+                        <strong>Python版本：</strong>
+                        <Tag color="blue">{selectedEnv.pythonVersion}</Tag>
+                      </div>
+                    )}
+                    {selectedEnv.sitePackagesPath && (
+                      <div>
+                        <strong>site-packages：</strong>
+                        <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>
+                          {selectedEnv.sitePackagesPath}
+                        </code>
+                      </div>
+                    )}
+                  </div>
+                }
+                type="success"
+                showIcon
+                style={{ marginTop: 12 }}
+              />
+            ) : (
+              <Alert
+                message="未配置Python运行时"
+                description="请上传Python运行时压缩包或使用自动检测功能来配置Python环境"
+                type="warning"
+                showIcon
+                style={{ marginTop: 12 }}
+              />
             )}
           </Space>
         </Card>
