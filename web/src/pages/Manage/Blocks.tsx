@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, App, Divider } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined, PlayCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
@@ -29,6 +29,7 @@ const Blocks: React.FC = () => {
   const [testInputs, setTestInputs] = useState<Record<string, any>>({});
   const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
+  const [helpModalVisible, setHelpModalVisible] = useState(false);
 
   useEffect(() => {
     fetchBlocks();
@@ -486,6 +487,15 @@ const Blocks: React.FC = () => {
           <Space>
             <span>{editingBlock ? '编辑块' : '新建块'}</span>
             <Tag color="blue" style={{ fontSize: 12 }}>Ctrl+S 保存</Tag>
+            <Button
+              type="text"
+              size="small"
+              icon={<QuestionCircleOutlined />}
+              onClick={() => setHelpModalVisible(true)}
+              style={{ color: '#1890ff' }}
+            >
+              类型转换规则
+            </Button>
           </Space>
         }
         open={modalVisible}
@@ -767,6 +777,123 @@ const Blocks: React.FC = () => {
               )}
             </Card>
           )}
+        </div>
+      </Modal>
+
+      {/* 类型转换规则帮助 Modal */}
+      <Modal
+        title="Python 参数类型转换规则"
+        open={helpModalVisible}
+        onCancel={() => setHelpModalVisible(false)}
+        width={800}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setHelpModalVisible(false)}>
+            知道了
+          </Button>,
+        ]}
+      >
+        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <h3>⚠️ 重要提示</h3>
+          <p>JSON传输时，所有参数都可能是字符串类型。即使前端传入数字，后端序列化后Python读取时也可能是字符串。</p>
+
+          <Divider />
+
+          <h3>❌ 错误的写法</h3>
+          <pre style={{ background: '#fff2e8', padding: 12, borderRadius: 4, border: '1px solid #ffbb96' }}>
+{`a = inputs.get('a', 0)  # ❌ 如果inputs['a']存在且是字符串，a就是字符串
+b = inputs.get('b', 0)  # ❌ 默认值0不会被使用
+product = a * b         # ❌ 错误：can't multiply sequence by non-int
+
+# 空字符串问题：
+a = int(inputs.get('a', 2))  # ❌ 如果a=""，会报错
+# 原因：inputs.get('a', 2) 当 a 存在时返回 ""，不会使用默认值 2
+# int("") 会抛出 ValueError`}
+          </pre>
+
+          <Divider />
+
+          <h3>✅ 正确的写法（推荐使用安全转换函数）</h3>
+          <pre style={{ background: '#f6ffed', padding: 12, borderRadius: 4, border: '1px solid #b7eb8f' }}>
+{`def safe_int(value, default=0):
+    """安全地转换为整数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_float(value, default=0.0):
+    """安全地转换为浮点数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_bool(value, default=False):
+    """安全地转换为布尔值"""
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ['true', '1', 'yes', 'on']
+    return bool(value)
+
+# 使用示例：
+a = safe_int(inputs.get('a'), 2)      # ✅ 空字符串返回默认值
+b = safe_int(inputs.get('b'), 0)      # ✅ 无论输入是什么，都能正确处理
+product = a * b                        # ✅ 正确：两个整数相乘`}
+          </pre>
+
+          <Divider />
+
+          <h3>📖 类型转换快速参考</h3>
+
+          <h4>1. 字符串类型（无需转换）</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`name = inputs.get('name', '')`}
+          </pre>
+
+          <h4>2. 数字类型（使用安全转换函数）</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`count = safe_int(inputs.get('count'), 0)
+price = safe_float(inputs.get('price'), 0.0)`}
+          </pre>
+
+          <h4>3. 布尔类型（使用安全转换函数）</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`enabled = safe_bool(inputs.get('enabled'), False)`}
+          </pre>
+
+          <h4>4. 上下文变量（自动注入，使用安全转换）</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`user_name = inputs.get('ctx.USER_NAME', '默认用户')
+db_host = inputs.get('ctx.DB_HOST', 'localhost')
+db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)`}
+          </pre>
+
+          <Divider />
+
+          <h3>🐛 常见错误和解决方案</h3>
+
+          <Card size="small" style={{ marginBottom: 8 }}>
+            <strong>TypeError: can't multiply sequence by non-int</strong>
+            <br />
+            <span style={{ color: '#ff4d4f' }}>原因：</span> 参数是字符串，未转换
+            <br />
+            <span style={{ color: '#52c41a' }}>解决：</span> 使用 <code>safe_int(inputs.get('num'), 0)</code>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8 }}>
+            <strong>ValueError: invalid literal for int() with base 10</strong>
+            <br />
+            <span style={{ color: '#ff4d4f' }}>原因：</span> 字符串无法转换为整数或为空字符串
+            <br />
+            <span style={{ color: '#52c41a' }}>解决：</span> 使用 safe_int/safe_float 函数处理
+          </Card>
         </div>
       </Modal>
     </div>
