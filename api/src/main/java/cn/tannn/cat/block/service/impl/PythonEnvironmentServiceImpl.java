@@ -284,10 +284,21 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 packages = new JSONObject();
             }
 
+            // 检查是否已安装相同包（覆盖旧记录）
+            if (packages.containsKey(packageName)) {
+                Object existingPkg = packages.get(packageName);
+                existingVersion = "未知";
+                if (existingPkg instanceof JSONObject) {
+                    existingVersion = ((JSONObject) existingPkg).getString("version");
+                }
+                log.info("包 {} 已存在（版本: {}），将被覆盖为版本: {}", packageName, existingVersion, installedVersion);
+            }
+
             // 保存安装信息（使用验证后的版本）
             JSONObject packageInfo = new JSONObject();
             packageInfo.put("name", packageName);
             packageInfo.put("version", installedVersion);
+            packageInfo.put("installMethod", "pip");
             packageInfo.put("installedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
             packages.put(packageName, packageInfo);
 
@@ -535,6 +546,16 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             JSONObject packages = environment.getPackages();
             if (packages == null) {
                 packages = new JSONObject();
+            }
+
+            // 检查是否已安装相同包
+            if (packages.containsKey(packageName)) {
+                Object existingPkg = packages.get(packageName);
+                String existingVersion = "未知";
+                if (existingPkg instanceof JSONObject) {
+                    existingVersion = ((JSONObject) existingPkg).getString("version");
+                }
+                log.info("包 {} 已存在（版本: {}），将被覆盖为版本: {}", packageName, existingVersion, version);
             }
 
             JSONObject packageInfo = new JSONObject();
@@ -944,18 +965,31 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
     /**
      * 从文件名提取包名
+     * whl文件名格式: {distribution}-{version}(-{build})?-{python}-{abi}-{platform}.whl
+     * tar.gz文件名格式: {distribution}-{version}.tar.gz
      */
     private String extractPackageName(String fileName) {
-        String nameWithoutExt = fileName;
+        String packageName = fileName;
+
         if (fileName.endsWith(".whl")) {
-            nameWithoutExt = fileName.substring(0, fileName.lastIndexOf("-"));
+            // whl文件: 取第一个-之前的部分作为包名
+            // 例如: openpyxl-3.1.5-py2.py3-none-any.whl -> openpyxl
+            int firstDash = fileName.indexOf("-");
+            if (firstDash > 0) {
+                packageName = fileName.substring(0, firstDash);
+            }
         } else if (fileName.endsWith(".tar.gz")) {
-            nameWithoutExt = fileName.replace(".tar.gz", "");
-            if (nameWithoutExt.contains("-")) {
-                nameWithoutExt = nameWithoutExt.substring(0, nameWithoutExt.lastIndexOf("-"));
+            // tar.gz文件: 移除.tar.gz后取最后一个-之前的部分
+            // 例如: requests-2.32.5.tar.gz -> requests
+            packageName = fileName.replace(".tar.gz", "");
+            int lastDash = packageName.lastIndexOf("-");
+            if (lastDash > 0) {
+                packageName = packageName.substring(0, lastDash);
             }
         }
-        return nameWithoutExt.toLowerCase().replace("_", "-");
+
+        // 标准化包名：小写，下划线转连字符
+        return packageName.toLowerCase().replace("_", "-");
     }
 
     /**
