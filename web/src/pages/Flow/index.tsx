@@ -736,53 +736,58 @@ const Flow: React.FC = () => {
                         myWorkflows.length === 0 ? (
                           <Empty description="暂无我的流程" />
                         ) : (
-                          <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
-                            {myWorkflows.map((workflow) => (
-                              <div
-                                key={workflow.id}
-                                className="workflow-item"
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                }}
-                              >
+                          <>
+                            <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8c8c8c', background: '#fafafa', borderRadius: '4px', margin: '0 0 12px 0' }}>
+                              💡 单击打开流程进行编辑
+                            </div>
+                            <div style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+                              {myWorkflows.map((workflow) => (
                                 <div
-                                  style={{ flex: 1, minWidth: 0 }}
-                                  onDoubleClick={() => handleLoadWorkflow(workflow)}
+                                  key={workflow.id}
+                                  className="workflow-item"
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                  }}
                                 >
-                                  <div className="workflow-item-name">
-                                    {workflow.name}
-                                  </div>
-                                  <div className="workflow-item-description">
-                                    {workflow.description || '暂无描述'}
-                                  </div>
-                                  {workflow.category && (
-                                    <div className="workflow-item-category">
-                                      分类: {getCategoryName(workflow.category)}
-                                    </div>
-                                  )}
-                                </div>
-                                <Popconfirm
-                                  title="确认删除"
-                                  description={`确定要删除流程 "${workflow.name}" 吗？`}
-                                  onConfirm={() => handleDeleteWorkflow(workflow.id, workflow.name)}
-                                  okText="确认"
-                                  cancelText="取消"
-                                >
-                                  <Button
-                                    type="text"
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    size="small"
-                                    onClick={(e) => e.stopPropagation()}
+                                  <div
+                                    style={{ flex: 1, minWidth: 0 }}
+                                    onClick={() => handleLoadWorkflow(workflow)}
                                   >
-                                    删除
-                                  </Button>
-                                </Popconfirm>
-                              </div>
-                            ))}
-                          </div>
+                                    <div className="workflow-item-name">
+                                      {workflow.name}
+                                    </div>
+                                    <div className="workflow-item-description">
+                                      {workflow.description || '暂无描述'}
+                                    </div>
+                                    {workflow.category && (
+                                      <div className="workflow-item-category">
+                                        分类: {getCategoryName(workflow.category)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Popconfirm
+                                    title="确认删除"
+                                    description={`确定要删除流程 "${workflow.name}" 吗？`}
+                                    onConfirm={() => handleDeleteWorkflow(workflow.id, workflow.name)}
+                                    okText="确认"
+                                    cancelText="取消"
+                                  >
+                                    <Button
+                                      type="text"
+                                      danger
+                                      icon={<DeleteOutlined />}
+                                      size="small"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      删除
+                                    </Button>
+                                  </Popconfirm>
+                                </div>
+                              ))}
+                            </div>
+                          </>
                         )
                       )}
                     </div>
