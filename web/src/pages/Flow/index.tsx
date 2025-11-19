@@ -20,8 +20,9 @@ import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined,
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
+import { workflowCategoryApi } from '../../api/workflowCategory';
 import { authUtils } from '../../utils/auth';
-import type { Block, Workflow } from '../../types/api';
+import type { Block, Workflow, WorkflowCategory } from '../../types/api';
 import './index.css';
 
 const nodeTypes: NodeTypes = {
@@ -41,13 +42,15 @@ const Flow: React.FC = () => {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [workflowCategories, setWorkflowCategories] = useState<WorkflowCategory[]>([]);
   const [saveForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  // 加载块库
+  // 加载块库和流程分类
   useEffect(() => {
     loadBlocks();
+    loadWorkflowCategories();
   }, []);
 
   // 监听 Ctrl+S 快捷键保存流程
@@ -148,6 +151,19 @@ const Flow: React.FC = () => {
       console.error('加载块库失败', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkflowCategories = async () => {
+    try {
+      const response = await workflowCategoryApi.listAll();
+      if (response.code === 200 && response.data) {
+        // 按sortOrder排序
+        const sortedCategories = response.data.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        setWorkflowCategories(sortedCategories);
+      }
+    } catch (error) {
+      console.error('加载流程分类失败', error);
     }
   };
 
@@ -701,11 +717,11 @@ const Flow: React.FC = () => {
           </Form.Item>
           <Form.Item label="分类" name="category">
             <Select placeholder="选择流程分类">
-              <Select.Option value="build">构建</Select.Option>
-              <Select.Option value="deploy">部署</Select.Option>
-              <Select.Option value="test">测试</Select.Option>
-              <Select.Option value="notification">通知</Select.Option>
-              <Select.Option value="other">其他</Select.Option>
+              {workflowCategories.map((category) => (
+                <Select.Option key={category.id} value={category.code}>
+                  {category.name}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
         </Form>
@@ -811,11 +827,11 @@ const Flow: React.FC = () => {
           </Form.Item>
           <Form.Item label="分类" name="category">
             <Select placeholder="选择流程分类">
-              <Select.Option value="build">构建</Select.Option>
-              <Select.Option value="deploy">部署</Select.Option>
-              <Select.Option value="test">测试</Select.Option>
-              <Select.Option value="notification">通知</Select.Option>
-              <Select.Option value="other">其他</Select.Option>
+              {workflowCategories.map((category) => (
+                <Select.Option key={category.id} value={category.code}>
+                  {category.name}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
         </Form>
