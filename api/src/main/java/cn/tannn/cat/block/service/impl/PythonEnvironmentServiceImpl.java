@@ -15,6 +15,9 @@ import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -27,6 +30,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -596,29 +603,58 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
-     * 离线安装tar.gz包
+     * 离线安装tar.gz包（使用纯Java实现，跨平台兼容）
      */
-    private void installTarGzOffline(String tarGzPath, String sitePackagesPath) throws IOException, InterruptedException {
+    private void installTarGzOffline(String tarGzPath, String sitePackagesPath) throws IOException {
         // 创建临时解压目录
         Path tempDir = Files.createTempDirectory("package-extract");
         try {
-            // 解压tar.gz到临时目录
-            ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tarGzPath, "-C", tempDir.toString());
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
+            log.info("开始解压tar.gz文件: {}", tarGzPath);
 
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
+            // 使用Apache Commons Compress解压tar.gz
+            try (FileInputStream fis = new FileInputStream(tarGzPath);
+                 BufferedInputStream bis = new BufferedInputStream(fis);
+                 GzipCompressorInputStream gzis = new GzipCompressorInputStream(bis);
+                 TarArchiveInputStream tis = new TarArchiveInputStream(gzis)) {
+
+                TarArchiveEntry entry;
+                while ((entry = tis.getNextTarEntry()) != null) {
+                    if (!tis.canReadEntryData(entry)) {
+                        log.warn("无法读取tar entry: {}", entry.getName());
+                        continue;
+                    }
+
+                    File targetFile = new File(tempDir.toFile(), entry.getName());
+
+                    // 安全检查：防止路径遍历攻击
+                    if (!targetFile.toPath().normalize().startsWith(tempDir)) {
+                        log.warn("检测到可疑路径，跳过: {}", entry.getName());
+                        continue;
+                    }
+
+                    if (entry.isDirectory()) {
+                        if (!targetFile.exists() && !targetFile.mkdirs()) {
+                            throw new IOException("无法创建目录: " + targetFile);
+                        }
+                    } else {
+                        File parent = targetFile.getParentFile();
+                        if (!parent.exists() && !parent.mkdirs()) {
+                            throw new IOException("无法创建父目录: " + parent);
+                        }
+
+                        try (FileOutputStream fos = new FileOutputStream(targetFile);
+                             BufferedOutputStream bos = new BufferedOutputStream(fos)) {
+                            byte[] buffer = new byte[8192];
+                            int len;
+                            while ((len = tis.read(buffer)) != -1) {
+                                bos.write(buffer, 0, len);
+                            }
+                        }
+                    }
                 }
             }
 
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                throw new IOException("tar解压失败，退出代码: " + exitCode + "，输出: " + output);
-            }
+            log.info("tar.gz解压完成: {}", tempDir);
 
             // 查找包的根目录（通常是第一层子目录）
             File[] tempFiles = tempDir.toFile().listFiles();
@@ -643,7 +679,12 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         } finally {
             // 清理临时目录
-            deleteDirectory(tempDir.toFile());
+            try {
+                deleteDirectory(tempDir.toFile());
+                log.info("临时目录已清理: {}", tempDir);
+            } catch (IOException e) {
+                log.warn("清理临时目录失败: {}", e.getMessage());
+            }
         }
     }
 
@@ -1291,29 +1332,69 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
-     * 解压tar.gz文件
+     * 解压tar.gz文件（使用纯Java实现，跨平台兼容）
      */
-    private void extractTarGz(String tarGzFilePath, String destDirectory) throws IOException, InterruptedException {
-        // 使用系统命令解压tar.gz
-        ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tarGzFilePath, "-C", destDirectory);
-        pb.redirectErrorStream(true);
-        Process process = pb.start();
+    private void extractTarGz(String tarGzFilePath, String destDirectory) throws IOException {
+        File destDir = new File(destDirectory);
+        if (!destDir.exists()) {
+            destDir.mkdirs();
+        }
 
-        StringBuilder output = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
+        log.info("开始解压tar.gz文件: {} 到 {}", tarGzFilePath, destDirectory);
+
+        // 使用Apache Commons Compress解压tar.gz
+        try (FileInputStream fis = new FileInputStream(tarGzFilePath);
+             BufferedInputStream bis = new BufferedInputStream(fis);
+             GzipCompressorInputStream gzis = new GzipCompressorInputStream(bis);
+             TarArchiveInputStream tis = new TarArchiveInputStream(gzis)) {
+
+            TarArchiveEntry entry;
+            while ((entry = tis.getNextTarEntry()) != null) {
+                if (!tis.canReadEntryData(entry)) {
+                    log.warn("无法读取tar entry: {}", entry.getName());
+                    continue;
+                }
+
+                File targetFile = new File(destDir, entry.getName());
+
+                // 安全检查：防止路径遍历攻击
+                if (!targetFile.toPath().normalize().startsWith(destDir.toPath())) {
+                    log.warn("检测到可疑路径，跳过: {}", entry.getName());
+                    continue;
+                }
+
+                if (entry.isDirectory()) {
+                    if (!targetFile.exists() && !targetFile.mkdirs()) {
+                        throw new IOException("无法创建目录: " + targetFile);
+                    }
+                } else {
+                    File parent = targetFile.getParentFile();
+                    if (!parent.exists() && !parent.mkdirs()) {
+                        throw new IOException("无法创建父目录: " + parent);
+                    }
+
+                    try (FileOutputStream fos = new FileOutputStream(targetFile);
+                         BufferedOutputStream bos = new BufferedOutputStream(fos)) {
+                        byte[] buffer = new byte[8192];
+                        int len;
+                        while ((len = tis.read(buffer)) != -1) {
+                            bos.write(buffer, 0, len);
+                        }
+                    }
+
+                    // 保留Unix权限
+                    if (entry.getMode() != 0) {
+                        targetFile.setExecutable((entry.getMode() & 0100) != 0);
+                        targetFile.setReadable((entry.getMode() & 0400) != 0);
+                        targetFile.setWritable((entry.getMode() & 0200) != 0);
+                    }
+                }
             }
         }
 
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            throw new IOException("tar命令执行失败，退出代码: " + exitCode + "，输出: " + output);
-        }
+        log.info("tar.gz解压完成: {}", destDirectory);
 
         // 设置bin目录下的文件为可执行
-        File destDir = new File(destDirectory);
         setBinExecutable(destDir);
     }
 
