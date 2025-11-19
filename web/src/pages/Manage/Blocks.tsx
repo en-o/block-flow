@@ -27,7 +27,7 @@ const Blocks: React.FC = () => {
   const blockFormRef = useRef<BlockFormEnhancedRef>(null);
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [testInputs, setTestInputs] = useState<Record<string, any>>({});
-  const [testResult, setTestResult] = useState<string>('');
+  const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
@@ -35,28 +35,6 @@ const Blocks: React.FC = () => {
     fetchBlockTypes();
     fetchTagsStatistics();
   }, []);
-
-  // 监听Ctrl+S快捷键保存
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // 检查是否是Ctrl+S或Cmd+S（Mac）
-      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-        // 只在Modal打开时才处理
-        if (modalVisible) {
-          event.preventDefault(); // 阻止浏览器默认保存行为
-          handleSubmit();
-        }
-      }
-    };
-
-    // 添加事件监听
-    document.addEventListener('keydown', handleKeyDown);
-
-    // 清理函数
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [modalVisible, handleSubmit]); // 添加handleSubmit到依赖
 
   const fetchBlocks = async (params?: BlockPage) => {
     setLoading(true);
@@ -204,6 +182,28 @@ const Blocks: React.FC = () => {
       console.error('保存失败', error);
     }
   }, [editingBlock, form]);
+
+  // 监听Ctrl+S快捷键保存（必须放在handleSubmit定义之后）
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 检查是否是Ctrl+S或Cmd+S（Mac）
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault(); // 阻止浏览器默认保存行为
+        // 只在Modal打开时才执行保存
+        if (modalVisible) {
+          handleSubmit();
+        }
+      }
+    };
+
+    // 添加事件监听
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 清理函数
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [modalVisible, handleSubmit]); // 添加handleSubmit到依赖
 
   const handleTableChange = (pag: any) => {
     setPagination(pag);
