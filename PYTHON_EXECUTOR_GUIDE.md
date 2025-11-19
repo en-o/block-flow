@@ -17,6 +17,7 @@
 - 自动解析JSON格式的输出
 - 支持非JSON格式的文本输出
 - 分离标准输出(stdout)和错误输出(stderr)
+- **UTF-8 编码保证**：自动设置输出编码为 UTF-8，确保中文和特殊字符正确显示
 
 #### 超时控制
 - 默认超时时间：60秒
@@ -452,9 +453,21 @@ outputs = {
    - 检查环境的site-packages路径配置
    - 使用离线包上传安装依赖
 
-4. **编码问题**
-   - 确保脚本使用UTF-8编码
-   - 处理中文时使用ensure_ascii=False
+4. **编码问题（中文或特殊字符显示为乱码 ��）**
+   - **问题表现**：输出中的中文、特殊符号（如 ×、√、℃）显示为 `��`
+   - **根本原因**：Windows 系统上 Python 的标准输出默认编码可能不是 UTF-8
+   - **系统已自动处理**：引擎会自动在脚本开头设置 UTF-8 编码，无需手动处理
+   - **技术细节**：系统自动添加以下代码
+     ```python
+     import sys
+     import io
+     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+     ```
+   - **用户注意事项**：
+     - 确保 `outputs` 字典中的字符串使用 UTF-8 编码（Python 3 默认即是）
+     - 可以放心使用中文、特殊符号，系统会正确处理
+     - 示例：`outputs = {"message": "计算: 10 × 5 = 50"}`
 
 5. **输出解析失败**
    - 确保outputs是字典类型

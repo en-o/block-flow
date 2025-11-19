@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, App, Divider } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +35,28 @@ const Blocks: React.FC = () => {
     fetchBlockTypes();
     fetchTagsStatistics();
   }, []);
+
+  // 监听Ctrl+S快捷键保存
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 检查是否是Ctrl+S或Cmd+S（Mac）
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        // 只在Modal打开时才处理
+        if (modalVisible) {
+          event.preventDefault(); // 阻止浏览器默认保存行为
+          handleSubmit();
+        }
+      }
+    };
+
+    // 添加事件监听
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 清理函数
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [modalVisible, handleSubmit]); // 添加handleSubmit到依赖
 
   const fetchBlocks = async (params?: BlockPage) => {
     setLoading(true);
@@ -149,7 +171,7 @@ const Blocks: React.FC = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
       // 先验证表单字段
       await form.validateFields();
@@ -181,7 +203,7 @@ const Blocks: React.FC = () => {
     } catch (error) {
       console.error('保存失败', error);
     }
-  };
+  }, [editingBlock, form]);
 
   const handleTableChange = (pag: any) => {
     setPagination(pag);
@@ -435,7 +457,12 @@ const Blocks: React.FC = () => {
 
       {/* 编辑/新建 Modal */}
       <Modal
-        title={editingBlock ? '编辑块' : '新建块'}
+        title={
+          <Space>
+            <span>{editingBlock ? '编辑块' : '新建块'}</span>
+            <Tag color="blue" style={{ fontSize: 12 }}>Ctrl+S 保存</Tag>
+          </Space>
+        }
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         width={900}

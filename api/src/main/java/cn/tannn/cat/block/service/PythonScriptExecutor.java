@@ -227,7 +227,12 @@ public class PythonScriptExecutor {
         StringBuilder wrapped = new StringBuilder();
         wrapped.append("# -*- coding: utf-8 -*-\n");
         wrapped.append("import sys\n");
+        wrapped.append("import io\n");
         wrapped.append("import json\n");
+        wrapped.append("\n");
+        wrapped.append("# 强制标准输出使用 UTF-8 编码（解决中文及特殊字符乱码问题）\n");
+        wrapped.append("sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')\n");
+        wrapped.append("sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')\n");
         wrapped.append("\n");
 
         if (hasInputs) {
