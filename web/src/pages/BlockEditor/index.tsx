@@ -514,15 +514,126 @@ outputs = {
 
         let block = null;
 
-        // 1. 匹配 print 语句
-        const printMatch = line.match(/^print\s*\(\s*['"](.+?)['"]\s*\)$/);
-        if (printMatch) {
-          console.log('✅ 识别为 print 语句');
-          block = workspace.newBlock('text_print');
-          block.setFieldValue(printMatch[1], 'TEXT');
+        // 1. inputs.get() with safe_int/int conversion: a = safe_int(inputs.get('a'), 0)
+        const safeIntInputMatch = line.match(/^(\w+)\s*=\s*(?:safe_int|int)\s*\(\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*[^)]+)?\s*\)\s*(?:,\s*([^)]+))?\s*\)$/);
+        if (safeIntInputMatch) {
+          console.log('✅ 识别为 safe_int/int(inputs.get(...))');
+          block = workspace.newBlock('variables_set');
+          block.setFieldValue(safeIntInputMatch[1], 'VAR');
+
+          // Create safe_int block
+          const safeIntBlock = workspace.newBlock('safe_int');
+
+          // Create python_input_get block
+          const inputGetBlock = workspace.newBlock('python_input_get');
+          const paramNameBlock = workspace.newBlock('text');
+          paramNameBlock.setFieldValue(safeIntInputMatch[2], 'TEXT');
+          inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
+
+          // Connect input_get to safe_int
+          safeIntBlock.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
+
+          // Connect safe_int to variable
+          block.getInput('VALUE')?.connection?.connect(safeIntBlock.outputConnection!);
+
+          paramNameBlock.initSvg();
+          paramNameBlock.render();
+          inputGetBlock.initSvg();
+          inputGetBlock.render();
+          safeIntBlock.initSvg();
+          safeIntBlock.render();
           convertedCount++;
         }
-        // 2. 匹配变量赋值（字符串）
+        // 2. Simple inputs.get(): variable = inputs.get('param', 'default')
+        else if (line.match(/^(\w+)\s*=\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)$/)) {
+          const match = line.match(/^(\w+)\s*=\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)$/);
+          if (match) {
+            console.log('✅ 识别为 inputs.get(...)');
+            block = workspace.newBlock('variables_set');
+            block.setFieldValue(match[1], 'VAR');
+
+            const inputGetBlock = workspace.newBlock('python_input_get');
+            const paramNameBlock = workspace.newBlock('text');
+            paramNameBlock.setFieldValue(match[2], 'TEXT');
+            inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
+
+            block.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
+
+            paramNameBlock.initSvg();
+            paramNameBlock.render();
+            inputGetBlock.initSvg();
+            inputGetBlock.render();
+            convertedCount++;
+          }
+        }
+        // 3. Math operations: result = a + b, result = a * b, etc.
+        else if (line.match(/^(\w+)\s*=\s*(\w+)\s*([\+\-\*\/])\s*(\w+)$/)) {
+          const match = line.match(/^(\w+)\s*=\s*(\w+)\s*([\+\-\*\/])\s*(\w+)$/);
+          if (match) {
+            const opMap: Record<string, string> = { '+': 'ADD', '-': 'MINUS', '*': 'MULTIPLY', '/': 'DIVIDE' };
+            console.log(`✅ 识别为数学运算 (${match[3]})`);
+
+            block = workspace.newBlock('variables_set');
+            block.setFieldValue(match[1], 'VAR');
+
+            const mathBlock = workspace.newBlock('math_arithmetic');
+            mathBlock.setFieldValue(opMap[match[3]], 'OP');
+
+            // Create variable blocks for operands
+            const varA = workspace.newBlock('variables_get');
+            varA.setFieldValue(match[2], 'VAR');
+            const varB = workspace.newBlock('variables_get');
+            varB.setFieldValue(match[4], 'VAR');
+
+            mathBlock.getInput('A')?.connection?.connect(varA.outputConnection!);
+            mathBlock.getInput('B')?.connection?.connect(varB.outputConnection!);
+            block.getInput('VALUE')?.connection?.connect(mathBlock.outputConnection!);
+
+            varA.initSvg();
+            varA.render();
+            varB.initSvg();
+            varB.render();
+            mathBlock.initSvg();
+            mathBlock.render();
+            convertedCount++;
+          }
+        }
+        // 4. Dictionary creation: outputs = { "key": value, ... }
+        else if (line.match(/^(\w+)\s*=\s*\{[^}]*\}$/)) {
+          const match = line.match(/^(\w+)\s*=\s*\{/);
+          if (match) {
+            console.log('✅ 识别为字典创建');
+            block = workspace.newBlock('variables_set');
+            block.setFieldValue(match[1], 'VAR');
+
+            const dictBlock = workspace.newBlock('dict_create');
+            block.getInput('VALUE')?.connection?.connect(dictBlock.outputConnection!);
+
+            dictBlock.initSvg();
+            dictBlock.render();
+            convertedCount++;
+          }
+        }
+        // 5. Multi-argument print with f-string or concatenation (simplified)
+        else if (line.match(/^print\s*\([^)]+\)$/)) {
+          console.log('✅ 识别为 print 语句（多参数或复杂）');
+          block = workspace.newBlock('python_print');
+
+          // Extract content between print( and )
+          const content = line.match(/^print\s*\((.+)\)$/)?.[1];
+          if (content) {
+            // Create a text block with the content (simplified)
+            const textBlock = workspace.newBlock('text');
+            // Remove quotes if it's a simple string
+            const cleanContent = content.replace(/^['"]|['"]$/g, '');
+            textBlock.setFieldValue(cleanContent, 'TEXT');
+            block.getInput('TEXT')?.connection?.connect(textBlock.outputConnection!);
+            textBlock.initSvg();
+            textBlock.render();
+          }
+          convertedCount++;
+        }
+        // 6. 匹配变量赋值（字符串）
         else if (line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/)) {
           const match = line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/);
           if (match) {
@@ -537,7 +648,7 @@ outputs = {
             convertedCount++;
           }
         }
-        // 3. 匹配变量赋值（数字）
+        // 7. 匹配变量赋值（数字）
         else if (line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/)) {
           const match = line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/);
           if (match) {
@@ -552,13 +663,13 @@ outputs = {
             convertedCount++;
           }
         }
-        // 4. 匹配简单的if语句（仅识别开始）
+        // 8. 匹配简单的if语句（仅识别开始）
         else if (line.match(/^if\s+.+:\s*$/)) {
           console.log('⚠️ 识别为 if 语句（但转换有限）');
           skippedCount++;
           console.log('  提示：if语句转换功能有限，建议手动构建');
         }
-        // 5. 匹配简单的for循环
+        // 9. 匹配简单的for循环
         else if (line.match(/^for\s+\w+\s+in\s+range\((\d+)\):\s*$/)) {
           const match = line.match(/^for\s+(\w+)\s+in\s+range\((\d+)\):\s*$/);
           if (match) {
