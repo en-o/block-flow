@@ -33,7 +33,92 @@ const BlockEditor: React.FC = () => {
   const [block, setBlock] = useState<Block | null>(null);
   const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
   const [definitionMode, setDefinitionMode] = useState<'BLOCKLY' | 'CODE'>('CODE');
-  const [scriptCode, setScriptCode] = useState<string>('# Python 脚本\nprint("Hello World")');
+  const [scriptCode, setScriptCode] = useState<string>(`# -*- coding: utf-8 -*-
+# Block执行脚本模板
+#
+# 输入参数使用说明:
+# - 通过 inputs 字典获取输入参数
+# - 示例: name = inputs.get('name', '默认值')
+# - 示例: count = safe_int(inputs.get('count'), 0)  # 使用安全转换函数
+#
+# 上下文变量使用说明:
+# - 系统自动注入所有上下文变量，格式: ctx.变量名
+# - 示例: db_host = inputs.get('ctx.DB_HOST', 'localhost')
+# - 示例: db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)
+# - 上下文变量在"上下文变量管理"配置，测试和执行时自动注入
+#
+# 输出结果使用说明:
+# - 将结果赋值给 outputs 变量(必须是字典类型)
+# - 示例: outputs = {"result": "success", "data": result_data}
+# - 系统会自动转换为JSON格式返回
+#
+# 注意事项:
+# - 所有异常会被自动捕获并返回错误信息
+# - 可以使用已安装在Python环境中的第三方库
+# - 执行超时时间为60秒
+# - **重要**: inputs中的所有值都是字符串或对象，数字需要转换
+# - **重要**: 空字符串会导致类型转换失败，使用安全转换函数
+
+# ========== 安全类型转换函数（处理空值、None、类型错误） ==========
+
+def safe_int(value, default=0):
+    """安全地转换为整数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_float(value, default=0.0):
+    """安全地转换为浮点数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_bool(value, default=False):
+    """安全地转换为布尔值"""
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ['true', '1', 'yes', 'on']
+    return bool(value)
+
+# ========== 获取输入参数 ==========
+
+# 1. 字符串类型（无需转换）
+# param1 = inputs.get('param1', '')
+
+# 2. 数字类型（使用安全转换函数）
+# param2 = safe_int(inputs.get('param2'), 0)
+# param3 = safe_float(inputs.get('param3'), 0.0)
+
+# 3. 布尔类型（使用安全转换函数）
+# param4 = safe_bool(inputs.get('param4'), False)
+
+# 4. 上下文变量（自动注入，使用安全转换）
+# user_name = inputs.get('ctx.USER_NAME', '默认用户')
+# db_host = inputs.get('ctx.DB_HOST', 'localhost')
+# db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)
+
+# ========== 执行业务逻辑 ==========
+
+# 示例:
+# result = f"Hello {param1}, count: {param2}"
+
+# ========== 设置输出结果（必需） ==========
+
+outputs = {
+    "success": True,
+    "message": "执行成功",
+    # "data": result  # 添加您的结果数据
+}
+`);
   const [loading, setLoading] = useState(false);
   const [inputParams, setInputParams] = useState<Array<{ name: string; type: string; defaultValue: string; description: string }>>([]);
   const [outputParams, setOutputParams] = useState<Array<{ name: string; type: string; description: string }>>([]);
