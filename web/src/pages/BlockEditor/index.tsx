@@ -1162,6 +1162,129 @@ db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)`}
             <br />
             <span style={{ color: '#52c41a' }}>解决：</span> 使用 safe_int/safe_float 函数处理
           </Card>
+
+          <Divider />
+
+          <h3>📝 Python 代码编辑注意事项</h3>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>1. 缩进规范</strong>
+            <br />
+            • Python 使用缩进表示代码块，必须保持一致（推荐 4 个空格）
+            <br />
+            • 不要混用 Tab 和空格，会导致 IndentationError
+            <br />
+            • 函数、类、循环、条件语句内部都需要缩进
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>2. 编码声明</strong>
+            <br />
+            • 文件首行建议添加：<code># -*- coding: utf-8 -*-</code>
+            <br />
+            • 确保中文和特殊字符正确显示（系统已自动处理 UTF-8 编码）
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>3. 必须定义 outputs</strong>
+            <br />
+            • 脚本最后必须赋值 <code>outputs</code> 变量（字典类型）
+            <br />
+            • 示例：<code>outputs = {`{"result": "success", "data": 123}`}</code>
+            <br />
+            • 如果没有输出，至少返回：<code>outputs = {`{"success": True}`}</code>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>4. 使用 print() 调试</strong>
+            <br />
+            • print() 输出会单独显示在"控制台输出"区域
+            <br />
+            • 不会影响 outputs 的 JSON 格式化
+            <br />
+            • 适合输出调试信息和中间结果
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>5. 导入第三方库</strong>
+            <br />
+            • 只能使用已安装在 Python 环境中的库
+            <br />
+            • 需要先在"Python 环境管理"中安装离线包
+            <br />
+            • 内置库（如 os、sys、json）可直接使用
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>6. 异常处理</strong>
+            <br />
+            • 系统会自动捕获未处理的异常
+            <br />
+            • 建议对关键操作使用 try-except 进行错误处理
+            <br />
+            • 异常信息会在测试结果中显示
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>7. 执行时间限制</strong>
+            <br />
+            • 默认超时时间为 60 秒
+            <br />
+            • 避免死循环和耗时过长的操作
+            <br />
+            • 超时会自动终止并返回错误
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>8. 输出数据类型</strong>
+            <br />
+            • outputs 必须是可 JSON 序列化的类型
+            <br />
+            • 支持：字符串、数字、布尔、列表、字典、None
+            <br />
+            • 不支持：函数、类实例、文件对象等复杂类型
+          </Card>
+
+          <Divider />
+
+          <h3>💡 最佳实践示例</h3>
+          <pre style={{ background: '#e6f7ff', padding: 12, borderRadius: 4, border: '1px solid #91d5ff' }}>
+{`# -*- coding: utf-8 -*-
+import json
+
+# 1. 使用安全转换函数获取输入
+count = safe_int(inputs.get('count'), 0)
+name = inputs.get('name', 'Unknown')
+
+# 2. 添加输入验证
+if count <= 0:
+    outputs = {
+        "success": False,
+        "error": "count 必须大于 0"
+    }
+else:
+    # 3. 执行业务逻辑
+    try:
+        result = process_data(count, name)
+
+        # 4. 使用 print 输出调试信息
+        print(f"处理完成：count={count}, name={name}")
+
+        # 5. 设置成功的输出
+        outputs = {
+            "success": True,
+            "result": result,
+            "message": f"成功处理 {count} 条数据"
+        }
+    except Exception as e:
+        # 6. 错误处理
+        print(f"错误：{str(e)}")
+        outputs = {
+            "success": False,
+            "error": str(e)
+        }
+`}
+          </pre>
         </div>
       </Modal>
     </div>
