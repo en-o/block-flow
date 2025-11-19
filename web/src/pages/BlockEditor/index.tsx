@@ -361,7 +361,8 @@ const BlockEditor: React.FC = () => {
         const response = await blockApi.update(updateData);
         if (response.code === 200) {
           antdMessage.success('块更新成功');
-          navigate('/manage/blocks');
+          // 重新加载当前块数据，而不是跳转
+          await loadBlock(block.id);
         }
       } else {
         // 创建块
@@ -369,13 +370,14 @@ const BlockEditor: React.FC = () => {
         const response = await blockApi.create(createData);
         if (response.code === 200) {
           antdMessage.success('块创建成功');
+          // 创建后跳转到列表
           navigate('/manage/blocks');
         }
       }
     } catch (error) {
       console.error('保存块失败', error);
     }
-  }, [form, definitionMode, scriptCode, block, buildInputsObject, buildOutputsObject, navigate]);
+  }, [form, definitionMode, scriptCode, block, buildInputsObject, buildOutputsObject, loadBlock, navigate]);
 
   // 监听Ctrl+S快捷键保存
   useEffect(() => {
@@ -791,9 +793,41 @@ const BlockEditor: React.FC = () => {
                       wordBreak: 'break-word',
                     }}
                   >
-                    {typeof testResult.output === 'object'
-                      ? JSON.stringify(testResult.output, null, 2)
-                      : testResult.output}
+                    {(() => {
+                      // 提取 _console_output 并显示剩余内容
+                      if (typeof testResult.output === 'object') {
+                        const { _console_output, ...restOutput } = testResult.output;
+                        return JSON.stringify(restOutput, null, 2);
+                      }
+                      return testResult.output;
+                    })()}
+                  </pre>
+                </div>
+              )}
+
+              {/* 控制台输出 (print) */}
+              {testResult.success && testResult.output && typeof testResult.output === 'object' && testResult.output._console_output && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#1890ff' }}>
+                    🖥️ 控制台输出 (print)：
+                  </div>
+                  <pre
+                    style={{
+                      background: '#f0f5ff',
+                      border: '1px solid #adc6ff',
+                      borderRadius: 4,
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      fontSize: 12,
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#1890ff',
+                    }}
+                  >
+                    {testResult.output._console_output}
                   </pre>
                 </div>
               )}
@@ -821,6 +855,33 @@ const BlockEditor: React.FC = () => {
                     }}
                   >
                     {testResult.errorMessage || testResult.error}
+                  </pre>
+                </div>
+              )}
+
+              {/* 错误时的控制台输出 */}
+              {!testResult.success && testResult.output && typeof testResult.output === 'object' && testResult.output._console_output && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#1890ff' }}>
+                    🖥️ 控制台输出 (print)：
+                  </div>
+                  <pre
+                    style={{
+                      background: '#f0f5ff',
+                      border: '1px solid #adc6ff',
+                      borderRadius: 4,
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      fontSize: 12,
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#1890ff',
+                    }}
+                  >
+                    {testResult.output._console_output}
                   </pre>
                 </div>
               )}

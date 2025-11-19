@@ -252,6 +252,13 @@ public class PythonScriptExecutor {
             wrapped.append("\n");
         }
 
+        // 捕获 print 输出
+        wrapped.append("# 捕获 print 输出，避免混入 JSON 结果\n");
+        wrapped.append("_original_stdout = sys.stdout\n");
+        wrapped.append("_console_output = io.StringIO()\n");
+        wrapped.append("sys.stdout = _console_output\n");
+        wrapped.append("\n");
+
         wrapped.append("# 用户脚本执行\n");
         wrapped.append("try:\n");
         // 缩进用户脚本 - 移除空行前后的空白，保持相对缩进
@@ -263,20 +270,36 @@ public class PythonScriptExecutor {
 
         // 输出处理逻辑，保持在try块内，与用户脚本同级缩进
         wrapped.append("\n");
-        wrapped.append("    # 输出结果（确保outputs变量存在）\n");
+        wrapped.append("    # 恢复 stdout 并构建最终输出\n");
+        wrapped.append("    sys.stdout = _original_stdout\n");
+        wrapped.append("    _console_text = _console_output.getvalue()\n");
+        wrapped.append("\n");
+        wrapped.append("    # 构建输出结果\n");
+        wrapped.append("    _final_output = {}\n");
         wrapped.append("    if 'outputs' in locals() or 'outputs' in globals():\n");
         wrapped.append("        if isinstance(outputs, dict):\n");
-        wrapped.append("            print(json.dumps(outputs, ensure_ascii=False))\n");
+        wrapped.append("            _final_output = outputs\n");
         wrapped.append("        else:\n");
-        wrapped.append("            print(json.dumps({'result': outputs}, ensure_ascii=False))\n");
+        wrapped.append("            _final_output = {'result': outputs}\n");
         wrapped.append("    else:\n");
-        wrapped.append("        print(json.dumps({'success': True}, ensure_ascii=False))\n");
+        wrapped.append("        _final_output = {'success': True}\n");
+        wrapped.append("\n");
+        wrapped.append("    # 如果有 print 输出，添加到结果中\n");
+        wrapped.append("    if _console_text:\n");
+        wrapped.append("        _final_output['_console_output'] = _console_text.rstrip()\n");
+        wrapped.append("\n");
+        wrapped.append("    print(json.dumps(_final_output, ensure_ascii=False))\n");
 
         // except块与try对齐
         wrapped.append("except Exception as e:\n");
+        wrapped.append("    sys.stdout = _original_stdout\n");
         wrapped.append("    import traceback\n");
         wrapped.append("    error_msg = traceback.format_exc()\n");
-        wrapped.append("    print(json.dumps({'error': str(e), 'traceback': error_msg}, ensure_ascii=False))\n");
+        wrapped.append("    _console_text = _console_output.getvalue()\n");
+        wrapped.append("    _error_output = {'error': str(e), 'traceback': error_msg}\n");
+        wrapped.append("    if _console_text:\n");
+        wrapped.append("        _error_output['_console_output'] = _console_text.rstrip()\n");
+        wrapped.append("    print(json.dumps(_error_output, ensure_ascii=False))\n");
         wrapped.append("    sys.exit(1)\n");
 
         return wrapped.toString();

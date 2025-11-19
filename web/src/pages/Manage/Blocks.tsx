@@ -169,19 +169,26 @@ const Blocks: React.FC = () => {
         };
         await blockApi.update(updateData);
         message.success('更新成功');
+        // 重新加载块列表和当前块数据
+        fetchBlocks();
+        fetchTagsStatistics();
+        // 重新加载当前编辑的块数据
+        const response = await blockApi.getById(editingBlock.id);
+        if (response.code === 200 && response.data) {
+          setEditingBlock(response.data);
+        }
       } else {
         const createData: BlockCreateDTO = values;
-        await blockApi.create(createData);
+        const response = await blockApi.create(createData);
         message.success('创建成功');
+        setModalVisible(false);
+        fetchBlocks();
+        fetchTagsStatistics();
       }
-
-      setModalVisible(false);
-      fetchBlocks();
-      fetchTagsStatistics();
     } catch (error) {
       console.error('保存失败', error);
     }
-  }, [editingBlock, form]);
+  }, [editingBlock, form, fetchBlocks, fetchTagsStatistics]);
 
   // 监听Ctrl+S快捷键保存（必须放在handleSubmit定义之后）
   useEffect(() => {
@@ -632,9 +639,41 @@ const Blocks: React.FC = () => {
                       wordBreak: 'break-word',
                     }}
                   >
-                    {typeof testResult.output === 'object'
-                      ? JSON.stringify(testResult.output, null, 2)
-                      : testResult.output}
+                    {(() => {
+                      // 提取 _console_output 并显示剩余内容
+                      if (typeof testResult.output === 'object') {
+                        const { _console_output, ...restOutput } = testResult.output;
+                        return JSON.stringify(restOutput, null, 2);
+                      }
+                      return testResult.output;
+                    })()}
+                  </pre>
+                </div>
+              )}
+
+              {/* 控制台输出 (print) */}
+              {testResult.success && testResult.output && typeof testResult.output === 'object' && testResult.output._console_output && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#1890ff' }}>
+                    🖥️ 控制台输出 (print)：
+                  </div>
+                  <pre
+                    style={{
+                      background: '#f0f5ff',
+                      border: '1px solid #adc6ff',
+                      borderRadius: 4,
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      fontSize: 12,
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#1890ff',
+                    }}
+                  >
+                    {testResult.output._console_output}
                   </pre>
                 </div>
               )}
@@ -662,6 +701,33 @@ const Blocks: React.FC = () => {
                     }}
                   >
                     {testResult.errorMessage || testResult.error}
+                  </pre>
+                </div>
+              )}
+
+              {/* 错误时的控制台输出 */}
+              {!testResult.success && testResult.output && typeof testResult.output === 'object' && testResult.output._console_output && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#1890ff' }}>
+                    🖥️ 控制台输出 (print)：
+                  </div>
+                  <pre
+                    style={{
+                      background: '#f0f5ff',
+                      border: '1px solid #adc6ff',
+                      borderRadius: 4,
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      fontSize: 12,
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#1890ff',
+                    }}
+                  >
+                    {testResult.output._console_output}
                   </pre>
                 </div>
               )}
