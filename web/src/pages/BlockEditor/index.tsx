@@ -134,6 +134,9 @@ outputs = {
   const [testing, setTesting] = useState(false);
   const [helpModalVisible, setHelpModalVisible] = useState(false);
 
+  // 保存切换到可视化模式前的原始代码（用于恢复）
+  const [originalScriptCode, setOriginalScriptCode] = useState<string>('');
+
   // 加载块类型和Python环境
   useEffect(() => {
     loadBlockTypes();
@@ -168,7 +171,7 @@ outputs = {
       const timer = setTimeout(() => {
         if (blocklyDivRef.current && !workspaceRef.current) {
           try {
-            console.log('正在初始化Blockly workspace...');
+            console.log('🔧 初始化Blockly workspace...');
             workspaceRef.current = Blockly.inject(blocklyDivRef.current, {
               toolbox: getBlocklyToolbox(),
               grid: {
@@ -187,28 +190,23 @@ outputs = {
               },
               trashcan: true,
             });
-            console.log('Blockly workspace初始化成功');
+            console.log('✅ Blockly workspace初始化成功');
 
             // 如果有已保存的Blockly定义，加载它
             if (block?.blocklyDefinition) {
               try {
                 const xml = Blockly.utils.xml.textToDom(block.blocklyDefinition);
                 Blockly.Xml.domToWorkspace(xml, workspaceRef.current);
-                console.log('已加载Blockly定义');
+                console.log('✅ 已加载Blockly定义');
               } catch (error) {
-                console.error('加载Blockly定义失败', error);
+                console.error('❌ 加载Blockly定义失败', error);
               }
+            } else {
+              console.log('💡 显示空白工作区（当前块没有blocklyDefinition）');
             }
           } catch (error) {
             console.error('初始化Blockly失败', error);
             message.error('初始化可视化编辑器失败，请查看控制台');
-          }
-        } else {
-          if (!blocklyDivRef.current) {
-            console.error('blocklyDivRef.current为空');
-          }
-          if (workspaceRef.current) {
-            console.log('workspace已存在，跳过初始化');
           }
         }
       }, 150);
@@ -454,51 +452,155 @@ outputs = {
 
   const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
     if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
-      // 从Blockly转换到代码模式
-      if (workspaceRef.current) {
-        try {
-          // 生成Python代码
-          const pythonCode = pythonGenerator.workspaceToCode(workspaceRef.current);
-          setScriptCode(pythonCode);
-          message.success('已将可视化块转换为Python代码');
-        } catch (error) {
-          console.error('转换失败', error);
-          message.error('转换失败，请检查Blockly块是否正确');
+      // 从Blockly切换回代码模式：恢复原始代码
+      console.log('从可视化模式切换回代码模式，恢复原始代码');
+
+      if (originalScriptCode) {
+        setScriptCode(originalScriptCode);
+        message.info('已恢复原始代码（可视化编辑未保存）');
+      }
+
+      setDefinitionMode(mode);
+    } else if (mode === 'BLOCKLY' && definitionMode === 'CODE') {
+      // 从代码模式切换到可视化模式：保存原始代码
+      console.log('切换到可视化模式（预览功能，不保存）');
+
+      // 保存当前代码
+      setOriginalScriptCode(scriptCode);
+
+      // 切换模式
+      setDefinitionMode(mode);
+
+      // 如果有代码，尝试转换
+      if (scriptCode && scriptCode.trim().length > 0) {
+        message.info('🧪 正在尝试将代码转换为可视化块（预览模式，不保存）...', 2);
+        // 延迟调用转换，等待Blockly初始化
+        setTimeout(() => {
+          handleConvertCodeToBlockly();
+        }, 400);
+      }
+    } else {
+      setDefinitionMode(mode);
+    }
+  };
+
+  // 尝试将Python代码转换为Blockly块（实验性功能）
+  const handleConvertCodeToBlockly = () => {
+    console.log('🧪 开始尝试转换Python代码到Blockly');
+    console.log('当前代码:', scriptCode);
+
+    try {
+      if (!workspaceRef.current) {
+        console.error('❌ Blockly workspace未初始化');
+        message.error('可视化编辑器未就绪，请重试');
+        return;
+      }
+
+      const workspace = workspaceRef.current;
+      workspace.clear(); // 清空工作区
+
+      // 解析代码并转换为块
+      const lines = scriptCode.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
+      let convertedCount = 0;
+      let skippedCount = 0;
+      let yPosition = 50; // 初始Y坐标
+
+      console.log('📝 准备转换', lines.length, '行代码');
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        console.log(`处理第 ${i + 1} 行:`, line);
+
+        let block = null;
+
+        // 1. 匹配 print 语句
+        const printMatch = line.match(/^print\s*\(\s*['"](.+?)['"]\s*\)$/);
+        if (printMatch) {
+          console.log('✅ 识别为 print 语句');
+          block = workspace.newBlock('text_print');
+          block.setFieldValue(printMatch[1], 'TEXT');
+          convertedCount++;
+        }
+        // 2. 匹配变量赋值（字符串）
+        else if (line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/)) {
+          const match = line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/);
+          if (match) {
+            console.log('✅ 识别为字符串变量赋值');
+            block = workspace.newBlock('variables_set');
+            block.setFieldValue(match[1], 'VAR');
+            const valueBlock = workspace.newBlock('text');
+            valueBlock.setFieldValue(match[2], 'TEXT');
+            block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
+            valueBlock.initSvg();
+            valueBlock.render();
+            convertedCount++;
+          }
+        }
+        // 3. 匹配变量赋值（数字）
+        else if (line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/)) {
+          const match = line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/);
+          if (match) {
+            console.log('✅ 识别为数字变量赋值');
+            block = workspace.newBlock('variables_set');
+            block.setFieldValue(match[1], 'VAR');
+            const valueBlock = workspace.newBlock('math_number');
+            valueBlock.setFieldValue(match[2], 'NUM');
+            block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
+            valueBlock.initSvg();
+            valueBlock.render();
+            convertedCount++;
+          }
+        }
+        // 4. 匹配简单的if语句（仅识别开始）
+        else if (line.match(/^if\s+.+:\s*$/)) {
+          console.log('⚠️ 识别为 if 语句（但转换有限）');
+          skippedCount++;
+          console.log('  提示：if语句转换功能有限，建议手动构建');
+        }
+        // 5. 匹配简单的for循环
+        else if (line.match(/^for\s+\w+\s+in\s+range\((\d+)\):\s*$/)) {
+          const match = line.match(/^for\s+(\w+)\s+in\s+range\((\d+)\):\s*$/);
+          if (match) {
+            console.log('✅ 识别为 for 循环');
+            block = workspace.newBlock('controls_repeat_ext');
+            const timesBlock = workspace.newBlock('math_number');
+            timesBlock.setFieldValue(match[2], 'NUM');
+            block.getInput('TIMES')?.connection?.connect(timesBlock.outputConnection!);
+            timesBlock.initSvg();
+            timesBlock.render();
+            convertedCount++;
+          }
+        }
+        // 无法识别的语句
+        else {
+          console.log('❌ 无法转换此行代码');
+          skippedCount++;
+        }
+
+        // 如果成功创建了块，初始化并放置
+        if (block) {
+          block.initSvg();
+          block.render();
+          block.moveBy(50, yPosition);
+          yPosition += 80; // 下一个块的Y坐标
         }
       }
-    } else if (mode === 'BLOCKLY' && definitionMode === 'CODE') {
-      // 从代码转换到Blockly模式（提示警告）
-      Modal.confirm({
-        title: '切换到可视化编辑',
-        icon: <WarningOutlined style={{ color: '#faad14' }} />,
-        content: (
-          <div>
-            <p style={{ marginBottom: 8 }}>
-              <strong>⚠️ 注意：可视化编辑功能尚不成熟，请谨慎使用</strong>
-            </p>
-            <p style={{ marginBottom: 8 }}>当前限制：</p>
-            <ul style={{ paddingLeft: 20, margin: 0 }}>
-              <li>Python代码无法自动转换为可视化块</li>
-              <li>切换到可视化模式将清空当前代码</li>
-              <li>可视化块的功能有限</li>
-              <li>建议仅在新建块时使用可视化编辑</li>
-            </ul>
-            <p style={{ marginTop: 8, color: '#ff4d4f' }}>
-              <strong>确定要切换吗？当前代码将被清空！</strong>
-            </p>
-          </div>
-        ),
-        okText: '确定切换',
-        cancelText: '取消',
-        okButtonProps: { danger: true },
-        onOk: () => {
-          setDefinitionMode(mode);
-          setScriptCode('');
-        },
-      });
-      return; // 等待用户确认，不直接切换
+
+      console.log(`🎉 转换完成: ${convertedCount} 成功, ${skippedCount} 跳过`);
+
+      if (convertedCount > 0) {
+        message.success(`转换完成：成功 ${convertedCount} 条语句${skippedCount > 0 ? `，跳过 ${skippedCount} 条` : ''}`);
+        if (skippedCount > 0) {
+          message.warning('部分语句无法转换，请手动添加或调整', 5);
+        }
+      } else if (skippedCount > 0) {
+        message.warning('未能转换任何语句，代码可能过于复杂。你可以手动添加可视化块。', 6);
+      }
+
+    } catch (error) {
+      console.error('❌ 转换失败:', error);
+      message.error('代码转换失败，但你可以手动添加可视化块');
     }
-    setDefinitionMode(mode);
   };
 
   // 添加输入参数
@@ -720,22 +822,37 @@ outputs = {
 
   const handleSave = useCallback(async () => {
     try {
+      // 检查是否在可视化模式
+      if (definitionMode === 'BLOCKLY') {
+        Modal.warning({
+          title: '提示',
+          content: '可视化模式仅用于预览，不能保存。请先切换回"代码模式"，然后再保存。',
+          okText: '知道了',
+        });
+        return;
+      }
+
       const values = await form.validateFields();
 
-      let blocklyDefinition = '';
-      if (definitionMode === 'BLOCKLY' && workspaceRef.current) {
-        const xml = Blockly.Xml.workspaceToDom(workspaceRef.current);
-        blocklyDefinition = Blockly.Xml.domToText(xml);
+      // 验证是否有有效的脚本代码
+      if (!scriptCode || scriptCode.trim().length === 0) {
+        message.warning('脚本代码为空，请先编写代码');
+        return;
       }
 
       const blockData = {
         ...values,
-        definitionMode,
-        blocklyDefinition: blocklyDefinition || undefined,
-        script: scriptCode,
+        definitionMode: 'CODE', // 强制使用代码模式
+        blocklyDefinition: undefined, // 不保存blocklyDefinition（可视化只是预览）
+        script: scriptCode, // 保存代码模式的代码
         inputs: buildInputsObject(),
         outputs: buildOutputsObject(),
       };
+
+      console.log('准备保存的数据:', {
+        definitionMode: 'CODE',
+        scriptLength: scriptCode.length,
+      });
 
       if (block) {
         // 更新块
@@ -1065,25 +1182,48 @@ outputs = {
         <div className="editor-workspace">
           <div className="mode-toggle">
             <span>定义模式:</span>
-            <Radio.Group value={definitionMode} onChange={(e) => handleModeChange(e.target.value)}>
+            <Radio.Group
+              value={definitionMode}
+              onChange={(e) => handleModeChange(e.target.value)}
+            >
               <Radio.Button value="CODE">代码模式</Radio.Button>
               <Radio.Button value="BLOCKLY">
                 可视化模式
-                <Tooltip title="可视化编辑功能尚不成熟，仅支持Blockly到代码的单向转换，请谨慎使用">
+                <Tooltip title="预览模式：尝试将代码转换为可视化块进行查看，仅供参考，不保存">
                   <WarningOutlined style={{ color: '#faad14', marginLeft: 4 }} />
                 </Tooltip>
               </Radio.Button>
             </Radio.Group>
             {definitionMode === 'BLOCKLY' && (
-              <Tag color="warning" icon={<WarningOutlined />} style={{ marginLeft: 8 }}>
-                实验性功能
-              </Tag>
+              <Tooltip title="可视化模式仅用于预览测试，不保存。切换回代码模式时会恢复原始代码。">
+                <Tag color="orange" icon={<WarningOutlined />} style={{ marginLeft: 8 }}>
+                  预览模式 - 不保存
+                </Tag>
+              </Tooltip>
             )}
           </div>
 
           <div className="workspace-content">
             {definitionMode === 'BLOCKLY' ? (
-              <div ref={blocklyDivRef} className="blockly-editor" />
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                {/* 预览模式提示 */}
+                <div style={{
+                  background: '#fff7e6',
+                  border: '1px solid #ffd591',
+                  borderRadius: '4px',
+                  padding: '8px 12px',
+                  margin: '0 0 8px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <WarningOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+                  <span style={{ fontSize: '13px', color: '#595959' }}>
+                    <strong>预览模式：</strong>可视化编辑仅用于预览测试，不会保存。切换回代码模式时会自动恢复原始代码。
+                  </span>
+                </div>
+                <div ref={blocklyDivRef} className="blockly-editor" style={{ flex: 1 }} />
+              </div>
             ) : (
               <div className="code-editor">
                 <Editor
