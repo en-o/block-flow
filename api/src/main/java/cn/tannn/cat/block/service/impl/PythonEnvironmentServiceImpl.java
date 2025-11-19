@@ -184,19 +184,86 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     public PythonEnvironment installPackage(Integer id, PackageOperationDTO packageDTO) {
         PythonEnvironment environment = getById(id);
 
-        JSONObject packages = environment.getPackages();
-        if (packages == null) {
-            packages = new JSONObject();
+        // 检查环境是否已初始化并配置了Python
+        if (environment.getPythonExecutable() == null || environment.getPythonExecutable().isEmpty()) {
+            throw new ServiceException(500, "未配置Python解释器路径，无法安装包");
         }
 
-        // 添加包信息
-        JSONObject packageInfo = new JSONObject();
-        packageInfo.put("name", packageDTO.getPackageName());
-        packageInfo.put("version", packageDTO.getVersion());
-        packages.put(packageDTO.getPackageName(), packageInfo);
+        if (environment.getSitePackagesPath() == null || environment.getSitePackagesPath().isEmpty()) {
+            throw new ServiceException(500, "未配置site-packages路径，无法安装包");
+        }
 
-        environment.setPackages(packages);
-        return pythonEnvironmentRepository.save(environment);
+        String packageName = packageDTO.getPackageName();
+        String version = packageDTO.getVersion();
+
+        // 构建pip install命令
+        List<String> command = new ArrayList<>();
+        command.add(environment.getPythonExecutable());
+        command.add("-m");
+        command.add("pip");
+        command.add("install");
+        command.add("--target");
+        command.add(environment.getSitePackagesPath());
+
+        // 添加包名和版本
+        if (version != null && !version.isEmpty()) {
+            command.add(packageName + "==" + version);
+        } else {
+            command.add(packageName);
+        }
+
+        try {
+            log.info("执行pip install命令: {}", String.join(" ", command));
+
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            // 读取输出
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                    log.info("pip output: {}", line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                log.error("pip install失败，退出代码: {}, 输出: {}", exitCode, output);
+                throw new ServiceException(500, "包安装失败: " + output.toString());
+            }
+
+            log.info("包安装成功: {} {}", packageName, version);
+
+            // 安装成功后，验证包是否确实安装了
+            String installedVersion = verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+            if (installedVersion == null) {
+                log.warn("包安装后验证失败: {}", packageName);
+                installedVersion = version != null ? version : "unknown";
+            }
+
+            // 更新环境的packages字段
+            JSONObject packages = environment.getPackages();
+            if (packages == null) {
+                packages = new JSONObject();
+            }
+
+            // 保存安装信息（使用验证后的版本）
+            JSONObject packageInfo = new JSONObject();
+            packageInfo.put("name", packageName);
+            packageInfo.put("version", installedVersion);
+            packageInfo.put("installedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            packages.put(packageName, packageInfo);
+
+            environment.setPackages(packages);
+            return pythonEnvironmentRepository.save(environment);
+
+        } catch (IOException | InterruptedException e) {
+            log.error("安装包失败", e);
+            throw new ServiceException(500, "安装包失败: " + e.getMessage());
+        }
     }
 
     @Override
@@ -204,14 +271,57 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     public PythonEnvironment uninstallPackage(Integer id, String packageName) {
         PythonEnvironment environment = getById(id);
 
-        JSONObject packages = environment.getPackages();
-        if (packages != null && packages.containsKey(packageName)) {
-            packages.remove(packageName);
-            environment.setPackages(packages);
-            return pythonEnvironmentRepository.save(environment);
+        // 检查环境是否已配置Python
+        if (environment.getPythonExecutable() == null || environment.getPythonExecutable().isEmpty()) {
+            throw new ServiceException(500, "未配置Python解释器路径，无法卸载包");
         }
 
-        throw new ServiceException(500, "包不存在: " + packageName);
+        // 检查包是否在记录中
+        JSONObject packages = environment.getPackages();
+        if (packages == null || !packages.containsKey(packageName)) {
+            throw new ServiceException(500, "包不存在: " + packageName);
+        }
+
+        try {
+            // 执行pip uninstall命令
+            ProcessBuilder pb = new ProcessBuilder(
+                    environment.getPythonExecutable(),
+                    "-m",
+                    "pip",
+                    "uninstall",
+                    "-y",  // 自动确认
+                    packageName
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            // 读取输出
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                    log.info("pip uninstall output: {}", line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                log.warn("pip uninstall警告，退出代码: {}, 输出: {}", exitCode, output);
+                // 即使pip uninstall失败，也继续从数据库中移除记录
+            }
+
+            log.info("包卸载成功: {}", packageName);
+
+        } catch (IOException | InterruptedException e) {
+            log.error("卸载包失败", e);
+            // 即使命令执行失败，也继续从数据库中移除记录
+        }
+
+        // 从数据库记录中移除
+        packages.remove(packageName);
+        environment.setPackages(packages);
+        return pythonEnvironmentRepository.save(environment);
     }
 
     @Override
@@ -518,6 +628,52 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         } catch (IOException e) {
             log.error("删除包文件失败", e);
             throw new ServiceException(500, "删除包文件失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 验证包是否已安装并获取版本
+     * 使用 python -m pip show <package> 命令
+     */
+    private String verifyPackageInstalled(String pythonExecutable, String packageName) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    pythonExecutable,
+                    "-m",
+                    "pip",
+                    "show",
+                    packageName
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                // 解析输出获取版本号
+                String[] lines = output.toString().split("\n");
+                for (String line : lines) {
+                    if (line.startsWith("Version:")) {
+                        String version = line.substring(8).trim();
+                        log.info("验证包 {} 已安装，版本: {}", packageName, version);
+                        return version;
+                    }
+                }
+            }
+
+            log.warn("包 {} 验证失败，pip show 退出代码: {}", packageName, exitCode);
+            return null;
+
+        } catch (Exception e) {
+            log.warn("验证包 {} 是否安装时出错", packageName, e);
+            return null;
         }
     }
 

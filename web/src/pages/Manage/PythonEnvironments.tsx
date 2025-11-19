@@ -231,11 +231,35 @@ const PythonEnvironments: React.FC = () => {
 
     try {
       const values = await packageForm.validateFields();
-      await pythonEnvApi.installPackage(selectedEnv.id, values);
-      message.success('安装成功');
+
+      // 检查环境是否配置了Python
+      if (!selectedEnv.pythonExecutable) {
+        message.error('该环境未配置Python解释器路径,无法安装包。请先配置Python运行时。');
+        return;
+      }
+
+      message.loading({ content: '正在安装包...', key: 'install', duration: 0 });
+
+      const response = await pythonEnvApi.installPackage(selectedEnv.id, values);
+
+      message.success({ content: `包 ${values.packageName} 安装成功`, key: 'install' });
       packageForm.resetFields();
-      fetchEnvironments();
-    } catch (error) {
+
+      // 刷新环境列表以更新已安装包
+      await fetchEnvironments();
+
+      // 更新selectedEnv以显示最新的包列表
+      const updatedEnv = await pythonEnvApi.getById(selectedEnv.id);
+      if (updatedEnv.code === 200 && updatedEnv.data) {
+        setSelectedEnv(updatedEnv.data);
+      }
+
+    } catch (error: any) {
+      message.error({
+        content: error.message || '安装包失败',
+        key: 'install',
+        duration: 5
+      });
       console.error('安装包失败', error);
     }
   };
@@ -244,10 +268,27 @@ const PythonEnvironments: React.FC = () => {
     if (!selectedEnv) return;
 
     try {
+      message.loading({ content: '正在卸载包...', key: 'uninstall', duration: 0 });
+
       await pythonEnvApi.uninstallPackage(selectedEnv.id, packageName);
-      message.success('卸载成功');
-      fetchEnvironments();
-    } catch (error) {
+
+      message.success({ content: `包 ${packageName} 卸载成功`, key: 'uninstall' });
+
+      // 刷新环境列表
+      await fetchEnvironments();
+
+      // 更新selectedEnv以显示最新的包列表
+      const updatedEnv = await pythonEnvApi.getById(selectedEnv.id);
+      if (updatedEnv.code === 200 && updatedEnv.data) {
+        setSelectedEnv(updatedEnv.data);
+      }
+
+    } catch (error: any) {
+      message.error({
+        content: error.message || '卸载包失败',
+        key: 'uninstall',
+        duration: 5
+      });
       console.error('卸载包失败', error);
     }
   };
@@ -991,23 +1032,83 @@ const PythonEnvironments: React.FC = () => {
           </Button>,
         ]}
       >
+        {/* Python环境状态提示 */}
+        {!selectedEnv?.pythonExecutable && (
+          <Alert
+            message="环境未配置Python运行时"
+            description={
+              <div>
+                当前环境尚未配置Python解释器路径,无法安装包。
+                <br />
+                请先关闭此窗口,点击"配置/离线包"按钮配置Python运行时。
+              </div>
+            }
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            action={
+              <Button size="small" onClick={() => {
+                setPackagesModalVisible(false);
+                handleShowUploadedFiles(selectedEnv!);
+              }}>
+                去配置
+              </Button>
+            }
+          />
+        )}
+
+        {selectedEnv?.pythonExecutable && (
+          <Alert
+            message="Python环境已配置"
+            description={
+              <div style={{ fontSize: 12 }}>
+                <div><strong>Python路径:</strong> {selectedEnv.pythonExecutable}</div>
+                {selectedEnv.pythonVersion && (
+                  <div><strong>版本:</strong> {selectedEnv.pythonVersion}</div>
+                )}
+              </div>
+            }
+            type="success"
+            showIcon
+            style={{ marginBottom: 16 }}
+            closable
+          />
+        )}
+
         <Card size="small" title="安装新包" style={{ marginBottom: 16 }}>
           <Form form={packageForm} layout="inline">
             <Form.Item
               name="packageName"
               rules={[{ required: true, message: '请输入包名' }]}
             >
-              <Input placeholder="包名，例如: requests" style={{ width: 200 }} />
+              <Input
+                placeholder="包名，例如: requests"
+                style={{ width: 200 }}
+                disabled={!selectedEnv?.pythonExecutable}
+              />
             </Form.Item>
             <Form.Item name="version">
-              <Input placeholder="版本（可选）" style={{ width: 120 }} />
+              <Input
+                placeholder="版本（可选）"
+                style={{ width: 120 }}
+                disabled={!selectedEnv?.pythonExecutable}
+              />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" onClick={handleInstallPackage}>
+              <Button
+                type="primary"
+                onClick={handleInstallPackage}
+                disabled={!selectedEnv?.pythonExecutable}
+              >
                 安装
               </Button>
             </Form.Item>
           </Form>
+          {!selectedEnv?.pythonExecutable && (
+            <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>
+              提示: 需要先配置Python运行时才能安装包
+            </div>
+          )}
         </Card>
 
         <Card size="small" title="已安装包">
