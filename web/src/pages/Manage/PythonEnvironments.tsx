@@ -238,6 +238,41 @@ const PythonEnvironments: React.FC = () => {
         return;
       }
 
+      // 检查包是否已存在
+      const packageName = values.packageName;
+      const packages = selectedEnv.packages || {};
+      const existingPackage = packages[packageName];
+
+      // 如果包已存在，弹出确认对话框
+      if (existingPackage) {
+        const existingVersion = typeof existingPackage === 'object' && existingPackage.version
+          ? existingPackage.version
+          : '未知版本';
+        const requestVersion = values.version || '最新版本';
+
+        const confirmed = await new Promise<boolean>((resolve) => {
+          modal.confirm({
+            title: '包已存在',
+            content: (
+              <div>
+                <p>包 <strong>{packageName}</strong> 已安装。</p>
+                <p>当前版本: <strong>{existingVersion}</strong></p>
+                <p>请求安装版本: <strong>{requestVersion}</strong></p>
+                <p style={{ marginTop: 16 }}>是否继续安装？这将覆盖或升级现有版本。</p>
+              </div>
+            ),
+            okText: '继续安装',
+            cancelText: '取消',
+            onOk: () => resolve(true),
+            onCancel: () => resolve(false),
+          });
+        });
+
+        if (!confirmed) {
+          return;
+        }
+      }
+
       message.loading({ content: '正在安装包...', key: 'install', duration: 0 });
 
       const response = await pythonEnvApi.installPackage(selectedEnv.id, values);
