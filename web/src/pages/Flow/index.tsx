@@ -26,7 +26,7 @@ import type { Block, Workflow, WorkflowCategory } from '../../types/api';
 import './index.css';
 
 const nodeTypes: NodeTypes = {
-  blockNode: BlockNode,
+  blockNode: BlockNode as any,
 };
 
 const Flow: React.FC = () => {

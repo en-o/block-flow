@@ -1374,10 +1374,11 @@ const PythonEnvironments: React.FC = () => {
               if (typeof pkgInfo === 'string') {
                 versionStr = pkgInfo;
               } else if (typeof pkgInfo === 'object' && pkgInfo !== null) {
-                versionStr = pkgInfo.version || '未知';
-                installMethod = pkgInfo.installMethod || '';
-                installedAt = pkgInfo.installedAt || '';
-                installedFrom = pkgInfo.installedFrom || '';
+                const pkg = pkgInfo as any;
+                versionStr = pkg.version || '未知';
+                installMethod = pkg.installMethod || '';
+                installedAt = pkg.installedAt || '';
+                installedFrom = pkg.installedFrom || '';
               }
 
               return (
