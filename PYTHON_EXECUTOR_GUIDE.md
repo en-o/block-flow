@@ -39,9 +39,9 @@
 ### 基本结构
 
 ```python
-# 1. 访问输入参数
+# 1. 访问输入参数（注意类型转换）
 name = inputs.get('name', 'World')
-age = inputs.get('age', 0)
+age = int(inputs.get('age', '0'))  # 数字需要转换
 
 # 2. 执行业务逻辑
 result = f"Hello {name}, you are {age} years old"
@@ -55,18 +55,56 @@ outputs = {
 
 ### 输入参数
 
+**重要提示：** 所有从 `inputs` 获取的值都可能是字符串类型，数字需要显式转换！
+
 脚本执行时，系统会自动注入 `inputs` 字典变量，包含所有传入的参数。
 
-**示例：**
+**获取字符串参数：**
 ```python
-# 获取单个参数
-username = inputs.get('username')
+username = inputs.get('username', '')
+host = inputs.get('host', 'localhost')
+```
 
-# 获取参数并提供默认值
-count = inputs.get('count', 10)
+**获取数字参数（需要转换）：**
+```python
+# 整数
+port = int(inputs.get('port', '3306'))
+count = int(inputs.get('count', '0'))
 
-# 获取嵌套对象
+# 浮点数
+price = float(inputs.get('price', '0.0'))
+rate = float(inputs.get('rate', '1.5'))
+```
+
+**获取布尔参数（需要转换）：**
+```python
+# 方式1: 字符串比较
+enabled = inputs.get('enabled', 'false').lower() == 'true'
+
+# 方式2: 使用json模块
+import json
+enabled = json.loads(inputs.get('enabled', 'false'))
+```
+
+**获取列表/对象参数：**
+```python
+import json
+
+# 列表
+tags = json.loads(inputs.get('tags', '[]'))
+
+# 对象
+config = json.loads(inputs.get('config', '{}'))
+timeout = config.get('timeout', 30)
+```
+
+**获取嵌套参数：**
+```python
+# 安全获取嵌套值
 config = inputs.get('config', {})
+if isinstance(config, str):
+    import json
+    config = json.loads(config)
 timeout = config.get('timeout', 30)
 ```
 
@@ -112,13 +150,13 @@ if critical_error:
 
 ## 测试示例
 
-### 示例1：简单计算
+### 示例1：简单计算（修正版）
 
 **Python脚本：**
 ```python
-# 从输入获取两个数字
-a = inputs.get('a', 0)
-b = inputs.get('b', 0)
+# 从输入获取两个数字（必须转换类型）
+a = int(inputs.get('a', '0'))
+b = int(inputs.get('b', '0'))
 
 # 执行计算
 sum_result = a + b
@@ -208,19 +246,20 @@ outputs = {
 }
 ```
 
-### 示例3：使用第三方库
+### 示例3：使用第三方库和类型转换
 
 **Python脚本：**
 ```python
 import json
 import datetime
 
-# 获取输入
+# 获取输入（注意类型转换）
 name = inputs.get('name', 'Guest')
-timestamp = inputs.get('timestamp')
+timestamp_str = inputs.get('timestamp', '')
 
-# 处理时间戳
-if timestamp:
+# 处理时间戳（需要转换为整数）
+if timestamp_str:
+    timestamp = int(timestamp_str)
     dt = datetime.datetime.fromtimestamp(timestamp)
     formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
 else:
@@ -245,36 +284,88 @@ outputs = {
 }
 ```
 
-### 示例4：错误处理
+### 示例4：错误处理和类型验证
 
 **Python脚本：**
 ```python
-# 获取除数
-divisor = inputs.get('divisor')
-dividend = inputs.get('dividend', 100)
+# 获取除数（需要转换和验证）
+divisor_str = inputs.get('divisor', '')
+dividend_str = inputs.get('dividend', '100')
 
 # 验证输入
-if divisor is None:
+if not divisor_str:
     outputs = {
         "success": False,
         "error": "参数错误",
         "message": "divisor参数不能为空"
     }
-elif divisor == 0:
+elif divisor_str == '0' or int(divisor_str) == 0:
     outputs = {
         "success": False,
         "error": "除数不能为0",
         "message": "请提供非零的除数"
     }
 else:
-    # 执行除法
+    # 转换为数字并执行除法
+    divisor = float(divisor_str)
+    dividend = float(dividend_str)
     result = dividend / divisor
+
     outputs = {
         "success": True,
         "dividend": dividend,
         "divisor": divisor,
         "result": result
     }
+```
+
+### 示例5：复杂数据类型处理
+
+**Python脚本：**
+```python
+import json
+
+# 获取配置对象
+config_str = inputs.get('config', '{}')
+items_str = inputs.get('items', '[]')
+
+# 解析JSON
+config = json.loads(config_str) if isinstance(config_str, str) else config_str
+items = json.loads(items_str) if isinstance(items_str, str) else items_str
+
+# 获取配置项（带类型转换）
+max_count = int(config.get('maxCount', 10))
+enabled = config.get('enabled', False)
+
+# 处理列表
+processed_items = []
+for item in items[:max_count]:
+    if isinstance(item, str):
+        processed_items.append(item.upper())
+    else:
+        processed_items.append(str(item))
+
+outputs = {
+    "success": True,
+    "config": config,
+    "processed_count": len(processed_items),
+    "items": processed_items,
+    "enabled": enabled
+}
+```
+
+**测试请求：**
+```json
+{
+  "blockId": 5,
+  "inputs": {
+    "config": {
+      "maxCount": 3,
+      "enabled": true
+    },
+    "items": ["apple", "banana", "cherry", "date", "elderberry"]
+  }
+}
 ```
 
 ## API接口
@@ -343,28 +434,36 @@ else:
    - 对于大量数据，考虑返回摘要
    - 使用分页或流式处理
 
-## 故障排查
+## 常见问题
 
 ### 常见问题
 
-1. **脚本执行超时**
+1. **类型错误：can't multiply sequence by non-int**
+   - 原因：输入参数是字符串，未转换为数字
+   - 解决：`num = int(inputs.get('num', '0'))`
+
+2. **脚本执行超时**
    - 检查脚本是否有死循环
    - 优化算法复杂度
    - 考虑增加超时时间
 
-2. **ImportError: No module named 'xxx'**
+3. **ImportError: No module named 'xxx'**
    - 确认Python环境已安装所需依赖
    - 检查环境的site-packages路径配置
    - 使用离线包上传安装依赖
 
-3. **编码问题**
+4. **编码问题**
    - 确保脚本使用UTF-8编码
    - 处理中文时使用ensure_ascii=False
 
-4. **输出解析失败**
+5. **输出解析失败**
    - 确保outputs是字典类型
    - 检查JSON序列化是否成功
    - 避免输出不可序列化的对象（如函数、类实例等）
+
+6. **变量不存在错误**
+   - 使用 `inputs.get('key', default)` 提供默认值
+   - 检查变量名拼写
 
 ## 安全注意事项
 

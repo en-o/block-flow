@@ -30,7 +30,7 @@ const BlockForm: React.FC<BlockFormProps> = ({
 # 输入参数使用说明:
 # - 通过 inputs 字典获取输入参数
 # - 示例: name = inputs.get('name', '默认值')
-# - 示例: count = inputs.get('count', 0)
+# - 示例: count = int(inputs.get('count', 0))  # 注意类型转换
 #
 # 输出结果使用说明:
 # - 将结果赋值给 outputs 变量(必须是字典类型)
@@ -41,11 +41,18 @@ const BlockForm: React.FC<BlockFormProps> = ({
 # - 所有异常会被自动捕获并返回错误信息
 # - 可以使用已安装在Python环境中的第三方库
 # - 执行超时时间为60秒
+# - **重要**: inputs中的所有值都是字符串或对象，数字需要转换
 
-# 1. 获取输入参数
-# 示例:
+# 1. 获取输入参数（注意类型转换）
+# 字符串类型:
 # param1 = inputs.get('param1', '')
-# param2 = inputs.get('param2', 0)
+
+# 数字类型（需要转换）:
+# param2 = int(inputs.get('param2', '0'))
+# param3 = float(inputs.get('param3', '0.0'))
+
+# 布尔类型（需要转换）:
+# param4 = inputs.get('param4', 'false').lower() == 'true'
 
 # 2. 执行业务逻辑
 # 示例:
