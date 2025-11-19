@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined } from '@ant-design/icons';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
@@ -30,16 +30,21 @@ const nodeTypes: NodeTypes = {
 };
 
 const Flow: React.FC = () => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<BlockNodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node<BlockNodeData> | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [copiedNode, setCopiedNode] = useState<Node<BlockNodeData> | null>(null);
   const [loading, setLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
-  const [loadModalVisible, setLoadModalVisible] = useState(false);
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  // 左侧面板相关状态
+  const [leftPanelTab, setLeftPanelTab] = useState<'blocks' | 'workflows'>('blocks');
+  const [workflowViewType, setWorkflowViewType] = useState<'public' | 'mine'>('public');
+  const [publicWorkflows, setPublicWorkflows] = useState<Workflow[]>([]);
+  const [myWorkflows, setMyWorkflows] = useState<Workflow[]>([]);
+
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [workflowCategories, setWorkflowCategories] = useState<WorkflowCategory[]>([]);
@@ -51,6 +56,8 @@ const Flow: React.FC = () => {
   useEffect(() => {
     loadBlocks();
     loadWorkflowCategories();
+    loadPublicWorkflows();
+    loadMyWorkflows();
   }, []);
 
   // 监听 Ctrl+S 快捷键保存流程
@@ -85,7 +92,7 @@ const Flow: React.FC = () => {
           // 如果是 Ctrl+X，先复制再删除
           if ((event.ctrlKey || event.metaKey) && event.key === 'x') {
             setCopiedNode(selectedNode);
-            antdMessage.success('已剪切节点');
+            message.success('已剪切节点');
           }
           // 删除节点
           setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
@@ -93,13 +100,13 @@ const Flow: React.FC = () => {
           setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
           setSelectedNode(null);
           if (event.key === 'Delete') {
-            antdMessage.success('已删除节点');
+            message.success('已删除节点');
           }
         } else if (selectedEdge) {
           // 删除边
           setEdges((eds) => eds.filter((e) => e.id !== selectedEdge.id));
           setSelectedEdge(null);
-          antdMessage.success('已删除连接');
+          message.success('已删除连接');
         }
       }
 
@@ -108,7 +115,7 @@ const Flow: React.FC = () => {
         event.preventDefault();
         if (selectedNode) {
           setCopiedNode(selectedNode);
-          antdMessage.success('已复制节点');
+          message.success('已复制节点');
         }
       }
 
@@ -126,7 +133,7 @@ const Flow: React.FC = () => {
           };
           setNodes((nds) => nds.concat(newNode));
           setSelectedNode(newNode);
-          antdMessage.success('已粘贴节点');
+          message.success('已粘贴节点');
         }
       }
     };
@@ -164,6 +171,34 @@ const Flow: React.FC = () => {
       }
     } catch (error) {
       console.error('加载流程分类失败', error);
+    }
+  };
+
+  // 加载公共流程
+  const loadPublicWorkflows = async () => {
+    try {
+      const response = await workflowApi.pagePublic({
+        page: { pageNum: 0, pageSize: 50 },
+      });
+      if (response.code === 200 && response.data?.rows) {
+        setPublicWorkflows(response.data.rows);
+      }
+    } catch (error) {
+      console.error('加载公共流程失败', error);
+    }
+  };
+
+  // 加载我的流程
+  const loadMyWorkflows = async () => {
+    try {
+      const response = await workflowApi.page({
+        page: { pageNum: 0, pageSize: 50 },
+      });
+      if (response.code === 200 && response.data?.rows) {
+        setMyWorkflows(response.data.rows);
+      }
+    } catch (error) {
+      console.error('加载我的流程失败', error);
     }
   };
 
@@ -278,7 +313,7 @@ const Flow: React.FC = () => {
           category: currentWorkflow.category,
           flowDefinition,
         });
-        antdMessage.success('流程更新成功');
+        message.success('流程更新成功');
       } catch (error) {
         console.error('更新流程失败', error);
       }
@@ -295,7 +330,7 @@ const Flow: React.FC = () => {
     setEdges([]);
     setCurrentWorkflow(null);
     setSelectedNode(null);
-    antdMessage.success('已创建新流程');
+    message.success('已创建新流程');
   };
 
   // 编辑流程信息
@@ -304,10 +339,11 @@ const Flow: React.FC = () => {
       editForm.setFieldsValue({
         description: currentWorkflow.description,
         category: currentWorkflow.category,
+        isPublic: currentWorkflow.isPublic,
       });
       setEditModalVisible(true);
     } else {
-      antdMessage.warning('请先加载或创建一个流程');
+      message.warning('请先加载或创建一个流程');
     }
   };
 
@@ -338,6 +374,7 @@ const Flow: React.FC = () => {
         name: currentWorkflow.name, // 名称不变
         description: values.description,
         category: values.category,
+        isPublic: values.isPublic,
         flowDefinition,
       });
 
@@ -346,11 +383,16 @@ const Flow: React.FC = () => {
         ...currentWorkflow,
         description: values.description,
         category: values.category,
+        isPublic: values.isPublic,
       });
 
-      antdMessage.success('流程信息更新成功');
+      message.success('流程信息更新成功');
       setEditModalVisible(false);
       editForm.resetFields();
+
+      // 重新加载流程列表
+      loadPublicWorkflows();
+      loadMyWorkflows();
     } catch (error) {
       console.error('更新流程信息失败', error);
     }
@@ -384,47 +426,90 @@ const Flow: React.FC = () => {
       });
       if (response.code === 200) {
         setCurrentWorkflow(response.data);
-        antdMessage.success('流程保存成功');
+        message.success('流程保存成功');
       }
 
       setSaveModalVisible(false);
       saveForm.resetFields();
+
+      // 重新加载流程列表
+      loadPublicWorkflows();
+      loadMyWorkflows();
     } catch (error) {
       console.error('保存流程失败', error);
-    }
-  };
-
-  // 加载流程
-  const handleLoad = async () => {
-    try {
-      const response = await workflowApi.page({
-        page: { pageNum: 0, pageSize: 50 },
-      });
-      if (response.code === 200 && response.data?.rows) {
-        setWorkflows(response.data.rows);
-        setLoadModalVisible(true);
-      }
-    } catch (error) {
-      console.error('加载流程列表失败', error);
     }
   };
 
   const handleLoadWorkflow = (workflow: Workflow) => {
     const { flowDefinition } = workflow;
     if (flowDefinition && flowDefinition.nodes && flowDefinition.edges) {
-      setNodes(flowDefinition.nodes as Node[]);
+      setNodes(flowDefinition.nodes as Node<BlockNodeData>[]);
       setEdges(flowDefinition.edges as Edge[]);
       setCurrentWorkflow(workflow);
-      antdMessage.success(`已加载流程: ${workflow.name}`);
-      setLoadModalVisible(false);
+      message.success(`已加载流程: ${workflow.name}`);
     }
+  };
+
+  // 使用公共流程（创建新流程）
+  const handleUsePublicWorkflow = (workflow: Workflow) => {
+    Modal.confirm({
+      title: '使用公共流程',
+      content: `将基于公共流程 "${workflow.name}" 创建新流程，您需要为新流程命名。`,
+      onOk: () => {
+        const { flowDefinition } = workflow;
+        if (flowDefinition && flowDefinition.nodes && flowDefinition.edges) {
+          setNodes(flowDefinition.nodes as Node<BlockNodeData>[]);
+          setEdges(flowDefinition.edges as Edge[]);
+          // 清空当前流程（作为新流程）
+          setCurrentWorkflow(null);
+          message.success(`已加载公共流程，请保存为新流程`);
+          // 自动打开保存对话框
+          setSaveModalVisible(true);
+        }
+      },
+    });
+  };
+
+  // 导入流程
+  const handleImportWorkflow = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const flowData = JSON.parse(content);
+
+        if (!flowData.nodes || !flowData.edges) {
+          message.error('导入失败：流程文件格式不正确');
+          return;
+        }
+
+        Modal.confirm({
+          title: '导入流程',
+          content: `将导入流程${flowData.workflow?.name ? ` "${flowData.workflow.name}"` : ''}，您需要为新流程命名。`,
+          onOk: () => {
+            setNodes(flowData.nodes as Node<BlockNodeData>[]);
+            setEdges(flowData.edges as Edge[]);
+            // 清空当前流程（作为新流程）
+            setCurrentWorkflow(null);
+            message.success('流程导入成功，请保存为新流程');
+            // 自动打开保存对话框
+            setSaveModalVisible(true);
+          },
+        });
+      } catch (error) {
+        console.error('导入流程失败', error);
+        message.error('导入失败：文件格式错误');
+      }
+    };
+    reader.readAsText(file);
+    return false; // 阻止默认上传行为
   };
 
   // 删除流程
   const handleDeleteWorkflow = async (workflowId: number, workflowName: string) => {
     try {
       await workflowApi.delete(workflowId);
-      antdMessage.success(`流程 "${workflowName}" 删除成功`);
+      message.success(`流程 "${workflowName}" 删除成功`);
 
       // 如果删除的是当前加载的流程，清空画布
       if (currentWorkflow && currentWorkflow.id === workflowId) {
@@ -434,27 +519,23 @@ const Flow: React.FC = () => {
       }
 
       // 重新加载流程列表
-      const response = await workflowApi.page({
-        page: { pageNum: 0, pageSize: 50 },
-      });
-      if (response.code === 200 && response.data?.rows) {
-        setWorkflows(response.data.rows);
-      }
+      loadPublicWorkflows();
+      loadMyWorkflows();
     } catch (error: any) {
-      antdMessage.error(error.message || '删除失败');
+      message.error(error.message || '删除失败');
     }
   };
 
   // 执行流程
   const handleExecute = async () => {
     if (!currentWorkflow) {
-      antdMessage.warning('请先保存流程后再执行');
+      message.warning('请先保存流程后再执行');
       return;
     }
 
     try {
       await workflowApi.execute(currentWorkflow.id);
-      antdMessage.success('流程已提交执行');
+      message.success('流程已提交执行');
     } catch (error) {
       console.error('执行流程失败', error);
     }
@@ -483,7 +564,7 @@ const Flow: React.FC = () => {
     <div className="flow-container">
       <div className="flow-header">
         <h1>BlockFlow - 流程编排</h1>
-        <h9>ctrl+x删除，ctrl+c复制，ctrl+v粘贴，ctrl+s保存</h9>
+        <p style={{ fontSize: '12px', color: '#666', margin: '4px 0' }}>ctrl+x删除，ctrl+c复制，ctrl+v粘贴，ctrl+s保存</p>
         <div className="flow-actions">
           {/* 只有 ADMIN 和 USER 可以访问管理后台 */}
           {authUtils.canAccessManagement() && (
@@ -493,37 +574,195 @@ const Flow: React.FC = () => {
       </div>
 
       <div className="flow-content">
-        {/* 左侧块库 */}
+        {/* 左侧面板 */}
         <div className="flow-toolbox">
-          <h3>块库</h3>
-          <div className="toolbox-content">
-            {loading ? (
-              <Spin />
-            ) : blocks.length === 0 ? (
-              <Empty description="暂无可用块" />
-            ) : (
-              blocks.map((block) => (
-                <div
-                  key={block.id}
-                  className="block-library-item"
-                  draggable
-                  onDragStart={(e) => onDragStart(e, block)}
-                  style={{ borderLeft: `3px solid ${block.color}` }}
-                >
-                  <div className="block-header">
-                    <span style={{ fontSize: '16px' }}>{block.icon || '📦'}</span>
-                    <div style={{ flex: 1 }}>
-                      <div className="block-name">{block.name}</div>
-                      <div className="block-type">{block.typeCode}</div>
+          <Tabs
+            activeKey={leftPanelTab}
+            onChange={(key) => setLeftPanelTab(key as 'blocks' | 'workflows')}
+            items={[
+              {
+                key: 'blocks',
+                label: (
+                  <span>
+                    <AppstoreOutlined /> 块库
+                  </span>
+                ),
+                children: (
+                  <div className="toolbox-content">
+                    {loading ? (
+                      <Spin />
+                    ) : blocks.length === 0 ? (
+                      <Empty description="暂无可用块" />
+                    ) : (
+                      blocks.map((block) => (
+                        <div
+                          key={block.id}
+                          className="block-library-item"
+                          draggable
+                          onDragStart={(e) => onDragStart(e, block)}
+                          style={{ borderLeft: `3px solid ${block.color}` }}
+                        >
+                          <div className="block-header">
+                            <span style={{ fontSize: '16px' }}>{block.icon || '📦'}</span>
+                            <div style={{ flex: 1 }}>
+                              <div className="block-name">{block.name}</div>
+                              <div className="block-type">{block.typeCode}</div>
+                            </div>
+                          </div>
+                          {block.description && (
+                            <div className="block-description">{block.description}</div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: 'workflows',
+                label: (
+                  <span>
+                    <FolderOutlined /> 流程
+                  </span>
+                ),
+                children: (
+                  <div className="toolbox-content">
+                    <div style={{ padding: '8px' }}>
+                      <Radio.Group
+                        value={workflowViewType}
+                        onChange={(e) => setWorkflowViewType(e.target.value)}
+                        style={{ marginBottom: '12px', width: '100%' }}
+                      >
+                        <Radio.Button value="public" style={{ width: '50%', textAlign: 'center' }}>
+                          公共流程
+                        </Radio.Button>
+                        <Radio.Button value="mine" style={{ width: '50%', textAlign: 'center' }}>
+                          我的流程
+                        </Radio.Button>
+                      </Radio.Group>
+
+                      {workflowViewType === 'public' ? (
+                        publicWorkflows.length === 0 ? (
+                          <Empty description="暂无公共流程" />
+                        ) : (
+                          <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+                            {publicWorkflows.map((workflow) => (
+                              <div
+                                key={workflow.id}
+                                style={{
+                                  padding: '12px',
+                                  marginBottom: '8px',
+                                  border: '1px solid #d9d9d9',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s',
+                                }}
+                                onClick={() => handleUsePublicWorkflow(workflow)}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = '#1890ff';
+                                  e.currentTarget.style.background = '#f0f5ff';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = '#d9d9d9';
+                                  e.currentTarget.style.background = 'transparent';
+                                }}
+                              >
+                                <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                                  {workflow.name}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                                  {workflow.description || '暂无描述'}
+                                </div>
+                                {workflow.category && (
+                                  <div style={{ fontSize: '11px', color: '#1890ff', marginTop: '4px' }}>
+                                    分类: {workflow.category}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ) : (
+                        myWorkflows.length === 0 ? (
+                          <Empty description="暂无我的流程" />
+                        ) : (
+                          <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+                            {myWorkflows.map((workflow) => (
+                              <div
+                                key={workflow.id}
+                                style={{
+                                  padding: '12px',
+                                  marginBottom: '8px',
+                                  border: '1px solid #d9d9d9',
+                                  borderRadius: '4px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  transition: 'all 0.2s',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    cursor: 'pointer',
+                                    minWidth: 0,
+                                  }}
+                                  onClick={() => handleLoadWorkflow(workflow)}
+                                  onMouseEnter={(e) => {
+                                    const parent = e.currentTarget.parentElement;
+                                    if (parent) {
+                                      parent.style.borderColor = '#1890ff';
+                                      parent.style.background = '#f0f5ff';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    const parent = e.currentTarget.parentElement;
+                                    if (parent) {
+                                      parent.style.borderColor = '#d9d9d9';
+                                      parent.style.background = 'transparent';
+                                    }
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                                    {workflow.name}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                                    {workflow.description || '暂无描述'}
+                                  </div>
+                                  {workflow.category && (
+                                    <div style={{ fontSize: '11px', color: '#1890ff', marginTop: '4px' }}>
+                                      分类: {workflow.category}
+                                    </div>
+                                  )}
+                                </div>
+                                <Popconfirm
+                                  title="确认删除"
+                                  description={`确定要删除流程 "${workflow.name}" 吗？`}
+                                  onConfirm={() => handleDeleteWorkflow(workflow.id, workflow.name)}
+                                  okText="确认"
+                                  cancelText="取消"
+                                >
+                                  <Button
+                                    type="text"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    size="small"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    删除
+                                  </Button>
+                                </Popconfirm>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
-                  {block.description && (
-                    <div className="block-description">{block.description}</div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+                ),
+              },
+            ]}
+          />
         </div>
 
         {/* 中间工作区 */}
@@ -681,16 +920,22 @@ const Flow: React.FC = () => {
         >
           执行流程
         </Button>
-        <Button icon={<FolderOpenOutlined />} onClick={handleLoad}>
-          加载流程
-        </Button>
         {currentWorkflow && (
           <Button icon={<EditOutlined />} onClick={handleEditInfo}>
             编辑流程信息
           </Button>
         )}
+        <Upload
+          accept=".json"
+          showUploadList={false}
+          beforeUpload={handleImportWorkflow}
+        >
+          <Button icon={<UploadOutlined />}>
+            导入流程
+          </Button>
+        </Upload>
         <Button icon={<DownloadOutlined />} onClick={handleExport}>
-          导出
+          导出流程
         </Button>
       </div>
 
@@ -724,88 +969,10 @@ const Flow: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item name="isPublic" valuePropName="checked" initialValue={false}>
+            <Checkbox>设为公共流程（其他用户可见并使用）</Checkbox>
+          </Form.Item>
         </Form>
-      </Modal>
-
-      {/* 加载流程弹窗 */}
-      <Modal
-        title="加载流程"
-        open={loadModalVisible}
-        onCancel={() => setLoadModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        {workflows.length === 0 ? (
-          <Empty description="暂无已保存的流程" />
-        ) : (
-          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-            {workflows.map((workflow) => (
-              <div
-                key={workflow.id}
-                style={{
-                  padding: '12px',
-                  marginBottom: '8px',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '4px',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    flex: 1,
-                    cursor: 'pointer',
-                    minWidth: 0,
-                  }}
-                  onClick={() => handleLoadWorkflow(workflow)}
-                  onMouseEnter={(e) => {
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      parent.style.borderColor = '#1890ff';
-                      parent.style.background = '#f0f5ff';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      parent.style.borderColor = '#d9d9d9';
-                      parent.style.background = 'transparent';
-                    }
-                  }}
-                >
-                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                    {workflow.name}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                    {workflow.description || '暂无描述'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#bfbfbf', marginTop: '4px' }}>
-                    更新时间: {new Date(workflow.updateTime).toLocaleString()}
-                  </div>
-                </div>
-                <Popconfirm
-                  title="确认删除"
-                  description={`确定要删除流程 "${workflow.name}" 吗？`}
-                  onConfirm={() => handleDeleteWorkflow(workflow.id, workflow.name)}
-                  okText="确认"
-                  cancelText="取消"
-                >
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    删除
-                  </Button>
-                </Popconfirm>
-              </div>
-            ))}
-          </div>
-        )}
       </Modal>
 
       {/* 编辑流程信息弹窗 */}
@@ -833,6 +1000,9 @@ const Flow: React.FC = () => {
                 </Select.Option>
               ))}
             </Select>
+          </Form.Item>
+          <Form.Item name="isPublic" valuePropName="checked">
+            <Checkbox>设为公共流程（其他用户可见并使用）</Checkbox>
           </Form.Item>
         </Form>
       </Modal>

@@ -12,6 +12,7 @@ export interface BlockNodeData {
   inputs?: Record<string, any>;
   outputs?: Record<string, any>;
   icon?: string;
+  [key: string]: any; // 索引签名，允许ReactFlow兼容
 }
 
 const BlockNode: React.FC<NodeProps<BlockNodeData>> = ({ data, selected }) => {

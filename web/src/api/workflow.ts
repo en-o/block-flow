@@ -40,6 +40,13 @@ export const workflowApi = {
     return http.post('/workflows/page', params);
   },
 
+  // 分页查询流程
+  // POST /workflows/page
+  pagePublic(params: WorkflowPage): Promise<ResultPageVO<Workflow>> {
+    return http.post('/workflows/page/public', params);
+  },
+
+
   // 执行流程
   // POST /workflows/{id}/execute
   execute(id: number, data?: WorkflowExecuteDTO): Promise<ApiResponse<any>> {

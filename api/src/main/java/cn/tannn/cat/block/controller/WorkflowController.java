@@ -71,6 +71,7 @@ public class WorkflowController {
     @Operation(summary = "分页查询公共流程", description = "分页查询流程列表")
     public ResultPageVO<Workflow, JpaPageResult<Workflow>> pagePublic(@RequestBody @Valid WorkflowPage where) {
         where.setIsPublic(true);
+        where.setIsActive(true);
         return ResultPageVO.success(JpaPageResult.toPage(workflowService.findPage(where, null)));
     }
 

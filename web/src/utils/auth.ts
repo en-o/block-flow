@@ -5,14 +5,16 @@ const USER_INFO_KEY = 'block-flow-user';
  * 用户角色枚举
  * 与后端 cn.tannn.cat.block.enums.UserRole 保持一致
  */
-export enum UserRole {
+export const UserRole = {
   /** 管理员 - 可以完成所有操作 */
-  ADMIN = 'ADMIN',
+  ADMIN: 'ADMIN' as const,
   /** 普通用户 - 不能管理用户 */
-  USER = 'USER',
+  USER: 'USER' as const,
   /** 访客 - 只能访问 /flow 页面 */
-  VIEWER = 'VIEWER'
-}
+  VIEWER: 'VIEWER' as const
+};
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export const authUtils = {
   // 获取token
