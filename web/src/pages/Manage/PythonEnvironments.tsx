@@ -697,25 +697,28 @@ const PythonEnvironments: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 320,
+      width: 280,
       fixed: 'right' as const,
       render: (_: any, record: PythonEnvironment) => (
-        <Space>
+        <Space size="small" wrap>
           {!record.isDefault && (
+            <Tooltip title="设为默认环境">
+              <Button
+                type="link"
+                icon={<StarOutlined />}
+                onClick={() => handleSetDefault(record.id)}
+                size="small"
+              />
+            </Tooltip>
+          )}
+          <Tooltip title="管理包">
             <Button
               type="link"
-              icon={<StarOutlined />}
-              onClick={() => handleSetDefault(record.id)}
-            >
-              设为默认
-            </Button>
-          )}
-          <Button
-            type="link"
-            onClick={() => handleManagePackages(record)}
-          >
-            管理包
-          </Button>
+              icon={<ThunderboltOutlined />}
+              onClick={() => handleManagePackages(record)}
+              size="small"
+            />
+          </Tooltip>
           {record.envRootPath && (
             <Tooltip title={record.pythonExecutable ? "管理Python运行时和离线包" : "配置Python运行时（必需）"}>
               <Button
@@ -723,34 +726,36 @@ const PythonEnvironments: React.FC = () => {
                 icon={<UploadOutlined />}
                 onClick={() => handleShowUploadedFiles(record)}
                 danger={!record.pythonExecutable}
-              >
-                配置/离线包
-              </Button>
+                size="small"
+              />
             </Tooltip>
           )}
-          <Button
-            type="link"
-            icon={<DownloadOutlined />}
-            onClick={() => handleExportRequirements(record)}
-          >
-            导出
-          </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id)}
-            disabled={record.isDefault}
-          >
-            删除
-          </Button>
+          <Tooltip title="导出requirements.txt">
+            <Button
+              type="link"
+              icon={<DownloadOutlined />}
+              onClick={() => handleExportRequirements(record)}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title="编辑环境">
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+              size="small"
+            />
+          </Tooltip>
+          <Tooltip title={record.isDefault ? "不能删除默认环境" : "删除环境"}>
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record.id)}
+              disabled={record.isDefault}
+              size="small"
+            />
+          </Tooltip>
         </Space>
       ),
     },

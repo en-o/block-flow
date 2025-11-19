@@ -126,7 +126,22 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "不能删除默认环境");
         }
 
+        // 删除数据库记录
         pythonEnvironmentRepository.deleteById(id);
+
+        // 删除文件系统目录
+        if (environment.getEnvRootPath() != null && !environment.getEnvRootPath().isEmpty()) {
+            try {
+                File envDir = new File(environment.getEnvRootPath());
+                if (envDir.exists()) {
+                    deleteDirectory(envDir);
+                    log.info("已删除环境目录: {}", environment.getEnvRootPath());
+                }
+            } catch (IOException e) {
+                log.error("删除环境目录失败: {}", environment.getEnvRootPath(), e);
+                // 不抛出异常，避免影响数据库删除
+            }
+        }
     }
 
     @Override
