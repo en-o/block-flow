@@ -1431,14 +1431,8 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
                 // 在python3xx.zip之后添加site-packages路径
                 if (!addedSitePackages && (trimmed.endsWith(".zip") || trimmed.equals("."))) {
-                    // 计算相对路径或使用绝对路径
-                    File sitePackagesDir = new File(sitePackagesPath);
-                    String relativePath = getRelativePath(pythonDir, sitePackagesDir);
-                    if (relativePath != null && !relativePath.isEmpty()) {
-                        newLines.add(relativePath);
-                    } else {
-                        newLines.add(sitePackagesPath);
-                    }
+                    // 使用绝对路径（相对路径在Windows下容易出错）
+                    newLines.add(sitePackagesPath);
                     addedSitePackages = true;
                 }
             }
@@ -1454,20 +1448,6 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         } catch (Exception e) {
             log.warn("配置Python路径时出错，但不影响继续: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * 计算相对路径
-     */
-    private String getRelativePath(File base, File target) {
-        try {
-            Path basePath = base.toPath();
-            Path targetPath = target.toPath();
-            Path relativePath = basePath.relativize(targetPath);
-            return relativePath.toString().replace("\\", "/");
-        } catch (Exception e) {
-            return null;
         }
     }
 }

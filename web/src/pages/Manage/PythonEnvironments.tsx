@@ -63,6 +63,9 @@ const PythonEnvironments: React.FC = () => {
   const [detectingPython, setDetectingPython] = useState(false);
   const [configMode, setConfigMode] = useState<'manual' | 'upload' | 'later'>('manual'); // Python配置模式
   const [runtimeFile, setRuntimeFile] = useState<File | null>(null); // 待上传的运行时文件
+  const [installLogVisible, setInstallLogVisible] = useState(false); // 安装日志弹窗
+  const [installLogs, setInstallLogs] = useState<string[]>([]); // 安装日志
+  const [isInstalling, setIsInstalling] = useState(false); // 是否正在安装
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -294,12 +297,26 @@ const PythonEnvironments: React.FC = () => {
         }
       }
 
-      message.loading({ content: '正在安装包...', key: 'install', duration: 0 });
+      // 显示安装日志窗口
+      setInstallLogs([`开始安装 ${packageName}${values.version ? ' ' + values.version : ''}...`]);
+      setInstallLogVisible(true);
+      setIsInstalling(true);
+
+      setInstallLogs(prev => [...prev, '正在执行 pip install 命令...']);
+      setInstallLogs(prev => [...prev, '请稍候，这可能需要几秒到几分钟...']);
 
       const response = await pythonEnvApi.installPackage(selectedEnv.id, values);
 
-      message.success({ content: `包 ${values.packageName} 安装成功`, key: 'install' });
+      setInstallLogs(prev => [...prev, `✓ 包 ${values.packageName} 安装成功！`]);
+      setIsInstalling(false);
+
+      message.success(`包 ${values.packageName} 安装成功`);
       packageForm.resetFields();
+
+      // 延迟关闭日志窗口
+      setTimeout(() => {
+        setInstallLogVisible(false);
+      }, 2000);
 
       // 刷新环境列表以更新已安装包
       await fetchEnvironments();
@@ -311,9 +328,10 @@ const PythonEnvironments: React.FC = () => {
       }
 
     } catch (error: any) {
+      setInstallLogs(prev => [...prev, `✗ 安装失败: ${error.message || '未知错误'}`]);
+      setIsInstalling(false);
       message.error({
         content: error.message || '安装包失败',
-        key: 'install',
         duration: 5
       });
       console.error('安装包失败', error);
@@ -415,11 +433,31 @@ const PythonEnvironments: React.FC = () => {
       return false;
     }
 
+    // 显示安装日志窗口
+    setInstallLogs([`开始上传并安装 ${file.name}...`]);
+    setInstallLogVisible(true);
+    setIsInstalling(true);
     setUploadingFile(true);
+
     try {
+      setInstallLogs(prev => [...prev, '正在上传文件...']);
+      setInstallLogs(prev => [...prev, `文件大小: ${(file.size / 1024 / 1024).toFixed(2)} MB`]);
+
       const response = await pythonEnvApi.uploadPackageFile(selectedEnv.id, file);
+
       if (response.code === 200) {
+        setInstallLogs(prev => [...prev, '✓ 文件上传成功']);
+        setInstallLogs(prev => [...prev, '正在安装到环境...']);
+        setInstallLogs(prev => [...prev, '✓ 包安装成功！']);
+
+        setIsInstalling(false);
         message.success('上传并安装成功');
+
+        // 延迟关闭日志窗口
+        setTimeout(() => {
+          setInstallLogVisible(false);
+        }, 2000);
+
         // 刷新环境列表和包列表
         await fetchEnvironments();
         const listResponse = await pythonEnvApi.listUploadedPackageFiles(selectedEnv.id);
@@ -428,6 +466,8 @@ const PythonEnvironments: React.FC = () => {
         }
       }
     } catch (error: any) {
+      setInstallLogs(prev => [...prev, `✗ 安装失败: ${error.message || '未知错误'}`]);
+      setIsInstalling(false);
       message.error(error.message || '上传失败');
     } finally {
       setUploadingFile(false);
@@ -1196,13 +1236,21 @@ const PythonEnvironments: React.FC = () => {
         <Card size="small" title="已安装包">
           <List
             dataSource={selectedEnv?.packages ? Object.entries(selectedEnv.packages) : []}
-            renderItem={([name, version]) => {
-              // 处理版本信息：可能是字符串或对象
-              const versionStr = typeof version === 'string'
-                ? version
-                : (typeof version === 'object' && version !== null
-                    ? JSON.stringify(version)
-                    : '未知');
+            renderItem={([name, pkgInfo]) => {
+              // 解析包信息
+              let versionStr = '未知';
+              let installMethod = '';
+              let installedAt = '';
+              let installedFrom = '';
+
+              if (typeof pkgInfo === 'string') {
+                versionStr = pkgInfo;
+              } else if (typeof pkgInfo === 'object' && pkgInfo !== null) {
+                versionStr = pkgInfo.version || '未知';
+                installMethod = pkgInfo.installMethod || '';
+                installedAt = pkgInfo.installedAt || '';
+                installedFrom = pkgInfo.installedFrom || '';
+              }
 
               return (
                 <List.Item
@@ -1219,8 +1267,20 @@ const PythonEnvironments: React.FC = () => {
                   ]}
                 >
                   <List.Item.Meta
-                    title={name}
-                    description={`版本: ${versionStr}`}
+                    title={
+                      <Space>
+                        <span style={{ fontWeight: 500 }}>{name}</span>
+                        <Tag color="blue">{versionStr}</Tag>
+                        {installMethod === 'offline' && <Tag color="orange">离线安装</Tag>}
+                        {installMethod === 'pip' && <Tag color="green">在线安装</Tag>}
+                      </Space>
+                    }
+                    description={
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        {installedFrom && <div>来源: {installedFrom}</div>}
+                        {installedAt && <div>安装时间: {new Date(installedAt).toLocaleString()}</div>}
+                      </div>
+                    }
                   />
                 </List.Item>
               );
@@ -1228,6 +1288,52 @@ const PythonEnvironments: React.FC = () => {
             locale={{ emptyText: '暂无已安装的包' }}
           />
         </Card>
+      </Modal>
+
+      {/* 安装日志 Modal */}
+      <Modal
+        title={
+          <Space>
+            {isInstalling && <Progress type="circle" percent={100} size={20} status="active" />}
+            <span>安装过程日志</span>
+          </Space>
+        }
+        open={installLogVisible}
+        onCancel={() => !isInstalling && setInstallLogVisible(false)}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => setInstallLogVisible(false)}
+            disabled={isInstalling}
+          >
+            关闭
+          </Button>,
+        ]}
+        width={700}
+        closable={!isInstalling}
+        maskClosable={!isInstalling}
+      >
+        <div style={{
+          background: '#000',
+          color: '#0f0',
+          padding: '16px',
+          borderRadius: '4px',
+          fontFamily: 'Consolas, Monaco, monospace',
+          fontSize: '13px',
+          maxHeight: '400px',
+          overflowY: 'auto'
+        }}>
+          {installLogs.map((log, index) => (
+            <div key={index} style={{ marginBottom: '4px' }}>
+              {log}
+            </div>
+          ))}
+          {isInstalling && (
+            <div style={{ marginTop: '8px', color: '#ff0' }}>
+              ⏳ 正在处理，请稍候...
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* 导入 requirements.txt Modal */}
