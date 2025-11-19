@@ -970,11 +970,14 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 检测Python版本
         String pythonVersion = detectPythonVersion(pythonExecutable);
 
-        // 检测pip是否可用
-        boolean hasPip = checkPipAvailable(pythonExecutable);
-
         // 检测site-packages路径
         String sitePackagesPath = detectSitePackagesPath(extractPath);
+
+        // 处理Python embed版本的._pth文件（修复pip无法使用的问题）
+        configurePythonPath(pythonExecutable, sitePackagesPath);
+
+        // 在配置._pth文件后重新检测pip（可能已经可用了）
+        boolean hasPip = checkPipAvailable(pythonExecutable);
 
         // 更新环境配置
         environment.setPythonExecutable(pythonExecutable);
@@ -1339,6 +1342,114 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
         if (!directory.delete()) {
             throw new IOException("无法删除: " + directory.getAbsolutePath());
+        }
+    }
+
+    /**
+     * 配置Python路径（处理embed版本的._pth文件）
+     * Python embed版本有._pth文件限制模块搜索路径，需要添加site-packages路径
+     */
+    private void configurePythonPath(String pythonExecutable, String sitePackagesPath) {
+        if (pythonExecutable == null || sitePackagesPath == null) {
+            return;
+        }
+
+        try {
+            File pythonExeFile = new File(pythonExecutable);
+            File pythonDir = pythonExeFile.getParentFile();
+            if (pythonDir == null || !pythonDir.exists()) {
+                return;
+            }
+
+            // 查找._pth文件（如python312._pth）
+            File[] pthFiles = pythonDir.listFiles((dir, name) -> name.endsWith("._pth"));
+            if (pthFiles == null || pthFiles.length == 0) {
+                log.info("未找到._pth文件，Python可能不是embed版本");
+                return;
+            }
+
+            File pthFile = pthFiles[0];
+            log.info("找到._pth文件: {}", pthFile.getAbsolutePath());
+
+            // 读取现有内容
+            List<String> lines = Files.readAllLines(pthFile.toPath());
+            boolean hasSitePackages = false;
+            boolean hasImportSite = false;
+
+            // 检查是否已经包含site-packages和import site
+            for (String line : lines) {
+                String trimmed = line.trim();
+                if (trimmed.contains("site-packages")) {
+                    hasSitePackages = true;
+                }
+                if (trimmed.equals("import site") || trimmed.startsWith("import site")) {
+                    hasImportSite = true;
+                }
+            }
+
+            // 如果已经配置好了，就不需要修改
+            if (hasSitePackages && hasImportSite) {
+                log.info("._pth文件已正确配置");
+                return;
+            }
+
+            // 构建新的内容
+            List<String> newLines = new ArrayList<>();
+            boolean addedSitePackages = false;
+            boolean addedImportSite = false;
+
+            for (String line : lines) {
+                String trimmed = line.trim();
+
+                // 移除注释的import site行
+                if (trimmed.startsWith("#") && trimmed.contains("import site")) {
+                    // 取消注释
+                    newLines.add("import site");
+                    addedImportSite = true;
+                    continue;
+                }
+
+                newLines.add(line);
+
+                // 在python3xx.zip之后添加site-packages路径
+                if (!addedSitePackages && (trimmed.endsWith(".zip") || trimmed.equals("."))) {
+                    // 计算相对路径或使用绝对路径
+                    File sitePackagesDir = new File(sitePackagesPath);
+                    String relativePath = getRelativePath(pythonDir, sitePackagesDir);
+                    if (relativePath != null && !relativePath.isEmpty()) {
+                        newLines.add(relativePath);
+                    } else {
+                        newLines.add(sitePackagesPath);
+                    }
+                    addedSitePackages = true;
+                }
+            }
+
+            // 如果还没有添加import site，在末尾添加
+            if (!addedImportSite) {
+                newLines.add("import site");
+            }
+
+            // 写回文件
+            Files.write(pthFile.toPath(), newLines);
+            log.info("._pth文件已更新，添加了site-packages路径和import site");
+
+        } catch (Exception e) {
+            log.warn("配置Python路径时出错，但不影响继续: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 计算相对路径
+     */
+    private String getRelativePath(File base, File target) {
+        try {
+            Path basePath = base.toPath();
+            Path targetPath = target.toPath();
+            Path relativePath = basePath.relativize(targetPath);
+            return relativePath.toString().replace("\\", "/");
+        } catch (Exception e) {
+            return null;
         }
     }
 }
