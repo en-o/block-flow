@@ -21,6 +21,9 @@ export function initCustomBlocks() {
     // Python输出块
     definePythonOutputBlock();
 
+    // Python print块
+    definePythonPrintBlock();
+
     // 字典创建块
     defineDictCreateBlock();
 
@@ -107,6 +110,30 @@ function definePythonOutputBlock() {
     const key = block.getFieldValue('KEY');
     const value = generator.valueToCode(block, 'VALUE', Order.ATOMIC) || "''";
     const code = `outputs['${key}'] = ${value}\n`;
+    return code;
+  };
+}
+
+/**
+ * Python print() 块
+ */
+function definePythonPrintBlock() {
+  Blockly.Blocks['python_print'] = {
+    init: function() {
+      this.appendValueInput('TEXT')
+          .setCheck(null)
+          .appendField('打印');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(180);
+      this.setTooltip('Python print()函数，打印内容到控制台');
+      this.setHelpUrl('');
+    }
+  };
+
+  pythonGenerator.forBlock['python_print'] = function(block: any, generator: any) {
+    const text = generator.valueToCode(block, 'TEXT', Order.ATOMIC) || "''";
+    const code = `print(${text})\n`;
     return code;
   };
 }

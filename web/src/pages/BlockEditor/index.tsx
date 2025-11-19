@@ -333,6 +333,7 @@ outputs = {
           contents: [
             { kind: 'block', type: 'python_input_get' },
             { kind: 'block', type: 'python_output_set' },
+            { kind: 'block', type: 'python_print' },
             { kind: 'block', type: 'safe_int' },
             { kind: 'block', type: 'safe_float' },
             { kind: 'block', type: 'safe_bool' },
