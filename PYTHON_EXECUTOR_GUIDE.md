@@ -58,7 +58,20 @@ outputs = {
 
 **重要提示：** 所有从 `inputs` 获取的值都可能是字符串类型，数字需要显式转换！
 
-脚本执行时，系统会自动注入 `inputs` 字典变量，包含所有传入的参数。
+脚本执行时，系统会自动注入 `inputs` 字典变量，包含：
+1. **用户传入的参数**：测试时或流程执行时传入的输入参数
+2. **上下文变量（自动注入）**：系统会自动将所有上下文变量以 `ctx.变量名` 的格式注入到 `inputs` 中
+
+**获取上下文变量：**
+```python
+# 获取上下文变量（格式：ctx.变量名）
+db_host = inputs.get('ctx.DB_HOST', 'localhost')
+db_port = int(inputs.get('ctx.DB_PORT', '3306'))
+api_key = inputs.get('ctx.API_KEY', '')
+user_name = inputs.get('ctx.USER_NAME', '默认用户')
+
+# 上下文变量在测试和流程执行时都会自动注入，无需手动配置
+```
 
 **获取字符串参数：**
 ```python

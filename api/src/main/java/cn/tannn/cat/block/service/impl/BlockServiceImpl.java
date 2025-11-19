@@ -5,7 +5,9 @@ import cn.tannn.cat.block.controller.dto.block.BlockPage;
 import cn.tannn.cat.block.controller.dto.block.BlockTestDTO;
 import cn.tannn.cat.block.controller.dto.block.BlockUpdateDTO;
 import cn.tannn.cat.block.entity.Block;
+import cn.tannn.cat.block.entity.ContextVariable;
 import cn.tannn.cat.block.repository.BlockRepository;
+import cn.tannn.cat.block.repository.ContextVariableRepository;
 import cn.tannn.cat.block.service.BlockService;
 import cn.tannn.cat.block.service.PythonScriptExecutor;
 import cn.tannn.jdevelops.exception.built.BusinessException;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,6 +40,7 @@ public class BlockServiceImpl implements BlockService {
 
     private final BlockRepository blockRepository;
     private final PythonScriptExecutor pythonScriptExecutor;
+    private final ContextVariableRepository contextVariableRepository;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -161,11 +165,28 @@ public class BlockServiceImpl implements BlockService {
         log.info("开始测试块: {}, 输入参数: {}", block.getName(), testDTO.getInputs());
 
         try {
+            // 合并上下文变量到 inputs
+            Map<String, Object> mergedInputs = new HashMap<>();
+            if (testDTO.getInputs() != null) {
+                mergedInputs.putAll(testDTO.getInputs());
+            }
+
+            // 获取所有上下文变量，并以 ctx.变量名 的格式添加
+            List<ContextVariable> contextVariables = contextVariableRepository.findAll();
+            for (ContextVariable cv : contextVariables) {
+                String key = "ctx." + cv.getVarKey();
+                mergedInputs.put(key, cv.getVarValue());
+                log.debug("注入上下文变量: {} = {}", key, cv.getVarValue());
+            }
+
+            log.info("合并后的输入参数数量: {}, 其中上下文变量: {}",
+                    mergedInputs.size(), contextVariables.size());
+
             // 执行Python脚本
             PythonScriptExecutor.ExecutionResult result = pythonScriptExecutor.execute(
                     block.getPythonEnvId(),
                     block.getScript(),
-                    testDTO.getInputs()
+                    mergedInputs
             );
 
             // 构建返回结果

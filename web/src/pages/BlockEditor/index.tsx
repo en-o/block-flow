@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Form,
@@ -13,6 +13,7 @@ import {
   Space,
   Modal,
   Tooltip,
+  Tag,
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
@@ -38,7 +39,7 @@ const BlockEditor: React.FC = () => {
   const [outputParams, setOutputParams] = useState<Array<{ name: string; type: string; description: string }>>([]);
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [testInputs, setTestInputs] = useState<Record<string, any>>({});
-  const [testResult, setTestResult] = useState<string>('');
+  const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
 
   // 加载块类型
@@ -231,7 +232,7 @@ const BlockEditor: React.FC = () => {
   };
 
   // 将输入参数数组转换为对象格式
-  const buildInputsObject = () => {
+  const buildInputsObject = useCallback(() => {
     const inputs: Record<string, any> = {};
     inputParams.forEach(param => {
       if (param.name) {
@@ -243,7 +244,7 @@ const BlockEditor: React.FC = () => {
       }
     });
     return inputs;
-  };
+  }, [inputParams]);
 
   // 添加输出参数
   const handleAddOutputParam = () => {
@@ -263,7 +264,7 @@ const BlockEditor: React.FC = () => {
   };
 
   // 将输出参数数组转换为对象格式
-  const buildOutputsObject = () => {
+  const buildOutputsObject = useCallback(() => {
     const outputs: Record<string, any> = {};
     outputParams.forEach(param => {
       if (param.name) {
@@ -274,7 +275,7 @@ const BlockEditor: React.FC = () => {
       }
     });
     return outputs;
-  };
+  }, [outputParams]);
 
   // 打开测试弹窗
   const handleOpenTest = () => {
@@ -286,7 +287,7 @@ const BlockEditor: React.FC = () => {
       }
     });
     setTestInputs(initialInputs);
-    setTestResult('');
+    setTestResult(null);
     setTestModalVisible(true);
   };
 
@@ -298,23 +299,41 @@ const BlockEditor: React.FC = () => {
     }
 
     setTesting(true);
-    setTestResult('');
+    setTestResult(null);
 
     try {
       const response = await blockApi.test(block.id, { inputs: testInputs });
       if (response.code === 200) {
-        setTestResult(response.data || '执行成功，无输出');
+        // 尝试解析 JSON
+        try {
+          const resultData = typeof response.data === 'string'
+            ? JSON.parse(response.data)
+            : response.data;
+          setTestResult(resultData);
+        } catch (e) {
+          // 如果不是 JSON，直接显示
+          setTestResult({
+            success: true,
+            output: response.data || '执行成功，无输出'
+          });
+        }
       } else {
-        setTestResult(`错误: ${response.message || '未知错误'}`);
+        setTestResult({
+          success: false,
+          error: `错误: ${response.message || '未知错误'}`
+        });
       }
     } catch (error: any) {
-      setTestResult(`执行失败: ${error.message || '未知错误'}`);
+      setTestResult({
+        success: false,
+        error: `执行失败: ${error.message || '未知错误'}`
+      });
     } finally {
       setTesting(false);
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
       const values = await form.validateFields();
 
@@ -356,7 +375,26 @@ const BlockEditor: React.FC = () => {
     } catch (error) {
       console.error('保存块失败', error);
     }
-  };
+  }, [form, definitionMode, scriptCode, block, buildInputsObject, buildOutputsObject, navigate]);
+
+  // 监听Ctrl+S快捷键保存
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 检查是否是Ctrl+S或Cmd+S（Mac）
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault(); // 阻止浏览器默认保存行为
+        handleSave();
+      }
+    };
+
+    // 添加事件监听
+    document.addEventListener('keydown', handleKeyDown);
+
+    // 清理函数
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleSave]);
 
   return (
     <div className="block-editor-container">
@@ -615,6 +653,7 @@ const BlockEditor: React.FC = () => {
           >
             保存块
           </Button>
+          <Tag color="blue" style={{ fontSize: 12 }}>Ctrl+S 快捷保存</Tag>
           {block && (
             <Tooltip title="测试运行当前块">
               <Button
@@ -687,22 +726,140 @@ const BlockEditor: React.FC = () => {
 
         <div>
           <h4>执行结果</h4>
-          <div
-            style={{
-              background: '#000',
-              color: '#0f0',
-              padding: 16,
-              borderRadius: 4,
-              fontFamily: 'Consolas, Monaco, monospace',
-              fontSize: 13,
-              minHeight: 200,
-              maxHeight: 400,
-              overflowY: 'auto',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {testing ? '正在执行...' : testResult || '点击"运行"按钮执行测试'}
-          </div>
+          {testing ? (
+            <div
+              style={{
+                background: '#f5f5f5',
+                padding: 16,
+                borderRadius: 4,
+                textAlign: 'center',
+                color: '#666',
+                minHeight: 200,
+              }}
+            >
+              正在执行...
+            </div>
+          ) : !testResult ? (
+            <div
+              style={{
+                background: '#f5f5f5',
+                padding: 16,
+                borderRadius: 4,
+                textAlign: 'center',
+                color: '#999',
+                minHeight: 200,
+              }}
+            >
+              点击"运行"按钮执行测试
+            </div>
+          ) : (
+            <Card
+              size="small"
+              style={{
+                background: testResult.success ? '#f6ffed' : '#fff2e8',
+                borderColor: testResult.success ? '#b7eb8f' : '#ffbb96',
+              }}
+            >
+              {/* 状态和执行时间 */}
+              <Space style={{ marginBottom: 12 }}>
+                <Tag color={testResult.success ? 'success' : 'error'}>
+                  {testResult.success ? '✓ 执行成功' : '✗ 执行失败'}
+                </Tag>
+                {testResult.executionTime !== undefined && (
+                  <Tag color="blue">耗时: {testResult.executionTime}ms</Tag>
+                )}
+              </Space>
+
+              {/* 成功输出 */}
+              {testResult.success && testResult.output && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#52c41a' }}>
+                    📤 输出结果：
+                  </div>
+                  <pre
+                    style={{
+                      background: '#fff',
+                      border: '1px solid #d9d9d9',
+                      borderRadius: 4,
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 300,
+                      overflowY: 'auto',
+                      fontSize: 13,
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {typeof testResult.output === 'object'
+                      ? JSON.stringify(testResult.output, null, 2)
+                      : testResult.output}
+                  </pre>
+                </div>
+              )}
+
+              {/* 错误信息 */}
+              {!testResult.success && (testResult.error || testResult.errorMessage) && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#ff4d4f' }}>
+                    ❌ 错误信息：
+                  </div>
+                  <pre
+                    style={{
+                      background: '#fff',
+                      border: '1px solid #ffccc7',
+                      borderRadius: 4,
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      fontSize: 13,
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#ff4d4f',
+                    }}
+                  >
+                    {testResult.errorMessage || testResult.error}
+                  </pre>
+                </div>
+              )}
+
+              {/* 标准错误输出 */}
+              {testResult.stderr && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fa8c16' }}>
+                    ⚠️ 错误输出 (stderr)：
+                  </div>
+                  <pre
+                    style={{
+                      background: '#fff',
+                      border: '1px solid #ffd591',
+                      borderRadius: 4,
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      fontSize: 12,
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: '#fa8c16',
+                    }}
+                  >
+                    {testResult.stderr}
+                  </pre>
+                </div>
+              )}
+
+              {/* 退出代码 */}
+              {testResult.exitCode !== undefined && testResult.exitCode !== 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <Tag color="warning">退出代码: {testResult.exitCode}</Tag>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       </Modal>
     </div>
