@@ -420,6 +420,40 @@ export interface WorkflowExecuteDTO {
 }
 
 // ===================
+// 流程分类相关（WorkflowCategory Entity）
+// ===================
+
+export interface WorkflowCategory {
+  id: number;
+  code: string;
+  name: string;
+  sortOrder: number;
+  createTime: string;
+  updateTime: string;
+}
+
+// 流程分类分页查询参数
+export interface WorkflowCategoryPage {
+  name?: string;
+  page?: PagingSorteds;
+}
+
+// 流程分类创建DTO
+export interface WorkflowCategoryCreateDTO {
+  code: string; // 必填
+  name: string; // 必填
+  sortOrder?: number;
+}
+
+// 流程分类更新DTO
+export interface WorkflowCategoryUpdateDTO {
+  id: number; // 必填
+  code?: string;
+  name?: string;
+  sortOrder?: number;
+}
+
+// ===================
 // 执行记录相关（ExecutionLog Entity）
 // ===================
 
