@@ -651,23 +651,41 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
      * 查找包的源代码目录
      */
     private File findPackageSourceDir(File packageRoot) {
-        // 查找setup.py或pyproject.toml所在目录下的Python包目录
         File[] files = packageRoot.listFiles();
         if (files == null) {
             return null;
         }
 
-        // 查找Python包目录（包含__init__.py的目录）
+        // 1. 优先查找src目录下的Python包
+        File srcDir = new File(packageRoot, "src");
+        if (srcDir.exists() && srcDir.isDirectory()) {
+            File[] srcFiles = srcDir.listFiles();
+            if (srcFiles != null) {
+                for (File file : srcFiles) {
+                    if (file.isDirectory()) {
+                        File initFile = new File(file, "__init__.py");
+                        if (initFile.exists()) {
+                            log.info("在src目录下找到包: {}", file.getName());
+                            return file;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. 查找根目录下的Python包（包含__init__.py的目录）
         for (File file : files) {
-            if (file.isDirectory()) {
+            if (file.isDirectory() && !file.getName().equals("src")) {
                 File initFile = new File(file, "__init__.py");
                 if (initFile.exists()) {
+                    log.info("在根目录下找到包: {}", file.getName());
                     return file;
                 }
             }
         }
 
-        // 如果没有找到，返回根目录（某些包可能没有__init__.py）
+        // 3. 如果没有找到，检查是否有单个py文件的简单包
+        log.warn("未找到标准Python包结构，返回根目录");
         return packageRoot;
     }
 
