@@ -340,6 +340,19 @@ const BlockEditor: React.FC = () => {
       return;
     }
 
+    // 移除注释：单行注释 (#) 和多行注释 (''' 或 """)
+    let cleanScript = scriptCode
+      // 移除多行字符串/注释（三引号）
+      .replace(/'''[\s\S]*?'''/g, '')
+      .replace(/"""[\s\S]*?"""/g, '')
+      // 移除单行注释
+      .split('\n')
+      .map((line: string) => {
+        const commentIndex = line.indexOf('#');
+        return commentIndex !== -1 ? line.substring(0, commentIndex) : line;
+      })
+      .join('\n');
+
     // 解析输入参数
     const inputMatches = new Set<string>();
     const inputTypes: Record<string, string> = {};
@@ -347,7 +360,7 @@ const BlockEditor: React.FC = () => {
     // 匹配 inputs.get('xxx') 或 inputs.get("xxx")
     const inputRegex = /inputs\.get\(['"]((?!ctx\.)[^'"]+)['"]/g;
     let match;
-    while ((match = inputRegex.exec(scriptCode)) !== null) {
+    while ((match = inputRegex.exec(cleanScript)) !== null) {
       const paramName = match[1];
       if (!paramName.startsWith('ctx.')) {
         inputMatches.add(paramName);
@@ -363,11 +376,11 @@ const BlockEditor: React.FC = () => {
       const floatPattern = new RegExp(`float\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
       const safeBoolPattern = new RegExp(`safe_bool\\s*\\(\\s*inputs\\.get\\(['"](${paramName})['"]`);
 
-      if (safeIntPattern.test(scriptCode) || intPattern.test(scriptCode)) {
+      if (safeIntPattern.test(cleanScript) || intPattern.test(cleanScript)) {
         inputTypes[paramName] = 'number';
-      } else if (safeFloatPattern.test(scriptCode) || floatPattern.test(scriptCode)) {
+      } else if (safeFloatPattern.test(cleanScript) || floatPattern.test(cleanScript)) {
         inputTypes[paramName] = 'number';
-      } else if (safeBoolPattern.test(scriptCode)) {
+      } else if (safeBoolPattern.test(cleanScript)) {
         inputTypes[paramName] = 'boolean';
       } else {
         inputTypes[paramName] = 'string';
@@ -379,7 +392,7 @@ const BlockEditor: React.FC = () => {
 
     // 匹配 outputs = { "key": value, 'key': value }
     const outputsBlockRegex = /outputs\s*=\s*\{([^}]+)\}/s;
-    const outputsBlock = outputsBlockRegex.exec(scriptCode);
+    const outputsBlock = outputsBlockRegex.exec(cleanScript);
 
     if (outputsBlock) {
       const outputContent = outputsBlock[1];
