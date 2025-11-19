@@ -13,7 +13,7 @@ let globalMessage: MessageInstance | null = null;
  */
 export const setGlobalMessage = (messageInstance: MessageInstance) => {
   globalMessage = messageInstance;
-  console.log('[MessageInstance] 全局 message 实例已设置:', messageInstance);
+  // console.log('[MessageInstance] 全局 message 实例已设置:', messageInstance);
 };
 
 /**
