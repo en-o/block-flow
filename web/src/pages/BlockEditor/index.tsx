@@ -35,6 +35,7 @@ const BlockEditor: React.FC = () => {
   const [scriptCode, setScriptCode] = useState<string>('# Python 脚本\nprint("Hello World")');
   const [loading, setLoading] = useState(false);
   const [inputParams, setInputParams] = useState<Array<{ name: string; type: string; defaultValue: string; description: string }>>([]);
+  const [outputParams, setOutputParams] = useState<Array<{ name: string; type: string; description: string }>>([]);
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [testInputs, setTestInputs] = useState<Record<string, any>>({});
   const [testResult, setTestResult] = useState<string>('');
@@ -128,6 +129,16 @@ const BlockEditor: React.FC = () => {
             description: config.description || '',
           }));
           setInputParams(params);
+        }
+
+        // 加载输出参数配置
+        if (blockData.outputs && typeof blockData.outputs === 'object') {
+          const params = Object.entries(blockData.outputs).map(([name, config]: [string, any]) => ({
+            name,
+            type: config.type || 'string',
+            description: config.description || '',
+          }));
+          setOutputParams(params);
         }
 
         // 如果有 Blockly 定义，加载到工作区
@@ -234,6 +245,37 @@ const BlockEditor: React.FC = () => {
     return inputs;
   };
 
+  // 添加输出参数
+  const handleAddOutputParam = () => {
+    setOutputParams([...outputParams, { name: '', type: 'string', description: '' }]);
+  };
+
+  // 删除输出参数
+  const handleRemoveOutputParam = (index: number) => {
+    setOutputParams(outputParams.filter((_, i) => i !== index));
+  };
+
+  // 更新输出参数
+  const handleUpdateOutputParam = (index: number, field: string, value: string) => {
+    const newParams = [...outputParams];
+    (newParams[index] as any)[field] = value;
+    setOutputParams(newParams);
+  };
+
+  // 将输出参数数组转换为对象格式
+  const buildOutputsObject = () => {
+    const outputs: Record<string, any> = {};
+    outputParams.forEach(param => {
+      if (param.name) {
+        outputs[param.name] = {
+          type: param.type,
+          description: param.description,
+        };
+      }
+    });
+    return outputs;
+  };
+
   // 打开测试弹窗
   const handleOpenTest = () => {
     // 初始化测试输入值
@@ -288,7 +330,7 @@ const BlockEditor: React.FC = () => {
         blocklyDefinition: blocklyDefinition || undefined,
         script: scriptCode,
         inputs: buildInputsObject(),
-        outputs: {},
+        outputs: buildOutputsObject(),
       };
 
       if (block) {
@@ -452,6 +494,71 @@ const BlockEditor: React.FC = () => {
                           placeholder="描述"
                           value={param.description}
                           onChange={(e) => handleUpdateInputParam(index, 'description', e.target.value)}
+                          size="small"
+                        />
+                      </Space>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card
+              size="small"
+              title="输出参数配置"
+              type="inner"
+              style={{ marginBottom: '16px' }}
+              extra={
+                <Button
+                  type="link"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddOutputParam}
+                  size="small"
+                >
+                  添加参数
+                </Button>
+              }
+            >
+              {outputParams.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#8c8c8c', textAlign: 'center', margin: '8px 0' }}>
+                  暂无输出参数，点击"添加参数"创建
+                </p>
+              ) : (
+                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {outputParams.map((param, index) => (
+                    <div key={index} style={{ marginBottom: '12px', padding: '8px', background: '#fafafa', borderRadius: '4px' }}>
+                      <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        <Space style={{ width: '100%' }}>
+                          <Input
+                            placeholder="参数名"
+                            value={param.name}
+                            onChange={(e) => handleUpdateOutputParam(index, 'name', e.target.value)}
+                            style={{ width: '120px' }}
+                            size="small"
+                          />
+                          <Select
+                            value={param.type}
+                            onChange={(value) => handleUpdateOutputParam(index, 'type', value)}
+                            style={{ width: '80px' }}
+                            size="small"
+                          >
+                            <Select.Option value="string">字符串</Select.Option>
+                            <Select.Option value="number">数字</Select.Option>
+                            <Select.Option value="boolean">布尔</Select.Option>
+                            <Select.Option value="object">对象</Select.Option>
+                          </Select>
+                          <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveOutputParam(index)}
+                            size="small"
+                          />
+                        </Space>
+                        <Input
+                          placeholder="描述"
+                          value={param.description}
+                          onChange={(e) => handleUpdateOutputParam(index, 'description', e.target.value)}
                           size="small"
                         />
                       </Space>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, App } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, App, Divider } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
@@ -25,6 +25,10 @@ const Blocks: React.FC = () => {
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
   const blockFormRef = useRef<BlockFormEnhancedRef>(null);
+  const [testModalVisible, setTestModalVisible] = useState(false);
+  const [testInputs, setTestInputs] = useState<Record<string, any>>({});
+  const [testResult, setTestResult] = useState<string>('');
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     fetchBlocks();
@@ -188,6 +192,49 @@ const Blocks: React.FC = () => {
         pageSize: pag.pageSize
       }
     });
+  };
+
+  // 打开测试弹窗
+  const handleOpenTest = () => {
+    if (!editingBlock) {
+      message.warning('请先保存块后再进行测试');
+      return;
+    }
+
+    // 初始化测试输入值
+    const initialInputs: Record<string, any> = {};
+    if (editingBlock.inputs && typeof editingBlock.inputs === 'object') {
+      Object.entries(editingBlock.inputs).forEach(([name, config]: [string, any]) => {
+        initialInputs[name] = config.defaultValue || '';
+      });
+    }
+    setTestInputs(initialInputs);
+    setTestResult('');
+    setTestModalVisible(true);
+  };
+
+  // 执行测试
+  const handleTest = async () => {
+    if (!editingBlock) {
+      message.warning('请先保存块后再进行测试');
+      return;
+    }
+
+    setTesting(true);
+    setTestResult('');
+
+    try {
+      const response = await blockApi.test(editingBlock.id, { inputs: testInputs });
+      if (response.code === 200) {
+        setTestResult(response.data || '执行成功，无输出');
+      } else {
+        setTestResult(`错误: ${response.message || '未知错误'}`);
+      }
+    } catch (error: any) {
+      setTestResult(`执行失败: ${error.message || '未知错误'}`);
+    } finally {
+      setTesting(false);
+    }
   };
 
   const columns = [
@@ -390,10 +437,26 @@ const Blocks: React.FC = () => {
       <Modal
         title={editingBlock ? '编辑块' : '新建块'}
         open={modalVisible}
-        onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={900}
         destroyOnClose
+        footer={[
+          <Button key="cancel" onClick={() => setModalVisible(false)}>
+            取消
+          </Button>,
+          editingBlock && (
+            <Button
+              key="test"
+              icon={<PlayCircleOutlined />}
+              onClick={handleOpenTest}
+            >
+              测试运行
+            </Button>
+          ),
+          <Button key="submit" type="primary" onClick={handleSubmit}>
+            {editingBlock ? '更新' : '创建'}
+          </Button>,
+        ]}
       >
         <BlockFormEnhanced
           ref={blockFormRef}
@@ -402,6 +465,80 @@ const Blocks: React.FC = () => {
           blockTypes={blockTypes}
           onBlockTypesChange={fetchBlockTypes}
         />
+      </Modal>
+
+      {/* 测试运行弹窗 */}
+      <Modal
+        title="测试运行"
+        open={testModalVisible}
+        onCancel={() => setTestModalVisible(false)}
+        width={700}
+        footer={[
+          <Button key="cancel" onClick={() => setTestModalVisible(false)}>
+            关闭
+          </Button>,
+          <Button
+            key="run"
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={handleTest}
+            loading={testing}
+          >
+            运行
+          </Button>,
+        ]}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <h4>输入参数</h4>
+          {!editingBlock?.inputs || Object.keys(editingBlock.inputs).length === 0 ? (
+            <p style={{ color: '#999' }}>该块没有配置输入参数</p>
+          ) : (
+            <div>
+              {Object.entries(editingBlock.inputs).map(([name, config]: [string, any]) => (
+                <div key={name} style={{ marginBottom: 12 }}>
+                  <div style={{ marginBottom: 4 }}>
+                    <strong>{name}</strong>
+                    <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
+                      ({config.type || 'string'})
+                    </span>
+                    {config.description && (
+                      <span style={{ marginLeft: 8, color: '#666', fontSize: 12 }}>
+                        - {config.description}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    value={testInputs[name] || ''}
+                    onChange={(e) => setTestInputs({ ...testInputs, [name]: e.target.value })}
+                    placeholder={`请输入 ${name}`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Divider />
+
+        <div>
+          <h4>执行结果</h4>
+          <div
+            style={{
+              background: '#000',
+              color: '#0f0',
+              padding: 16,
+              borderRadius: 4,
+              fontFamily: 'Consolas, Monaco, monospace',
+              fontSize: 13,
+              minHeight: 200,
+              maxHeight: 400,
+              overflowY: 'auto',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {testing ? '正在执行...' : testResult || '点击"运行"按钮执行测试'}
+          </div>
+        </div>
       </Modal>
     </div>
   );
