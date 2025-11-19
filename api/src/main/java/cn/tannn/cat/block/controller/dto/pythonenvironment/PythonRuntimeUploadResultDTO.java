@@ -38,4 +38,10 @@ public class PythonRuntimeUploadResultDTO implements Serializable {
 
     @Schema(description = "检测到的site-packages路径")
     private String sitePackagesPath;
+
+    @Schema(description = "是否包含pip模块")
+    private Boolean hasPip;
+
+    @Schema(description = "提示消息")
+    private String message;
 }

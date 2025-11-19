@@ -462,6 +462,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "环境未初始化，请先初始化环境");
         }
 
+        if (environment.getSitePackagesPath() == null || environment.getSitePackagesPath().isEmpty()) {
+            throw new ServiceException(500, "未配置site-packages路径，无法离线安装包");
+        }
+
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || originalFilename.isEmpty()) {
             throw new ServiceException(400, "文件名不能为空");
@@ -478,12 +482,38 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(400, "文件大小不能超过500MB");
         }
 
+        // 先保存到packages目录
         String packagesDir = environment.getEnvRootPath() + File.separator + "packages";
         Path targetPath = Paths.get(packagesDir, originalFilename);
 
         try {
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
             log.info("包文件上传成功: {}", targetPath);
+
+            // 立即执行离线安装
+            installPackageFileOffline(environment, targetPath.toString(), originalFilename);
+            log.info("包离线安装成功: {}", originalFilename);
+
+            // 提取包名和版本
+            String packageName = extractPackageName(originalFilename);
+            String version = extractPackageVersion(originalFilename);
+
+            // 更新环境的packages字段
+            JSONObject packages = environment.getPackages();
+            if (packages == null) {
+                packages = new JSONObject();
+            }
+
+            JSONObject packageInfo = new JSONObject();
+            packageInfo.put("name", packageName);
+            packageInfo.put("version", version);
+            packageInfo.put("installedFrom", originalFilename);
+            packageInfo.put("installMethod", "offline");
+            packageInfo.put("installedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            packages.put(packageName, packageInfo);
+
+            environment.setPackages(packages);
+            pythonEnvironmentRepository.save(environment);
 
             PackageUploadResultDTO result = new PackageUploadResultDTO();
             result.setFileName(originalFilename);
@@ -492,9 +522,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             result.setSavePath(targetPath.toString());
             return result;
 
-        } catch (IOException e) {
-            log.error("保存包文件失败", e);
-            throw new ServiceException(500, "保存包文件失败: " + e.getMessage());
+        } catch (IOException | InterruptedException e) {
+            log.error("离线安装包失败", e);
+            throw new ServiceException(500, "离线安装包失败: " + e.getMessage());
         }
     }
 
@@ -507,10 +537,6 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "环境未初始化，请先初始化环境");
         }
 
-        if (environment.getPythonExecutable() == null || environment.getPythonExecutable().isEmpty()) {
-            throw new ServiceException(500, "未配置Python解释器路径");
-        }
-
         String packageFilePath = environment.getEnvRootPath() + File.separator + "packages" + File.separator + fileName;
         File packageFile = new File(packageFilePath);
 
@@ -518,19 +544,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(404, "包文件不存在: " + fileName);
         }
 
-        // 检查pip是否可用
-        boolean hasPip = checkPipAvailable(environment.getPythonExecutable());
-
         try {
-            if (hasPip) {
-                // 如果有pip，使用pip安装
-                installPackageFileWithPip(environment, packageFilePath);
-            } else {
-                // 如果没有pip，使用离线安装方式
-                installPackageFileOffline(environment, packageFilePath, fileName);
-            }
-
-            log.info("包安装成功: {}", fileName);
+            // 直接使用离线安装方式
+            installPackageFileOffline(environment, packageFilePath, fileName);
+            log.info("包离线安装成功: {}", fileName);
 
             // 提取包名和版本
             String packageName = extractPackageName(fileName);
@@ -546,46 +563,16 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             packageInfo.put("name", packageName);
             packageInfo.put("version", version);
             packageInfo.put("installedFrom", fileName);
-            packageInfo.put("installMethod", hasPip ? "pip" : "offline");
+            packageInfo.put("installMethod", "offline");
+            packageInfo.put("installedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
             packages.put(packageName, packageInfo);
 
             environment.setPackages(packages);
             return pythonEnvironmentRepository.save(environment);
 
         } catch (Exception e) {
-            log.error("安装包失败", e);
-            throw new ServiceException(500, "安装包失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 使用pip安装包文件
-     */
-    private void installPackageFileWithPip(PythonEnvironment environment, String packageFilePath) throws IOException, InterruptedException {
-        ProcessBuilder pb = new ProcessBuilder(
-                environment.getPythonExecutable(),
-                "-m",
-                "pip",
-                "install",
-                "--target",
-                environment.getSitePackagesPath(),
-                packageFilePath);
-
-        pb.redirectErrorStream(true);
-        Process process = pb.start();
-
-        StringBuilder output = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-                log.info("pip output: {}", line);
-            }
-        }
-
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            throw new ServiceException(500, "包安装失败，pip退出代码: " + exitCode + "，输出: " + output);
+            log.error("离线安装包失败", e);
+            throw new ServiceException(500, "离线安装包失败: " + e.getMessage());
         }
     }
 
@@ -985,9 +972,6 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 检测pip是否可用
         boolean hasPip = checkPipAvailable(pythonExecutable);
-        if (!hasPip) {
-            log.warn("上传的Python环境不包含pip模块，将无法在线安装包。建议使用离线包功能。");
-        }
 
         // 检测site-packages路径
         String sitePackagesPath = detectSitePackagesPath(extractPath);
@@ -1011,6 +995,14 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         result.setPythonExecutable(pythonExecutable);
         result.setPythonVersion(pythonVersion);
         result.setSitePackagesPath(sitePackagesPath);
+        result.setHasPip(hasPip);
+
+        // 如果没有pip，提供友好提示
+        if (!hasPip) {
+            result.setMessage("上传的Python环境不包含pip模块，无法使用在线安装功能。" +
+                    "您可以通过\"配置/离线包\"功能上传pip的.whl包（如pip-24.0-py3-none-any.whl）来启用pip功能，" +
+                    "或继续使用离线包安装其他依赖。");
+        }
 
         return result;
     }
