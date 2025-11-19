@@ -469,6 +469,55 @@ const PythonEnvironments: React.FC = () => {
       return false;
     }
 
+    // 从文件名提取包名
+    let packageName = fileName;
+    if (fileName.endsWith('.whl')) {
+      // whl文件: 取第一个-之前的部分
+      const firstDash = fileName.indexOf('-');
+      if (firstDash > 0) {
+        packageName = fileName.substring(0, firstDash);
+      }
+    } else if (fileName.endsWith('.tar.gz')) {
+      // tar.gz文件: 移除.tar.gz后取最后一个-之前的部分
+      packageName = fileName.replace('.tar.gz', '');
+      const lastDash = packageName.lastIndexOf('-');
+      if (lastDash > 0) {
+        packageName = packageName.substring(0, lastDash);
+      }
+    }
+    packageName = packageName.toLowerCase().replace(/_/g, '-');
+
+    // 检查包是否已存在
+    const packages = selectedEnv.packages || {};
+    const existingPackage = packages[packageName];
+
+    if (existingPackage) {
+      const existingVersion = typeof existingPackage === 'object' && existingPackage.version
+        ? existingPackage.version
+        : '未知版本';
+
+      const confirmed = await new Promise<boolean>((resolve) => {
+        modal.confirm({
+          title: '包已存在',
+          content: (
+            <div>
+              <p>包 <strong>{packageName}</strong> 已安装。</p>
+              <p>当前版本: <strong>{existingVersion}</strong></p>
+              <p style={{ marginTop: 16 }}>是否继续安装？这将覆盖现有版本。</p>
+            </div>
+          ),
+          okText: '继续安装',
+          cancelText: '取消',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
+
+      if (!confirmed) {
+        return false;
+      }
+    }
+
     // 检测是否是pip包
     const isPipPackage = fileName.startsWith('pip-') || fileName.includes('pip-');
 
