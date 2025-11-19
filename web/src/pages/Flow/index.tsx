@@ -468,22 +468,21 @@ const Flow: React.FC = () => {
 
   // 使用公共流程（创建新流程）
   const handleUsePublicWorkflow = (workflow: Workflow) => {
-    Modal.confirm({
-      title: '使用公共流程',
-      content: `将基于公共流程 "${workflow.name}" 创建新流程，您需要为新流程命名。`,
-      onOk: () => {
-        const { flowDefinition } = workflow;
-        if (flowDefinition && flowDefinition.nodes && flowDefinition.edges) {
-          setNodes(flowDefinition.nodes as Node<BlockNodeData>[]);
-          setEdges(flowDefinition.edges as Edge[]);
-          // 清空当前流程（作为新流程）
-          setCurrentWorkflow(null);
-          message.success(`已加载公共流程，请保存为新流程`);
-          // 自动打开保存对话框
-          setSaveModalVisible(true);
-        }
-      },
-    });
+    const { flowDefinition } = workflow;
+    if (flowDefinition && flowDefinition.nodes && flowDefinition.edges) {
+      setNodes(flowDefinition.nodes as Node<BlockNodeData>[]);
+      setEdges(flowDefinition.edges as Edge[]);
+      // 清空当前流程（作为新流程）
+      setCurrentWorkflow(null);
+      message.success(`已加载公共流程 "${workflow.name}"，请保存为新流程`);
+      // 自动打开保存对话框并预填充原流程的分类
+      setTimeout(() => {
+        saveForm.setFieldsValue({
+          category: workflow.category,
+        });
+        setSaveModalVisible(true);
+      }, 100);
+    }
   };
 
   // 拖拽公共流程到画布
@@ -691,42 +690,47 @@ const Flow: React.FC = () => {
                         publicWorkflows.length === 0 ? (
                           <Empty description="暂无公共流程" />
                         ) : (
-                          <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
-                            {publicWorkflows.map((workflow) => (
-                              <Dropdown
-                                key={workflow.id}
-                                menu={{
-                                  items: [
-                                    {
-                                      key: 'use',
-                                      label: '使用此流程',
-                                      onClick: () => handleUsePublicWorkflow(workflow),
-                                    },
-                                  ],
-                                }}
-                                trigger={['contextMenu']}
-                              >
-                                <div
-                                  className="workflow-item draggable"
-                                  draggable
-                                  onDragStart={(e) => onDragStartWorkflow(e, workflow)}
-                                  onDoubleClick={() => handleUsePublicWorkflow(workflow)}
+                          <>
+                            <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8c8c8c', background: '#fafafa', borderRadius: '4px', margin: '0 0 12px 0' }}>
+                              💡 双击流程可使用，将作为新流程保存（会保留原分类）
+                            </div>
+                            <div style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+                              {publicWorkflows.map((workflow) => (
+                                <Dropdown
+                                  key={workflow.id}
+                                  menu={{
+                                    items: [
+                                      {
+                                        key: 'use',
+                                        label: '使用此流程',
+                                        onClick: () => handleUsePublicWorkflow(workflow),
+                                      },
+                                    ],
+                                  }}
+                                  trigger={['contextMenu']}
                                 >
-                                  <div className="workflow-item-name">
-                                    {workflow.name}
-                                  </div>
-                                  <div className="workflow-item-description">
-                                    {workflow.description || '暂无描述'}
-                                  </div>
-                                  {workflow.category && (
-                                    <div className="workflow-item-category">
-                                      分类: {getCategoryName(workflow.category)}
+                                  <div
+                                    className="workflow-item draggable"
+                                    draggable
+                                    onDragStart={(e) => onDragStartWorkflow(e, workflow)}
+                                    onDoubleClick={() => handleUsePublicWorkflow(workflow)}
+                                  >
+                                    <div className="workflow-item-name">
+                                      {workflow.name}
                                     </div>
-                                  )}
-                                </div>
-                              </Dropdown>
-                            ))}
-                          </div>
+                                    <div className="workflow-item-description">
+                                      {workflow.description || '暂无描述'}
+                                    </div>
+                                    {workflow.category && (
+                                      <div className="workflow-item-category">
+                                        分类: {getCategoryName(workflow.category)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </Dropdown>
+                              ))}
+                            </div>
+                          </>
                         )
                       ) : (
                         myWorkflows.length === 0 ? (
