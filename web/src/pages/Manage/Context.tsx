@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, Tooltip, App, Alert, Divider } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, Tooltip, App, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, FilterOutlined, UploadOutlined, DownloadOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { contextApi } from '../../api/context';
 import type { ContextVariable, ContextVariableCreateDTO, ContextVariableUpdateDTO } from '../../types/api';
@@ -295,27 +295,6 @@ const Context: React.FC = () => {
       width: 120,
     },
     {
-      title: '环境',
-      dataIndex: 'environment',
-      key: 'environment',
-      width: 100,
-      render: (env: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD') => {
-        const nameMap: Record<string, string> = {
-          DEFAULT: '默认',
-          DEV: '开发',
-          TEST: '测试',
-          PROD: '生产',
-        };
-        const colorMap: Record<string, string> = {
-          DEFAULT: 'default',
-          DEV: 'blue',
-          TEST: 'orange',
-          PROD: 'red',
-        };
-        return <Tag color={colorMap[env]}>{nameMap[env]}</Tag>;
-      },
-    },
-    {
       title: '创建时间',
       dataIndex: 'createTime',
       key: 'createTime',
@@ -367,54 +346,48 @@ const Context: React.FC = () => {
 
   return (
     <div>
-      {/* 搜索区域 */}
-      <Card style={{ marginBottom: 16 }} size="small" title="搜索">
-        <Form form={searchForm} layout="inline">
-          <Form.Item name="keyword" label="关键字">
-            <Input placeholder="搜索变量名或值" style={{ width: 250 }} />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-                搜索
-              </Button>
-              <Button onClick={() => {
-                searchForm.resetFields();
-                setSearchKeyword('');
-                fetchVariables(0, pagination.pageSize);
-              }}>
-                重置
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+      {/* 搜索、筛选和使用说明 - 合并为一个紧凑的区域 */}
+      <Card style={{ marginBottom: 16 }} size="small">
+        <Space direction="vertical" style={{ width: '100%' }} size="small">
+          {/* 搜索和筛选 */}
+          <Space wrap style={{ width: '100%' }}>
+            <Form form={searchForm} layout="inline" style={{ marginBottom: 0 }}>
+              <Form.Item name="keyword" style={{ marginBottom: 0 }}>
+                <Input placeholder="搜索变量名" style={{ width: 180 }} />
+              </Form.Item>
+            </Form>
+            <Form form={filterForm} layout="inline" style={{ marginBottom: 0 }}>
+              <Form.Item name="groupName" style={{ marginBottom: 0 }}>
+                <Input placeholder="分组" style={{ width: 120 }} />
+              </Form.Item>
+            </Form>
+            <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch} size="small">
+              搜索
+            </Button>
+            <Button icon={<FilterOutlined />} onClick={handleFilter} size="small">
+              筛选
+            </Button>
+            <Button onClick={handleResetFilter} size="small">
+              重置
+            </Button>
+          </Space>
 
-      {/* 筛选区域 */}
-      <Card style={{ marginBottom: 16 }} size="small" title="筛选">
-        <Form form={filterForm} layout="inline">
-          <Form.Item name="groupName" label="分组">
-            <Input placeholder="请输入分组名称" style={{ width: 200 }} />
-          </Form.Item>
-          <Form.Item name="environment" label="环境">
-            <Select placeholder="请选择环境" style={{ width: 150 }} allowClear>
-              <Select.Option value="DEFAULT">默认</Select.Option>
-              <Select.Option value="DEV">开发</Select.Option>
-              <Select.Option value="TEST">测试</Select.Option>
-              <Select.Option value="PROD">生产</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" icon={<FilterOutlined />} onClick={handleFilter}>
-                筛选
-              </Button>
-              <Button onClick={handleResetFilter}>
-                重置
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+          {/* 使用说明 - 可折叠 */}
+          <Alert
+            message={
+              <span>
+                <strong>使用说明：</strong>
+                通过 <code>inputs.get('ctx.变量名')</code> 获取，
+                如 <code>inputs.get('ctx.DB_HOST', '默认值')</code>，
+                详细用法点击表格中的"使用方式"
+              </span>
+            }
+            type="info"
+            showIcon
+            closable
+            style={{ marginBottom: 0 }}
+          />
+        </Space>
       </Card>
 
       {/* 操作按钮 */}
@@ -435,26 +408,6 @@ const Context: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* 使用说明 */}
-      <Alert
-        message="上下文变量使用说明"
-        description={
-          <div>
-            <p><strong>在Python脚本中使用上下文变量：</strong></p>
-            <ol style={{ marginBottom: 0, paddingLeft: 20 }}>
-              <li>通过 <code>inputs.get('ctx.变量名')</code> 获取变量值</li>
-              <li>示例：<code>db_host = inputs.get('ctx.DB_HOST', 'localhost')</code></li>
-              <li>支持默认值：<code>inputs.get('ctx.变量名', '默认值')</code></li>
-              <li>点击表格中的"使用方式"按钮查看具体变量的详细用法</li>
-            </ol>
-          </div>
-        }
-        type="info"
-        showIcon
-        closable
-        style={{ marginBottom: 16 }}
-      />
 
       {/* 表格 */}
       <Table
@@ -522,17 +475,13 @@ const Context: React.FC = () => {
             <Input.TextArea rows={2} placeholder="请输入描述" />
           </Form.Item>
 
+          {/* 环境字段隐藏，默认为DEFAULT */}
           <Form.Item
-            label="环境"
             name="environment"
             initialValue="DEFAULT"
+            hidden
           >
-            <Select>
-              <Select.Option value="DEFAULT">默认</Select.Option>
-              <Select.Option value="DEV">开发</Select.Option>
-              <Select.Option value="TEST">测试</Select.Option>
-              <Select.Option value="PROD">生产</Select.Option>
-            </Select>
+            <Input />
           </Form.Item>
         </Form>
       </Modal>
@@ -565,14 +514,7 @@ const Context: React.FC = () => {
             <Input placeholder="可选：为导入的变量指定分组" />
           </Form.Item>
 
-          <Form.Item label="环境" name="environment">
-            <Select placeholder="可选：为导入的变量指定环境" allowClear>
-              <Select.Option value="DEFAULT">默认</Select.Option>
-              <Select.Option value="DEV">开发</Select.Option>
-              <Select.Option value="TEST">测试</Select.Option>
-              <Select.Option value="PROD">生产</Select.Option>
-            </Select>
-          </Form.Item>
+          {/* 环境字段隐藏 */}
         </Form>
       </Modal>
 
@@ -611,17 +553,6 @@ const Context: React.FC = () => {
               {selectedVariable.groupName && (
                 <p><strong>分组：</strong>{selectedVariable.groupName}</p>
               )}
-              <p><strong>环境：</strong>
-                <Tag color={
-                  selectedVariable.environment === 'DEFAULT' ? 'default' :
-                  selectedVariable.environment === 'DEV' ? 'blue' :
-                  selectedVariable.environment === 'TEST' ? 'orange' : 'red'
-                }>
-                  {selectedVariable.environment === 'DEFAULT' ? '默认' :
-                   selectedVariable.environment === 'DEV' ? '开发' :
-                   selectedVariable.environment === 'TEST' ? '测试' : '生产'}
-                </Tag>
-              </p>
               {selectedVariable.description && (
                 <p><strong>描述：</strong>{selectedVariable.description}</p>
               )}
@@ -730,7 +661,6 @@ outputs = {
                 <li>SECRET类型的变量在存储时已加密，使用时会自动解密</li>
                 <li>JSON类型的变量需要使用 <code>json.loads()</code> 解析后使用</li>
                 <li>NUMBER类型的变量获取后是字符串，需要转换为 <code>int</code> 或 <code>float</code></li>
-                <li>不同环境的变量会根据执行环境自动选择（DEV/TEST/PROD）</li>
               </ul>
             </Card>
           </div>
