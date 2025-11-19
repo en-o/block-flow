@@ -53,7 +53,7 @@ public class Block extends EntityPfield {
     @ColumnDefault("'#5C7CFA'")
     private String color;
 
-    @Column(length = 50)
+    @Column(length = 100)
     @Comment("块图标")
     @Schema(description = "块图标")
     private String icon;
