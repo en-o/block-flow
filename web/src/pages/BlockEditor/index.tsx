@@ -11,8 +11,10 @@ import {
   message as antdMessage,
   Card,
   Space,
+  Modal,
+  Tooltip,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
 import Editor from '@monaco-editor/react';
 import { blockApi } from '../../api/block';
@@ -32,6 +34,11 @@ const BlockEditor: React.FC = () => {
   const [definitionMode, setDefinitionMode] = useState<'BLOCKLY' | 'CODE'>('CODE');
   const [scriptCode, setScriptCode] = useState<string>('# Python 脚本\nprint("Hello World")');
   const [loading, setLoading] = useState(false);
+  const [inputParams, setInputParams] = useState<Array<{ name: string; type: string; defaultValue: string; description: string }>>([]);
+  const [testModalVisible, setTestModalVisible] = useState(false);
+  const [testInputs, setTestInputs] = useState<Record<string, any>>({});
+  const [testResult, setTestResult] = useState<string>('');
+  const [testing, setTesting] = useState(false);
 
   // 加载块类型
   useEffect(() => {
@@ -112,6 +119,17 @@ const BlockEditor: React.FC = () => {
           isPublic: blockData.isPublic,
         });
 
+        // 加载输入参数配置
+        if (blockData.inputs && typeof blockData.inputs === 'object') {
+          const params = Object.entries(blockData.inputs).map(([name, config]: [string, any]) => ({
+            name,
+            type: config.type || 'string',
+            defaultValue: config.defaultValue || '',
+            description: config.description || '',
+          }));
+          setInputParams(params);
+        }
+
         // 如果有 Blockly 定义，加载到工作区
         if (blockData.blocklyDefinition && workspaceRef.current) {
           const xml = Blockly.utils.xml.textToDom(blockData.blocklyDefinition);
@@ -184,6 +202,76 @@ const BlockEditor: React.FC = () => {
     setDefinitionMode(mode);
   };
 
+  // 添加输入参数
+  const handleAddInputParam = () => {
+    setInputParams([...inputParams, { name: '', type: 'string', defaultValue: '', description: '' }]);
+  };
+
+  // 删除输入参数
+  const handleRemoveInputParam = (index: number) => {
+    setInputParams(inputParams.filter((_, i) => i !== index));
+  };
+
+  // 更新输入参数
+  const handleUpdateInputParam = (index: number, field: string, value: string) => {
+    const newParams = [...inputParams];
+    (newParams[index] as any)[field] = value;
+    setInputParams(newParams);
+  };
+
+  // 将输入参数数组转换为对象格式
+  const buildInputsObject = () => {
+    const inputs: Record<string, any> = {};
+    inputParams.forEach(param => {
+      if (param.name) {
+        inputs[param.name] = {
+          type: param.type,
+          defaultValue: param.defaultValue,
+          description: param.description,
+        };
+      }
+    });
+    return inputs;
+  };
+
+  // 打开测试弹窗
+  const handleOpenTest = () => {
+    // 初始化测试输入值
+    const initialInputs: Record<string, any> = {};
+    inputParams.forEach(param => {
+      if (param.name) {
+        initialInputs[param.name] = param.defaultValue || '';
+      }
+    });
+    setTestInputs(initialInputs);
+    setTestResult('');
+    setTestModalVisible(true);
+  };
+
+  // 执行测试
+  const handleTest = async () => {
+    if (!block) {
+      antdMessage.warning('请先保存块后再进行测试');
+      return;
+    }
+
+    setTesting(true);
+    setTestResult('');
+
+    try {
+      const response = await blockApi.test(block.id, { inputs: testInputs });
+      if (response.code === 200) {
+        setTestResult(response.data || '执行成功，无输出');
+      } else {
+        setTestResult(`错误: ${response.message || '未知错误'}`);
+      }
+    } catch (error: any) {
+      setTestResult(`执行失败: ${error.message || '未知错误'}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
@@ -199,7 +287,7 @@ const BlockEditor: React.FC = () => {
         definitionMode,
         blocklyDefinition: blocklyDefinition || undefined,
         script: scriptCode,
-        inputs: {},
+        inputs: buildInputsObject(),
         outputs: {},
       };
 
@@ -304,13 +392,73 @@ const BlockEditor: React.FC = () => {
 
             <Card
               size="small"
-              title="输入/输出参数"
+              title="输入参数配置"
               type="inner"
               style={{ marginBottom: '16px' }}
+              extra={
+                <Button
+                  type="link"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddInputParam}
+                  size="small"
+                >
+                  添加参数
+                </Button>
+              }
             >
-              <p style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                参数配置功能将在后续版本中完善
-              </p>
+              {inputParams.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#8c8c8c', textAlign: 'center', margin: '8px 0' }}>
+                  暂无输入参数，点击"添加参数"创建
+                </p>
+              ) : (
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {inputParams.map((param, index) => (
+                    <div key={index} style={{ marginBottom: '12px', padding: '8px', background: '#fafafa', borderRadius: '4px' }}>
+                      <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        <Space style={{ width: '100%' }}>
+                          <Input
+                            placeholder="参数名"
+                            value={param.name}
+                            onChange={(e) => handleUpdateInputParam(index, 'name', e.target.value)}
+                            style={{ width: '120px' }}
+                            size="small"
+                          />
+                          <Select
+                            value={param.type}
+                            onChange={(value) => handleUpdateInputParam(index, 'type', value)}
+                            style={{ width: '80px' }}
+                            size="small"
+                          >
+                            <Select.Option value="string">字符串</Select.Option>
+                            <Select.Option value="number">数字</Select.Option>
+                            <Select.Option value="boolean">布尔</Select.Option>
+                            <Select.Option value="object">对象</Select.Option>
+                          </Select>
+                          <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveInputParam(index)}
+                            size="small"
+                          />
+                        </Space>
+                        <Input
+                          placeholder="默认值"
+                          value={param.defaultValue}
+                          onChange={(e) => handleUpdateInputParam(index, 'defaultValue', e.target.value)}
+                          size="small"
+                        />
+                        <Input
+                          placeholder="描述"
+                          value={param.description}
+                          onChange={(e) => handleUpdateInputParam(index, 'description', e.target.value)}
+                          size="small"
+                        />
+                      </Space>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </Form>
         </div>
@@ -350,19 +498,106 @@ const BlockEditor: React.FC = () => {
       </div>
 
       <div className="block-editor-footer">
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={handleSave}
-          loading={loading}
-          size="large"
-        >
-          保存块
-        </Button>
-        <Button onClick={() => navigate('/manage/blocks')} size="large">
-          取消
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSave}
+            loading={loading}
+            size="large"
+          >
+            保存块
+          </Button>
+          {block && (
+            <Tooltip title="测试运行当前块">
+              <Button
+                icon={<PlayCircleOutlined />}
+                onClick={handleOpenTest}
+                size="large"
+              >
+                测试运行
+              </Button>
+            </Tooltip>
+          )}
+          <Button onClick={() => navigate('/manage/blocks')} size="large">
+            取消
+          </Button>
+        </Space>
       </div>
+
+      {/* 测试运行弹窗 */}
+      <Modal
+        title="测试运行"
+        open={testModalVisible}
+        onCancel={() => setTestModalVisible(false)}
+        width={700}
+        footer={[
+          <Button key="cancel" onClick={() => setTestModalVisible(false)}>
+            关闭
+          </Button>,
+          <Button
+            key="run"
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={handleTest}
+            loading={testing}
+          >
+            运行
+          </Button>,
+        ]}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <h4>输入参数</h4>
+          {inputParams.length === 0 ? (
+            <p style={{ color: '#999' }}>该块没有配置输入参数</p>
+          ) : (
+            <div>
+              {inputParams.map((param) => (
+                <div key={param.name} style={{ marginBottom: 12 }}>
+                  <div style={{ marginBottom: 4 }}>
+                    <strong>{param.name}</strong>
+                    <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
+                      ({param.type})
+                    </span>
+                    {param.description && (
+                      <span style={{ marginLeft: 8, color: '#666', fontSize: 12 }}>
+                        - {param.description}
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    value={testInputs[param.name] || ''}
+                    onChange={(e) => setTestInputs({ ...testInputs, [param.name]: e.target.value })}
+                    placeholder={`请输入 ${param.name}`}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Divider />
+
+        <div>
+          <h4>执行结果</h4>
+          <div
+            style={{
+              background: '#000',
+              color: '#0f0',
+              padding: 16,
+              borderRadius: 4,
+              fontFamily: 'Consolas, Monaco, monospace',
+              fontSize: 13,
+              minHeight: 200,
+              maxHeight: 400,
+              overflowY: 'auto',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {testing ? '正在执行...' : testResult || '点击"运行"按钮执行测试'}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
