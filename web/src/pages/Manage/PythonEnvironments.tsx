@@ -746,7 +746,7 @@ const PythonEnvironments: React.FC = () => {
               {configMode === 'later' && (
                 <Alert
                   message="稍后配置"
-                  description="环境创建后，您可以在"离线包"管理中上传Python运行时或手动配置路径"
+                  description="环境创建后，您可以在离线包管理中上传Python运行时或手动配置路径"
                   type="info"
                   showIcon
                 />
@@ -1013,26 +1013,35 @@ const PythonEnvironments: React.FC = () => {
         <Card size="small" title="已安装包">
           <List
             dataSource={selectedEnv?.packages ? Object.entries(selectedEnv.packages) : []}
-            renderItem={([name, version]) => (
-              <List.Item
-                actions={[
-                  <Popconfirm
-                    key="uninstall"
-                    title="确定卸载这个包吗？"
-                    onConfirm={() => handleUninstallPackage(name)}
-                  >
-                    <Button type="link" danger size="small">
-                      卸载
-                    </Button>
-                  </Popconfirm>,
-                ]}
-              >
-                <List.Item.Meta
-                  title={name}
-                  description={`版本: ${version || '未知'}`}
-                />
-              </List.Item>
-            )}
+            renderItem={([name, version]) => {
+              // 处理版本信息：可能是字符串或对象
+              const versionStr = typeof version === 'string'
+                ? version
+                : (typeof version === 'object' && version !== null
+                    ? JSON.stringify(version)
+                    : '未知');
+
+              return (
+                <List.Item
+                  actions={[
+                    <Popconfirm
+                      key="uninstall"
+                      title="确定卸载这个包吗？"
+                      onConfirm={() => handleUninstallPackage(name)}
+                    >
+                      <Button type="link" danger size="small">
+                        卸载
+                      </Button>
+                    </Popconfirm>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={name}
+                    description={`版本: ${versionStr}`}
+                  />
+                </List.Item>
+              );
+            }}
             locale={{ emptyText: '暂无已安装的包' }}
           />
         </Card>
