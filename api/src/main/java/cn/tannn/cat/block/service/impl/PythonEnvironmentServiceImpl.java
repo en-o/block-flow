@@ -518,38 +518,21 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(404, "包文件不存在: " + fileName);
         }
 
+        // 检查pip是否可用
+        boolean hasPip = checkPipAvailable(environment.getPythonExecutable());
+
         try {
-            // 使用pip安装到指定目录
-            ProcessBuilder pb = new ProcessBuilder(
-                    environment.getPythonExecutable(),
-                    "-m",
-                    "pip",
-                    "install",
-                    "--target",
-                    environment.getSitePackagesPath(),
-                    packageFilePath);
-
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            // 读取输出
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                    log.info("pip output: {}", line);
-                }
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                throw new ServiceException(500, "包安装失败，pip退出代码: " + exitCode + "，输出: " + output);
+            if (hasPip) {
+                // 如果有pip，使用pip安装
+                installPackageFileWithPip(environment, packageFilePath);
+            } else {
+                // 如果没有pip，使用离线安装方式
+                installPackageFileOffline(environment, packageFilePath, fileName);
             }
 
             log.info("包安装成功: {}", fileName);
 
-            // 提取包名和版本（简单实现）
+            // 提取包名和版本
             String packageName = extractPackageName(fileName);
             String version = extractPackageVersion(fileName);
 
@@ -563,14 +546,164 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             packageInfo.put("name", packageName);
             packageInfo.put("version", version);
             packageInfo.put("installedFrom", fileName);
+            packageInfo.put("installMethod", hasPip ? "pip" : "offline");
             packages.put(packageName, packageInfo);
 
             environment.setPackages(packages);
             return pythonEnvironmentRepository.save(environment);
 
-        } catch (IOException | InterruptedException e) {
+        } catch (Exception e) {
             log.error("安装包失败", e);
             throw new ServiceException(500, "安装包失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 使用pip安装包文件
+     */
+    private void installPackageFileWithPip(PythonEnvironment environment, String packageFilePath) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder(
+                environment.getPythonExecutable(),
+                "-m",
+                "pip",
+                "install",
+                "--target",
+                environment.getSitePackagesPath(),
+                packageFilePath);
+
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+                log.info("pip output: {}", line);
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new ServiceException(500, "包安装失败，pip退出代码: " + exitCode + "，输出: " + output);
+        }
+    }
+
+    /**
+     * 离线安装包文件（不使用pip）
+     */
+    private void installPackageFileOffline(PythonEnvironment environment, String packageFilePath, String fileName) throws IOException, InterruptedException {
+        String sitePackagesPath = environment.getSitePackagesPath();
+
+        if (fileName.endsWith(".whl")) {
+            // .whl文件本质是zip格式，直接解压到site-packages
+            log.info("使用离线方式安装.whl包: {}", fileName);
+            extractZip(packageFilePath, sitePackagesPath);
+        } else if (fileName.endsWith(".tar.gz")) {
+            // .tar.gz文件需要解压
+            log.info("使用离线方式安装.tar.gz包: {}", fileName);
+            installTarGzOffline(packageFilePath, sitePackagesPath);
+        } else {
+            throw new ServiceException(400, "不支持的包格式: " + fileName);
+        }
+    }
+
+    /**
+     * 离线安装tar.gz包
+     */
+    private void installTarGzOffline(String tarGzPath, String sitePackagesPath) throws IOException, InterruptedException {
+        // 创建临时解压目录
+        Path tempDir = Files.createTempDirectory("package-extract");
+        try {
+            // 解压tar.gz到临时目录
+            ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tarGzPath, "-C", tempDir.toString());
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new IOException("tar解压失败，退出代码: " + exitCode + "，输出: " + output);
+            }
+
+            // 查找包的根目录（通常是第一层子目录）
+            File[] tempFiles = tempDir.toFile().listFiles();
+            if (tempFiles == null || tempFiles.length == 0) {
+                throw new IOException("解压后未找到包文件");
+            }
+
+            File packageRoot = tempFiles[0];
+            if (!packageRoot.isDirectory()) {
+                throw new IOException("解压后的包格式异常");
+            }
+
+            // 查找包的Python代码目录（通常与包名相同，或在根目录下）
+            File sourceDir = findPackageSourceDir(packageRoot);
+            if (sourceDir == null) {
+                throw new IOException("未找到包的源代码目录");
+            }
+
+            // 复制到site-packages
+            copyDirectory(sourceDir, new File(sitePackagesPath, sourceDir.getName()));
+            log.info("包文件已复制到site-packages: {}", sourceDir.getName());
+
+        } finally {
+            // 清理临时目录
+            deleteDirectory(tempDir.toFile());
+        }
+    }
+
+    /**
+     * 查找包的源代码目录
+     */
+    private File findPackageSourceDir(File packageRoot) {
+        // 查找setup.py或pyproject.toml所在目录下的Python包目录
+        File[] files = packageRoot.listFiles();
+        if (files == null) {
+            return null;
+        }
+
+        // 查找Python包目录（包含__init__.py的目录）
+        for (File file : files) {
+            if (file.isDirectory()) {
+                File initFile = new File(file, "__init__.py");
+                if (initFile.exists()) {
+                    return file;
+                }
+            }
+        }
+
+        // 如果没有找到，返回根目录（某些包可能没有__init__.py）
+        return packageRoot;
+    }
+
+    /**
+     * 递归复制目录
+     */
+    private void copyDirectory(File source, File destination) throws IOException {
+        if (!destination.exists()) {
+            destination.mkdirs();
+        }
+
+        File[] files = source.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            File destFile = new File(destination, file.getName());
+            if (file.isDirectory()) {
+                copyDirectory(file, destFile);
+            } else {
+                Files.copy(file.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
         }
     }
 
