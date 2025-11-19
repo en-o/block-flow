@@ -504,48 +504,73 @@ const Flow: React.FC = () => {
 
   // 导入流程
   const handleImportWorkflow = (file: File) => {
+    console.log('开始导入流程，文件:', file.name);
     const reader = new FileReader();
+
+    reader.onerror = () => {
+      console.error('文件读取失败');
+      message.error('文件读取失败，请重试');
+    };
+
     reader.onload = (e) => {
       try {
+        console.log('文件读取成功');
         const content = e.target?.result as string;
+        console.log('文件内容:', content.substring(0, 200));
         const flowData = JSON.parse(content);
+        console.log('解析后的数据:', flowData);
 
         if (!flowData.nodes || !flowData.edges) {
-          message.error('导入失败：流程文件格式不正确');
+          console.error('流程数据格式不正确:', flowData);
+          message.error('导入失败：流程文件格式不正确，必须包含nodes和edges');
           return;
         }
 
-        Modal.confirm({
-          title: '导入流程',
-          content: `将导入流程${flowData.workflow?.name ? ` "${flowData.workflow.name}"` : ''}，您需要为新流程命名。`,
-          onOk: () => {
-            // 确保节点包含正确的类型
-            const importedNodes = flowData.nodes.map((node: any) => ({
-              ...node,
-              type: node.type || 'blockNode', // 确保有类型
-              data: {
-                ...node.data,
-                // 确保所有必要的字段都存在
-                blockId: node.data?.blockId || 0,
-                blockName: node.data?.blockName || '未知块',
-                blockTypeCode: node.data?.blockTypeCode || 'unknown',
-              },
-            }));
+        console.log('流程数据验证通过，准备导入');
 
-            setNodes(importedNodes as Node<BlockNodeData>[]);
-            setEdges(flowData.edges as Edge[]);
-            // 清空当前流程（作为新流程）
-            setCurrentWorkflow(null);
-            message.success('流程导入成功，请保存为新流程');
-            // 自动打开保存对话框
-            setSaveModalVisible(true);
+        // 直接导入，不使用Modal.confirm
+        // 确保节点包含正确的类型
+        const importedNodes = flowData.nodes.map((node: any) => ({
+          ...node,
+          type: node.type || 'blockNode', // 确保有类型
+          data: {
+            ...node.data,
+            // 确保所有必要的字段都存在
+            blockId: node.data?.blockId || 0,
+            blockName: node.data?.blockName || '未知块',
+            blockTypeCode: node.data?.blockTypeCode || 'unknown',
           },
-        });
+        }));
+
+        console.log('导入节点数量:', importedNodes.length);
+        console.log('导入边数量:', flowData.edges.length);
+
+        setNodes(importedNodes as Node<BlockNodeData>[]);
+        setEdges(flowData.edges as Edge[]);
+        // 清空当前流程（作为新流程）
+        setCurrentWorkflow(null);
+        message.success(`流程导入成功！包含 ${importedNodes.length} 个节点，请保存为新流程`);
+
+        // 预填充分类（如果有）
+        if (flowData.workflow?.category) {
+          setTimeout(() => {
+            saveForm.setFieldsValue({
+              category: flowData.workflow.category,
+            });
+            setSaveModalVisible(true);
+          }, 100);
+        } else {
+          // 自动打开保存对话框
+          setTimeout(() => {
+            setSaveModalVisible(true);
+          }, 100);
+        }
       } catch (error) {
-        console.error('导入流程失败', error);
-        message.error('导入失败：文件格式错误');
+        console.error('导入流程失败，错误详情:', error);
+        message.error(`导入失败：${error instanceof Error ? error.message : '文件格式错误'}`);
       }
     };
+
     reader.readAsText(file);
     return false; // 阻止默认上传行为
   };
