@@ -15,13 +15,15 @@ import {
   Tooltip,
   Tag,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
+import { pythonGenerator } from 'blockly/python';
 import Editor from '@monaco-editor/react';
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
 import { pythonEnvApi } from '../../api/pythonEnv';
 import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO, PythonEnvironment } from '../../types/api';
+import { initCustomBlocks } from '../../utils/blocklyCustomBlocks';
 import './index.css';
 
 const BlockEditor: React.FC = () => {
@@ -132,11 +134,13 @@ outputs = {
   const [testing, setTesting] = useState(false);
   const [helpModalVisible, setHelpModalVisible] = useState(false);
 
-  // 加载块类型
+  // 加载块类型和Python环境
   useEffect(() => {
     loadBlockTypes();
     loadPythonEnvs();
     loadTagsStatistics();
+    // 初始化自定义Blockly块
+    initCustomBlocks();
   }, []);
 
   // 加载块详情（编辑模式）
@@ -280,13 +284,69 @@ outputs = {
       contents: [
         {
           kind: 'category',
+          name: 'Python输入/输出',
+          colour: '#1890ff',
+          contents: [
+            { kind: 'block', type: 'python_input_get' },
+            { kind: 'block', type: 'python_output_set' },
+            { kind: 'block', type: 'safe_int' },
+            { kind: 'block', type: 'safe_float' },
+            { kind: 'block', type: 'safe_bool' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: '字典操作',
+          colour: '#722ED1',
+          contents: [
+            { kind: 'block', type: 'dict_create' },
+            { kind: 'block', type: 'dict_set' },
+            { kind: 'block', type: 'dict_get' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: '列表操作',
+          colour: '#52C41A',
+          contents: [
+            { kind: 'block', type: 'lists_create_with' },
+            { kind: 'block', type: 'lists_create_empty' },
+            { kind: 'block', type: 'list_append' },
+            { kind: 'block', type: 'lists_getIndex' },
+            { kind: 'block', type: 'lists_setIndex' },
+            { kind: 'block', type: 'lists_length' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: '文件操作',
+          colour: '#13C2C2',
+          contents: [
+            { kind: 'block', type: 'file_read' },
+            { kind: 'block', type: 'file_write' },
+          ],
+        },
+        {
+          kind: 'category',
+          name: 'HTTP请求',
+          colour: '#FA8C16',
+          contents: [
+            { kind: 'block', type: 'http_request' },
+            { kind: 'block', type: 'json_parse' },
+            { kind: 'block', type: 'json_stringify' },
+          ],
+        },
+        {
+          kind: 'category',
           name: '逻辑',
           colour: '#5C7CFA',
           contents: [
             { kind: 'block', type: 'controls_if' },
             { kind: 'block', type: 'logic_compare' },
             { kind: 'block', type: 'logic_operation' },
+            { kind: 'block', type: 'logic_negate' },
             { kind: 'block', type: 'logic_boolean' },
+            { kind: 'block', type: 'logic_null' },
           ],
         },
         {
@@ -297,6 +357,8 @@ outputs = {
             { kind: 'block', type: 'controls_repeat_ext' },
             { kind: 'block', type: 'controls_whileUntil' },
             { kind: 'block', type: 'controls_for' },
+            { kind: 'block', type: 'controls_forEach' },
+            { kind: 'block', type: 'controls_flow_statements' },
           ],
         },
         {
@@ -307,6 +369,10 @@ outputs = {
             { kind: 'block', type: 'math_number' },
             { kind: 'block', type: 'math_arithmetic' },
             { kind: 'block', type: 'math_single' },
+            { kind: 'block', type: 'math_trig' },
+            { kind: 'block', type: 'math_constant' },
+            { kind: 'block', type: 'math_round' },
+            { kind: 'block', type: 'math_modulo' },
           ],
         },
         {
@@ -316,20 +382,76 @@ outputs = {
           contents: [
             { kind: 'block', type: 'text' },
             { kind: 'block', type: 'text_join' },
+            { kind: 'block', type: 'text_append' },
+            { kind: 'block', type: 'text_length' },
+            { kind: 'block', type: 'text_isEmpty' },
+            { kind: 'block', type: 'text_indexOf' },
+            { kind: 'block', type: 'text_charAt' },
             { kind: 'block', type: 'text_print' },
           ],
         },
         {
           kind: 'category',
           name: '变量',
-          colour: '#13C2C2',
+          colour: '#A0522D',
           custom: 'VARIABLE',
+        },
+        {
+          kind: 'category',
+          name: '函数',
+          colour: '#9966FF',
+          custom: 'PROCEDURE',
         },
       ],
     };
   };
 
   const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
+    if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
+      // 从Blockly转换到代码模式
+      if (workspaceRef.current) {
+        try {
+          // 生成Python代码
+          const pythonCode = pythonGenerator.workspaceToCode(workspaceRef.current);
+          setScriptCode(pythonCode);
+          antdMessage.success('已将可视化块转换为Python代码');
+        } catch (error) {
+          console.error('转换失败', error);
+          antdMessage.error('转换失败，请检查Blockly块是否正确');
+        }
+      }
+    } else if (mode === 'BLOCKLY' && definitionMode === 'CODE') {
+      // 从代码转换到Blockly模式（提示警告）
+      Modal.confirm({
+        title: '切换到可视化编辑',
+        icon: <WarningOutlined style={{ color: '#faad14' }} />,
+        content: (
+          <div>
+            <p style={{ marginBottom: 8 }}>
+              <strong>⚠️ 注意：可视化编辑功能尚不成熟，请谨慎使用</strong>
+            </p>
+            <p style={{ marginBottom: 8 }}>当前限制：</p>
+            <ul style={{ paddingLeft: 20, margin: 0 }}>
+              <li>Python代码无法自动转换为可视化块</li>
+              <li>切换到可视化模式将清空当前代码</li>
+              <li>可视化块的功能有限</li>
+              <li>建议仅在新建块时使用可视化编辑</li>
+            </ul>
+            <p style={{ marginTop: 8, color: '#ff4d4f' }}>
+              <strong>确定要切换吗？当前代码将被清空！</strong>
+            </p>
+          </div>
+        ),
+        okText: '确定切换',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          setDefinitionMode(mode);
+          setScriptCode('');
+        },
+      });
+      return; // 等待用户确认，不直接切换
+    }
     setDefinitionMode(mode);
   };
 
@@ -899,8 +1021,18 @@ outputs = {
             <span>定义模式:</span>
             <Radio.Group value={definitionMode} onChange={(e) => handleModeChange(e.target.value)}>
               <Radio.Button value="CODE">代码模式</Radio.Button>
-              <Radio.Button value="BLOCKLY">可视化模式</Radio.Button>
+              <Radio.Button value="BLOCKLY">
+                可视化模式
+                <Tooltip title="可视化编辑功能尚不成熟，仅支持Blockly到代码的单向转换，请谨慎使用">
+                  <WarningOutlined style={{ color: '#faad14', marginLeft: 4 }} />
+                </Tooltip>
+              </Radio.Button>
             </Radio.Group>
+            {definitionMode === 'BLOCKLY' && (
+              <Tag color="warning" icon={<WarningOutlined />} style={{ marginLeft: 8 }}>
+                实验性功能
+              </Tag>
+            )}
           </div>
 
           <div className="workspace-content">
