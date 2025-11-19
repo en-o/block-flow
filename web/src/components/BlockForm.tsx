@@ -23,6 +23,42 @@ const BlockForm: React.FC<BlockFormProps> = ({
   const [inputs, setInputs] = useState<Array<{key: string; config: any}>>([]);
   const [outputs, setOutputs] = useState<Array<{key: string; config: any}>>([]);
 
+  // 默认脚本模板
+  const defaultScript = `# -*- coding: utf-8 -*-
+# Block执行脚本模板
+#
+# 输入参数使用说明:
+# - 通过 inputs 字典获取输入参数
+# - 示例: name = inputs.get('name', '默认值')
+# - 示例: count = inputs.get('count', 0)
+#
+# 输出结果使用说明:
+# - 将结果赋值给 outputs 变量(必须是字典类型)
+# - 示例: outputs = {"result": "success", "data": result_data}
+# - 系统会自动转换为JSON格式返回
+#
+# 注意事项:
+# - 所有异常会被自动捕获并返回错误信息
+# - 可以使用已安装在Python环境中的第三方库
+# - 执行超时时间为60秒
+
+# 1. 获取输入参数
+# 示例:
+# param1 = inputs.get('param1', '')
+# param2 = inputs.get('param2', 0)
+
+# 2. 执行业务逻辑
+# 示例:
+# result = f"Hello {param1}, count: {param2}"
+
+# 3. 设置输出结果（必需）
+outputs = {
+    "success": True,
+    "message": "执行成功",
+    # "data": result  # 添加您的结果数据
+}
+`;
+
   // 添加块类型
   const handleAddBlockType = async () => {
     try {
@@ -320,14 +356,20 @@ const BlockForm: React.FC<BlockFormProps> = ({
           label="执行脚本"
           name="script"
           rules={[{ required: true, message: '请输入执行脚本' }]}
+          initialValue={editingBlock ? undefined : defaultScript}
         >
           <Editor
-            height="300px"
+            height="400px"
             defaultLanguage="python"
             theme="vs-dark"
+            defaultValue={editingBlock ? undefined : defaultScript}
             options={{
               minimap: { enabled: false },
               fontSize: 14,
+              lineNumbers: 'on',
+              renderWhitespace: 'selection',
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
             }}
           />
         </Form.Item>

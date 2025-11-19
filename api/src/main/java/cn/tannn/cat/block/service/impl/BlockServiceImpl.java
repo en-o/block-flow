@@ -7,8 +7,10 @@ import cn.tannn.cat.block.controller.dto.block.BlockUpdateDTO;
 import cn.tannn.cat.block.entity.Block;
 import cn.tannn.cat.block.repository.BlockRepository;
 import cn.tannn.cat.block.service.BlockService;
+import cn.tannn.cat.block.service.PythonScriptExecutor;
 import cn.tannn.jdevelops.exception.built.BusinessException;
 import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
+import com.alibaba.fastjson2.JSON;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class BlockServiceImpl implements BlockService {
 
     private final BlockRepository blockRepository;
+    private final PythonScriptExecutor pythonScriptExecutor;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -150,11 +153,64 @@ public class BlockServiceImpl implements BlockService {
     public String test(Integer id, BlockTestDTO testDTO) {
         Block block = getById(id);
 
-        // TODO: 实现块测试逻辑，执行Python脚本
-        // 这里需要集成Python执行引擎
-        log.info("测试块: {}, 输入参数: {}", block.getName(), testDTO.getInputs());
+        // 验证脚本是否存在
+        if (block.getScript() == null || block.getScript().isEmpty()) {
+            throw new BusinessException("块脚本为空，无法测试");
+        }
 
-        return "测试执行成功（待实现Python执行引擎）";
+        log.info("开始测试块: {}, 输入参数: {}", block.getName(), testDTO.getInputs());
+
+        try {
+            // 执行Python脚本
+            PythonScriptExecutor.ExecutionResult result = pythonScriptExecutor.execute(
+                    block.getPythonEnvId(),
+                    block.getScript(),
+                    testDTO.getInputs()
+            );
+
+            // 构建返回结果
+            Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", result.isSuccess());
+            response.put("executionTime", result.getExecutionTime());
+
+            if (result.isSuccess()) {
+                // 成功执行
+                if (result.getJsonOutput() != null) {
+                    response.put("output", result.getJsonOutput());
+                } else if (result.getOutput() != null && !result.getOutput().isEmpty()) {
+                    response.put("output", result.getOutput());
+                } else {
+                    response.put("output", Map.of("message", "执行成功，无输出"));
+                }
+
+                if (result.getError() != null && !result.getError().isEmpty()) {
+                    response.put("warnings", result.getError());
+                }
+
+                log.info("块测试成功: {}, 耗时: {}ms", block.getName(), result.getExecutionTime());
+            } else {
+                // 执行失败
+                response.put("errorMessage", result.getErrorMessage());
+                if (result.getOutput() != null && !result.getOutput().isEmpty()) {
+                    response.put("stdout", result.getOutput());
+                }
+                if (result.getError() != null && !result.getError().isEmpty()) {
+                    response.put("stderr", result.getError());
+                }
+                response.put("exitCode", result.getExitCode());
+
+                log.error("块测试失败: {}, 错误: {}", block.getName(), result.getErrorMessage());
+            }
+
+            return JSON.toJSONString(response);
+
+        } catch (Exception e) {
+            log.error("块测试异常: {}", block.getName(), e);
+            Map<String, Object> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("errorMessage", "测试执行异常: " + e.getMessage());
+            return JSON.toJSONString(errorResponse);
+        }
     }
 
     @Override

@@ -378,11 +378,29 @@ const PythonEnvironments: React.FC = () => {
     if (!selectedEnv) return;
 
     try {
+      // 检查包是否是离线安装的
+      const packages = selectedEnv.packages || {};
+      const pkgInfo = packages[packageName];
+      const isOfflineInstall = typeof pkgInfo === 'object' && pkgInfo.installMethod === 'offline';
+      const installedFrom = typeof pkgInfo === 'object' ? pkgInfo.installedFrom : null;
+
       message.loading({ content: '正在卸载包...', key: 'uninstall', duration: 0 });
 
       await pythonEnvApi.uninstallPackage(selectedEnv.id, packageName);
 
-      message.success({ content: `包 ${packageName} 卸载成功`, key: 'uninstall' });
+      // 如果是离线安装的，同时删除离线包文件
+      if (isOfflineInstall && installedFrom) {
+        try {
+          await pythonEnvApi.deletePackageFile(selectedEnv.id, installedFrom);
+          message.success({ content: `包 ${packageName} 及离线包文件已删除`, key: 'uninstall' });
+        } catch (deleteError: any) {
+          // 删除离线包文件失败不影响主流程
+          console.warn('删除离线包文件失败:', deleteError);
+          message.success({ content: `包 ${packageName} 卸载成功（离线包文件删除失败）`, key: 'uninstall' });
+        }
+      } else {
+        message.success({ content: `包 ${packageName} 卸载成功`, key: 'uninstall' });
+      }
 
       // 刷新环境列表
       await fetchEnvironments();
@@ -496,26 +514,18 @@ const PythonEnvironments: React.FC = () => {
         ? existingPackage.version
         : '未知版本';
 
-      const confirmed = await new Promise<boolean>((resolve) => {
-        modal.confirm({
-          title: '包已存在',
-          content: (
-            <div>
-              <p>包 <strong>{packageName}</strong> 已安装。</p>
-              <p>当前版本: <strong>{existingVersion}</strong></p>
-              <p style={{ marginTop: 16 }}>是否继续安装？这将覆盖现有版本。</p>
-            </div>
-          ),
-          okText: '继续安装',
-          cancelText: '取消',
-          onOk: () => resolve(true),
-          onCancel: () => resolve(false),
-        });
+      modal.error({
+        title: '无法上传：包已存在',
+        content: (
+          <div>
+            <p>包 <strong>{packageName}</strong> 已安装。</p>
+            <p>当前版本: <strong>{existingVersion}</strong></p>
+            <p style={{ marginTop: 16 }}>如需重新安装，请先在"已安装包"列表中卸载该包，然后再上传。</p>
+          </div>
+        ),
+        okText: '知道了',
       });
-
-      if (!confirmed) {
-        return false;
-      }
+      return false;
     }
 
     // 检测是否是pip包
