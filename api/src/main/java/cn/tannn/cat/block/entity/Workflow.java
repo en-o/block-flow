@@ -82,5 +82,10 @@ public class Workflow extends EntityPfield {
     @Schema(description = "是否启用")
     private Boolean isActive;
 
+    @Comment("是否公开")
+    @ColumnDefault("0")
+    @Schema(description = "是否公开")
+    private Boolean isPublic;
+
 
 }

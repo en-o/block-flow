@@ -64,6 +64,9 @@ public class WorkflowServiceImpl implements WorkflowService {
         if (updateDTO.getIsActive() != null) {
             workflow.setIsActive(updateDTO.getIsActive());
         }
+        if (updateDTO.getIsPublic() != null) {
+            workflow.setIsPublic(updateDTO.getIsPublic());
+        }
 
         return workflowRepository.save(workflow);
     }

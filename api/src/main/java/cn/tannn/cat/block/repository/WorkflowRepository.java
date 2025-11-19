@@ -192,4 +192,31 @@ public interface WorkflowRepository extends JpaRepository<Workflow, Integer> , J
      */
     @Query("SELECT DISTINCT w.category FROM Workflow w WHERE w.category IS NOT NULL ORDER BY w.category")
     List<String> findDistinctCategories();
+
+    /**
+     * 查找公共流程
+     *
+     * @param isPublic 是否公开
+     * @return 流程列表
+     */
+    List<Workflow> findByIsPublic(Boolean isPublic);
+
+    /**
+     * 查找公共流程（分页）
+     *
+     * @param isPublic 是否公开
+     * @param pageable 分页参数
+     * @return 流程分页列表
+     */
+    Page<Workflow> findByIsPublic(Boolean isPublic, Pageable pageable);
+
+    /**
+     * 组合查询：根据公开状态和启用状态
+     *
+     * @param isPublic 是否公开
+     * @param isActive 是否启用
+     * @param pageable 分页参数
+     * @return 流程分页列表
+     */
+    Page<Workflow> findByIsPublicAndIsActive(Boolean isPublic, Boolean isActive, Pageable pageable);
 }

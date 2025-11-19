@@ -41,4 +41,7 @@ public class WorkflowCreateDTO implements Serializable {
 
     @Schema(description = "是否启用", example = "true")
     private Boolean isActive;
+
+    @Schema(description = "是否公开", example = "false")
+    private Boolean isPublic;
 }
