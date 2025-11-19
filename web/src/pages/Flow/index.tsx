@@ -15,8 +15,8 @@ import {
   Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button, Input, Form, Select, message as antdMessage, Modal, Empty, Spin, Popconfirm } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox } from 'antd';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, FolderOpenOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
@@ -141,7 +141,7 @@ const Flow: React.FC = () => {
   const loadBlocks = async () => {
     try {
       setLoading(true);
-      const response = await blockApi.page({
+      const response = await blockApi.pageFlow({
         page: { pageNum: 0, pageSize: 100 },
       });
       if (response.code === 200 && response.data?.rows) {

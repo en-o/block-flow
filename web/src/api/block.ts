@@ -32,6 +32,13 @@ export const blockApi = {
     return http.post('/blocks/page', params);
   },
 
+  // 分页查询块 流程编排专用
+  // POST /blocks/page/flow
+  pageFlow(params: BlockPage): Promise<ResultPageVO<Block>> {
+    return http.post('/blocks/page/flow', params);
+  },
+
+
   // 测试块执行
   // POST /blocks/{id}/test
   test(id: number, data: BlockTestDTO): Promise<ApiResponse<string>> {
