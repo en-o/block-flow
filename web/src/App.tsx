@@ -7,6 +7,7 @@ import BlockEditor from './pages/BlockEditor';
 import Manage from './pages/Manage';
 import Blocks from './pages/Manage/Blocks';
 import BlockTypes from './pages/Manage/BlockTypes';
+import WorkflowCategories from './pages/Manage/WorkflowCategories';
 import Context from './pages/Manage/Context';
 import PythonEnvironments from './pages/Manage/PythonEnvironments';
 import Users from './pages/Manage/Users';
@@ -69,6 +70,7 @@ const AppContent: React.FC = () => {
           <Route index element={<Navigate to="/manage/blocks" replace />} />
           <Route path="blocks" element={<Blocks />} />
           <Route path="block-types" element={<BlockTypes />} />
+          <Route path="workflow-categories" element={<WorkflowCategories />} />
           <Route path="python-envs" element={<PythonEnvironments />} />
           <Route path="context" element={<Context />} />
           {/* 用户管理 - 仅 ADMIN 可以访问 */}

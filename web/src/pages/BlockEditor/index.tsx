@@ -20,7 +20,8 @@ import * as Blockly from 'blockly';
 import Editor from '@monaco-editor/react';
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
-import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO } from '../../types/api';
+import { pythonEnvApi } from '../../api/pythonEnv';
+import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO, PythonEnvironment } from '../../types/api';
 import './index.css';
 
 const BlockEditor: React.FC = () => {
@@ -32,6 +33,9 @@ const BlockEditor: React.FC = () => {
 
   const [block, setBlock] = useState<Block | null>(null);
   const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
+  const [pythonEnvs, setPythonEnvs] = useState<PythonEnvironment[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [topTags, setTopTags] = useState<string[]>([]);
   const [definitionMode, setDefinitionMode] = useState<'BLOCKLY' | 'CODE'>('CODE');
   const [scriptCode, setScriptCode] = useState<string>(`# -*- coding: utf-8 -*-
 # Block执行脚本模板
@@ -131,6 +135,8 @@ outputs = {
   // 加载块类型
   useEffect(() => {
     loadBlockTypes();
+    loadPythonEnvs();
+    loadTagsStatistics();
   }, []);
 
   // 加载块详情（编辑模式）
@@ -181,6 +187,33 @@ outputs = {
       }
     } catch (error) {
       console.error('加载块类型失败', error);
+    }
+  };
+
+  const loadPythonEnvs = async () => {
+    try {
+      const response = await pythonEnvApi.listAll();
+      if (response.code === 200 && response.data) {
+        setPythonEnvs(response.data);
+      }
+    } catch (error) {
+      console.error('加载Python环境失败', error);
+    }
+  };
+
+  const loadTagsStatistics = async () => {
+    try {
+      const response = await blockApi.getTagsStatistics();
+      if (response.code === 200 && response.data) {
+        // 转换为数组并按使用次数排序
+        const tagEntries = Object.entries(response.data).sort((a, b) => b[1] - a[1]);
+        const tags = tagEntries.map(([tag]) => tag);
+        setAllTags(tags);
+        // 取前3个最常用的标签
+        setTopTags(tags.slice(0, 3));
+      }
+    } catch (error) {
+      console.error('加载标签统计失败', error);
     }
   };
 
@@ -650,12 +683,53 @@ outputs = {
               <Input placeholder="例如: 1.0.0" />
             </Form.Item>
 
-            <Form.Item label="Python 环境 ID" name="pythonEnvId">
-              <InputNumber placeholder="环境 ID (可选)" style={{ width: '100%' }} />
+            <Form.Item label="Python 环境" name="pythonEnvId" tooltip="选择运行此块的Python环境">
+              <Select
+                placeholder="选择Python环境 (可选)"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Divider style={{ margin: '8px 0' }} />
+                    <div style={{ padding: '8px', cursor: 'pointer' }} onClick={() => {
+                      window.open('/manage/python-envs', '_blank');
+                    }}>
+                      <PlusOutlined /> 管理Python环境
+                    </div>
+                  </>
+                )}
+              >
+                {pythonEnvs.map((env) => (
+                  <Select.Option key={env.id} value={env.id} label={`${env.name} (${env.pythonVersion})`}>
+                    {env.name} <span style={{ color: '#999', fontSize: 12 }}>({env.pythonVersion})</span>
+                    {env.isDefault && <Tag color="blue" style={{ marginLeft: 8 }}>默认</Tag>}
+                  </Select.Option>
+                ))}
+              </Select>
             </Form.Item>
 
-            <Form.Item label="标签" name="tags">
-              <Select mode="tags" placeholder="添加标签" style={{ width: '100%' }} />
+            <Form.Item label="标签" name="tags" tooltip="输入标签名回车添加，支持选择常用标签">
+              <Select
+                mode="tags"
+                placeholder="添加标签或选择常用标签"
+                style={{ width: '100%' }}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                options={[
+                  ...topTags.map((tag) => ({
+                    label: `${tag} (推荐)`,
+                    value: tag,
+                  })),
+                  ...allTags.filter(tag => !topTags.includes(tag)).map((tag) => ({
+                    label: tag,
+                    value: tag,
+                  })),
+                ]}
+              />
             </Form.Item>
 
             <Form.Item label="是否公开" name="isPublic" initialValue={true}>

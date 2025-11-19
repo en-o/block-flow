@@ -8,3 +8,10 @@ INSERT INTO `db_block_flow`.`block_types` (`id`, `create_time`, `update_time`, `
 INSERT INTO `db_block_flow`.`block_types` (`id`, `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES (3, '2025-11-18 13:06:42.879913', '2025-11-18 13:06:42.879913', 'node', 'node', 0);
 INSERT INTO `db_block_flow`.`block_types` (`id`, `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES (4, '2025-11-18 13:07:18.431345', '2025-11-18 13:07:18.431345', 'tool', '工具', 0);
 INSERT INTO `db_block_flow`.`block_types` (`id`, `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES (5, '2025-11-18 13:07:27.550446', '2025-11-18 13:07:27.550446', 'notify', '通知', 0);
+
+
+-- 流程分类
+INSERT INTO `db_block_flow`.`workflow_categories` (`id`, `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES (1, '2025-11-19 22:24:57.052087', '2025-11-19 22:24:57.052087', 'build', '构建', 1);
+INSERT INTO `db_block_flow`.`workflow_categories` (`id`, `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES (2, '2025-11-19 22:25:14.961615', '2025-11-19 22:25:14.961615', 'deploy', '部署', 2);
+INSERT INTO `db_block_flow`.`workflow_categories` (`id`, `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES (3, '2025-11-19 22:25:34.183025', '2025-11-19 22:25:34.183025', 'test', '测试', 3);
+INSERT INTO `db_block_flow`.`workflow_categories` (`id`, `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES (4, '2025-11-19 22:27:07.523543', '2025-11-19 22:27:07.523543', 'other', '其他', 4);
