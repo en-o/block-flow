@@ -298,15 +298,33 @@ const PythonEnvironments: React.FC = () => {
       }
 
       // 显示安装日志窗口
-      setInstallLogs([`开始安装 ${packageName}${values.version ? ' ' + values.version : ''}...`]);
+      const versionStr = values.version ? `==${values.version}` : '';
+      setInstallLogs([`开始在线安装 ${packageName}${versionStr}...`]);
       setInstallLogVisible(true);
       setIsInstalling(true);
 
-      setInstallLogs(prev => [...prev, '正在执行 pip install 命令...']);
-      setInstallLogs(prev => [...prev, '请稍候，这可能需要几秒到几分钟...']);
+      // 模拟pip安装的各个阶段
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setInstallLogs(prev => [...prev, `执行命令: python -m pip install ${packageName}${versionStr}`]);
 
-      const response = await pythonEnvApi.installPackage(selectedEnv.id, values);
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setInstallLogs(prev => [...prev, 'Collecting ' + packageName + '...']);
 
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setInstallLogs(prev => [...prev, '正在解析依赖关系...']);
+
+      // 实际调用API
+      const installPromise = pythonEnvApi.installPackage(selectedEnv.id, values);
+
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setInstallLogs(prev => [...prev, '正在下载包...']);
+
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setInstallLogs(prev => [...prev, '正在安装...']);
+
+      const response = await installPromise;
+
+      setInstallLogs(prev => [...prev, `✓ Successfully installed ${packageName}`]);
       setInstallLogs(prev => [...prev, `✓ 包 ${values.packageName} 安装成功！`]);
       setIsInstalling(false);
 
@@ -328,7 +346,8 @@ const PythonEnvironments: React.FC = () => {
       }
 
     } catch (error: any) {
-      setInstallLogs(prev => [...prev, `✗ 安装失败: ${error.message || '未知错误'}`]);
+      setInstallLogs(prev => [...prev, `✗ ERROR: ${error.message || '未知错误'}`]);
+      setInstallLogs(prev => [...prev, '✗ 安装失败']);
       setIsInstalling(false);
       message.error({
         content: error.message || '安装包失败',
@@ -1242,9 +1261,21 @@ const PythonEnvironments: React.FC = () => {
               </Button>
             </Form.Item>
           </Form>
-          {!selectedEnv?.pythonExecutable && (
+          {!selectedEnv?.pythonExecutable ? (
             <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>
               提示: 需要先配置Python运行时才能安装包
+            </div>
+          ) : (
+            <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+              <strong>包站点：</strong>
+              <a href="https://pypi.org/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
+                PyPI官方
+              </a>
+              <span style={{ margin: '0 4px' }}>|</span>
+              <a href="https://pypi.tuna.tsinghua.edu.cn/simple/" target="_blank" rel="noopener noreferrer">
+                清华镜像
+              </a>
+              <span style={{ marginLeft: 8, color: '#999' }}>- 搜索包名和版本</span>
             </div>
           )}
         </Card>
@@ -1328,6 +1359,8 @@ const PythonEnvironments: React.FC = () => {
         width={700}
         closable={!isInstalling}
         maskClosable={!isInstalling}
+        zIndex={2000}
+        style={{ top: 20 }}
       >
         <div style={{
           background: '#000',
