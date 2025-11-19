@@ -67,6 +67,15 @@ public class BlockController {
         return ResultPageVO.success(JpaPageResult.toPage(blockService.findPage(where)));
     }
 
+
+    @PostMapping("/page/flow")
+    @Operation(summary = "分页查询块", description = "分页查询块列表")
+    public ResultPageVO<Block,JpaPageResult<Block>> page2(
+            @RequestBody @Valid BlockPage where) {
+        where.setIsPublic(true);
+        return ResultPageVO.success(JpaPageResult.toPage(blockService.findPage(where)));
+    }
+
     @PostMapping("/{id}/test")
     @Operation(summary = "测试块执行", description = "执行块的Python脚本并返回结果")
     public ResultVO<String> test(
