@@ -375,6 +375,7 @@ export interface Workflow {
   tags?: string; // JSON字段，类型为String
   version: string;
   isActive: boolean;
+  isPublic: boolean; // 是否公开
   createTime: string;
   updateTime: string;
 }
@@ -385,6 +386,7 @@ export interface WorkflowPage {
   category?: string;
   isTemplate?: boolean;
   isActive?: boolean;
+  isPublic?: boolean; // 是否公开
   page?: PagingSorteds;
 }
 
@@ -399,6 +401,7 @@ export interface WorkflowCreateDTO {
   tags?: string;
   version?: string;
   isActive?: boolean;
+  isPublic?: boolean; // 是否公开
 }
 
 // 流程更新DTO
@@ -412,6 +415,7 @@ export interface WorkflowUpdateDTO {
   tags?: string;
   version?: string;
   isActive?: boolean;
+  isPublic?: boolean; // 是否公开
 }
 
 // 流程执行DTO
