@@ -101,7 +101,7 @@ const Manage: React.FC = () => {
         theme="dark"
       >
         <div className="logo">
-          <h2>{collapsed ? 'BF' : 'BlockFlow'}</h2>
+          <h2>{collapsed ? 'BF' : 'Block Flow'}</h2>
         </div>
         <Menu
           theme="dark"

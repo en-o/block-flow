@@ -15,7 +15,7 @@ import {
   Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox } from 'antd';
+import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown } from 'antd';
 import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
@@ -236,8 +236,17 @@ const Flow: React.FC = () => {
       event.preventDefault();
 
       const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
-      const blockData = event.dataTransfer.getData('application/reactflow');
 
+      // 检查是否是流程拖拽
+      const workflowData = event.dataTransfer.getData('application/workflow');
+      if (workflowData && reactFlowBounds) {
+        const workflow: Workflow = JSON.parse(workflowData);
+        handleUsePublicWorkflow(workflow);
+        return;
+      }
+
+      // 检查是否是块拖拽
+      const blockData = event.dataTransfer.getData('application/reactflow');
       if (blockData && reactFlowBounds) {
         const block: Block = JSON.parse(blockData);
         const position = {
@@ -284,6 +293,13 @@ const Flow: React.FC = () => {
     setSelectedNode(null);
     setSelectedEdge(null);
   }, []);
+
+  // 根据分类code获取分类名称
+  const getCategoryName = (categoryCode: string | undefined) => {
+    if (!categoryCode) return null;
+    const category = workflowCategories.find(c => c.code === categoryCode);
+    return category ? category.name : categoryCode;
+  };
 
   // 保存流程
   const handleSave = async () => {
@@ -470,6 +486,23 @@ const Flow: React.FC = () => {
     });
   };
 
+  // 拖拽公共流程到画布
+  const onDragStartWorkflow = (event: React.DragEvent, workflow: Workflow) => {
+    event.dataTransfer.setData('application/workflow', JSON.stringify(workflow));
+    event.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const onDropWorkflow = useCallback(
+    (event: React.DragEvent) => {
+      const workflowData = event.dataTransfer.getData('application/workflow');
+      if (workflowData) {
+        const workflow: Workflow = JSON.parse(workflowData);
+        handleUsePublicWorkflow(workflow);
+      }
+    },
+    []
+  );
+
   // 导入流程
   const handleImportWorkflow = (file: File) => {
     const reader = new FileReader();
@@ -487,7 +520,20 @@ const Flow: React.FC = () => {
           title: '导入流程',
           content: `将导入流程${flowData.workflow?.name ? ` "${flowData.workflow.name}"` : ''}，您需要为新流程命名。`,
           onOk: () => {
-            setNodes(flowData.nodes as Node<BlockNodeData>[]);
+            // 确保节点包含正确的类型
+            const importedNodes = flowData.nodes.map((node: any) => ({
+              ...node,
+              type: node.type || 'blockNode', // 确保有类型
+              data: {
+                ...node.data,
+                // 确保所有必要的字段都存在
+                blockId: node.data?.blockId || 0,
+                blockName: node.data?.blockName || '未知块',
+                blockTypeCode: node.data?.blockTypeCode || 'unknown',
+              },
+            }));
+
+            setNodes(importedNodes as Node<BlockNodeData>[]);
             setEdges(flowData.edges as Edge[]);
             // 清空当前流程（作为新流程）
             setCurrentWorkflow(null);
@@ -647,38 +693,38 @@ const Flow: React.FC = () => {
                         ) : (
                           <div style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
                             {publicWorkflows.map((workflow) => (
-                              <div
+                              <Dropdown
                                 key={workflow.id}
-                                style={{
-                                  padding: '12px',
-                                  marginBottom: '8px',
-                                  border: '1px solid #d9d9d9',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s',
+                                menu={{
+                                  items: [
+                                    {
+                                      key: 'use',
+                                      label: '使用此流程',
+                                      onClick: () => handleUsePublicWorkflow(workflow),
+                                    },
+                                  ],
                                 }}
-                                onClick={() => handleUsePublicWorkflow(workflow)}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.borderColor = '#1890ff';
-                                  e.currentTarget.style.background = '#f0f5ff';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.borderColor = '#d9d9d9';
-                                  e.currentTarget.style.background = 'transparent';
-                                }}
+                                trigger={['contextMenu']}
                               >
-                                <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                                  {workflow.name}
-                                </div>
-                                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                                  {workflow.description || '暂无描述'}
-                                </div>
-                                {workflow.category && (
-                                  <div style={{ fontSize: '11px', color: '#1890ff', marginTop: '4px' }}>
-                                    分类: {workflow.category}
+                                <div
+                                  className="workflow-item draggable"
+                                  draggable
+                                  onDragStart={(e) => onDragStartWorkflow(e, workflow)}
+                                  onDoubleClick={() => handleUsePublicWorkflow(workflow)}
+                                >
+                                  <div className="workflow-item-name">
+                                    {workflow.name}
                                   </div>
-                                )}
-                              </div>
+                                  <div className="workflow-item-description">
+                                    {workflow.description || '暂无描述'}
+                                  </div>
+                                  {workflow.category && (
+                                    <div className="workflow-item-category">
+                                      分类: {getCategoryName(workflow.category)}
+                                    </div>
+                                  )}
+                                </div>
+                              </Dropdown>
                             ))}
                           </div>
                         )
@@ -690,48 +736,26 @@ const Flow: React.FC = () => {
                             {myWorkflows.map((workflow) => (
                               <div
                                 key={workflow.id}
+                                className="workflow-item"
                                 style={{
-                                  padding: '12px',
-                                  marginBottom: '8px',
-                                  border: '1px solid #d9d9d9',
-                                  borderRadius: '4px',
                                   display: 'flex',
                                   justifyContent: 'space-between',
                                   alignItems: 'center',
-                                  transition: 'all 0.2s',
                                 }}
                               >
                                 <div
-                                  style={{
-                                    flex: 1,
-                                    cursor: 'pointer',
-                                    minWidth: 0,
-                                  }}
-                                  onClick={() => handleLoadWorkflow(workflow)}
-                                  onMouseEnter={(e) => {
-                                    const parent = e.currentTarget.parentElement;
-                                    if (parent) {
-                                      parent.style.borderColor = '#1890ff';
-                                      parent.style.background = '#f0f5ff';
-                                    }
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    const parent = e.currentTarget.parentElement;
-                                    if (parent) {
-                                      parent.style.borderColor = '#d9d9d9';
-                                      parent.style.background = 'transparent';
-                                    }
-                                  }}
+                                  style={{ flex: 1, minWidth: 0 }}
+                                  onDoubleClick={() => handleLoadWorkflow(workflow)}
                                 >
-                                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                                  <div className="workflow-item-name">
                                     {workflow.name}
                                   </div>
-                                  <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                                  <div className="workflow-item-description">
                                     {workflow.description || '暂无描述'}
                                   </div>
                                   {workflow.category && (
-                                    <div style={{ fontSize: '11px', color: '#1890ff', marginTop: '4px' }}>
-                                      分类: {workflow.category}
+                                    <div className="workflow-item-category">
+                                      分类: {getCategoryName(workflow.category)}
                                     </div>
                                   )}
                                 </div>
