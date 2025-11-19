@@ -653,7 +653,7 @@ const Flow: React.FC = () => {
     <div className="flow-container">
       <div className="flow-header">
         <h1>BlockFlow - 流程编排</h1>
-        <p style={{ fontSize: '12px', color: '#666', margin: '4px 0' }}>ctrl+x删除，ctrl+c复制，ctrl+v粘贴，ctrl+s保存</p>
+        <p style={{ fontSize: '15px', color: '#fafafa', margin: '4px 0' }}>ctrl+x删除，ctrl+c复制，ctrl+v粘贴，ctrl+s保存</p>
         <div className="flow-actions">
           {/* 只有 ADMIN 和 USER 可以访问管理后台 */}
           {authUtils.canAccessManagement() && (
