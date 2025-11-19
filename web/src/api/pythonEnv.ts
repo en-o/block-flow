@@ -5,7 +5,8 @@ import type {
   PythonEnvironment,
   PythonEnvironmentPage,
   PythonEnvironmentCreateDTO,
-  PythonEnvironmentUpdateDTO
+  PythonEnvironmentUpdateDTO,
+  PythonRuntimeUploadResultDTO
 } from '../types/api';
 
 export const pythonEnvApi = {
@@ -127,5 +128,21 @@ export const pythonEnvApi = {
   // DELETE /python-envs/{id}/packages/files/{fileName}
   deletePackageFile(id: number, fileName: string): Promise<ApiResponse<void>> {
     return http.delete(`/python-envs/${id}/packages/files/${encodeURIComponent(fileName)}`);
+  },
+
+  // 上传Python运行时环境
+  // POST /python-envs/{id}/runtime/upload
+  uploadPythonRuntime(id: number, file: File): Promise<ApiResponse<PythonRuntimeUploadResultDTO>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return http.post(`/python-envs/${id}/runtime/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // 自动检测Python可执行文件路径
+  // POST /python-envs/{id}/detect-python
+  detectPythonExecutable(id: number): Promise<ApiResponse<PythonEnvironment>> {
+    return http.post(`/python-envs/${id}/detect-python`);
   },
 };

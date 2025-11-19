@@ -347,6 +347,17 @@ export interface PythonEnvironmentUpdateDTO {
   pythonExecutable?: string;
 }
 
+// Python运行时上传结果DTO
+export interface PythonRuntimeUploadResultDTO {
+  fileName: string;
+  fileSize: number;
+  uploadTime: string;
+  extractPath: string;
+  pythonExecutable?: string;
+  pythonVersion?: string;
+  sitePackagesPath?: string;
+}
+
 // ===================
 // 流程相关（Workflow Entity）
 // ===================

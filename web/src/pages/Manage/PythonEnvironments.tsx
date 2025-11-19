@@ -31,6 +31,8 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ThunderboltOutlined,
+  RocketOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import { pythonEnvApi } from '../../api/pythonEnv';
 import type { PythonEnvironment, PythonEnvironmentCreateDTO, PythonEnvironmentUpdateDTO, PythonEnvironmentPage } from '../../types/api';
@@ -56,6 +58,8 @@ const PythonEnvironments: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [installingPackage, setInstallingPackage] = useState<string | null>(null);
+  const [uploadingRuntime, setUploadingRuntime] = useState(false);
+  const [detectingPython, setDetectingPython] = useState(false);
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -320,6 +324,84 @@ const PythonEnvironments: React.FC = () => {
     }
   };
 
+  const handleRuntimeUpload = async (file: File) => {
+    if (!selectedEnv) return false;
+
+    // 验证文件类型
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.zip') && !fileName.endsWith('.tar.gz') && !fileName.endsWith('.tgz')) {
+      message.error('仅支持 .zip、.tar.gz 和 .tgz 格式的压缩包');
+      return false;
+    }
+
+    // 验证文件大小（2GB）
+    const maxSize = 2 * 1024 * 1024 * 1024;
+    if (file.size > maxSize) {
+      message.error('文件大小不能超过 2GB');
+      return false;
+    }
+
+    setUploadingRuntime(true);
+    try {
+      const response = await pythonEnvApi.uploadPythonRuntime(selectedEnv.id, file);
+      if (response.code === 200 && response.data) {
+        message.success('Python运行时上传并配置成功');
+        // 显示检测到的信息
+        modal.success({
+          title: 'Python运行时配置成功',
+          width: 600,
+          content: (
+            <div>
+              <p><strong>文件名:</strong> {response.data.fileName}</p>
+              <p><strong>文件大小:</strong> {(response.data.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+              <p><strong>解压路径:</strong> {response.data.extractPath}</p>
+              <p><strong>Python路径:</strong> {response.data.pythonExecutable || '未检测到'}</p>
+              <p><strong>Python版本:</strong> {response.data.pythonVersion || '未检测到'}</p>
+              <p><strong>site-packages:</strong> {response.data.sitePackagesPath || '未检测到'}</p>
+            </div>
+          ),
+        });
+        // 刷新环境列表
+        fetchEnvironments();
+      }
+    } catch (error: any) {
+      message.error(error.message || '上传失败');
+    } finally {
+      setUploadingRuntime(false);
+    }
+    return false; // 阻止默认上传行为
+  };
+
+  const handleDetectPython = async () => {
+    if (!selectedEnv) return;
+
+    setDetectingPython(true);
+    try {
+      const response = await pythonEnvApi.detectPythonExecutable(selectedEnv.id);
+      if (response.code === 200 && response.data) {
+        message.success('Python路径检测成功');
+        // 显示检测结果
+        modal.info({
+          title: 'Python路径检测结果',
+          width: 600,
+          content: (
+            <div>
+              <p><strong>Python路径:</strong> {response.data.pythonExecutable || '未检测到'}</p>
+              <p><strong>Python版本:</strong> {response.data.pythonVersion || '未检测到'}</p>
+              <p><strong>site-packages:</strong> {response.data.sitePackagesPath || '未检测到'}</p>
+            </div>
+          ),
+        });
+        // 刷新环境列表
+        fetchEnvironments();
+      }
+    } catch (error: any) {
+      message.error(error.message || '检测失败');
+    } finally {
+      setDetectingPython(false);
+    }
+  };
+
   const handleTableChange = (pag: any) => {
     setPagination(pag);
     fetchEnvironments({
@@ -565,6 +647,63 @@ const PythonEnvironments: React.FC = () => {
           </Button>,
         ]}
       >
+        {/* Python运行时上传 */}
+        <Card
+          size="small"
+          title={
+            <Space>
+              <RocketOutlined />
+              <span>上传Python运行时环境</span>
+            </Space>
+          }
+          style={{ marginBottom: 16, borderColor: '#1890ff' }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div style={{ marginBottom: 8 }}>
+              上传完整的Python环境压缩包，系统将自动解压并检测Python可执行文件路径
+            </div>
+            <Space>
+              <Upload
+                beforeUpload={handleRuntimeUpload}
+                showUploadList={false}
+                accept=".zip,.tar.gz,.tgz"
+              >
+                <Button
+                  icon={<RocketOutlined />}
+                  loading={uploadingRuntime}
+                  type="primary"
+                >
+                  {uploadingRuntime ? '上传中...' : '选择Python运行时上传'}
+                </Button>
+              </Upload>
+              <Button
+                icon={<ScanOutlined />}
+                onClick={handleDetectPython}
+                loading={detectingPython}
+              >
+                {detectingPython ? '检测中...' : '自动检测Python路径'}
+              </Button>
+            </Space>
+            <div style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
+              • 支持 .zip、.tar.gz 和 .tgz 格式
+              <br />
+              • 文件大小限制 2GB
+              <br />
+              • 系统将自动检测并配置 Python 解释器路径、版本和 site-packages 路径
+            </div>
+            {selectedEnv?.pythonExecutable && (
+              <div style={{ marginTop: 8, padding: 8, background: '#f0f0f0', borderRadius: 4 }}>
+                <div><strong>当前配置:</strong></div>
+                <div>Python路径: {selectedEnv.pythonExecutable}</div>
+                {selectedEnv.pythonVersion && <div>Python版本: {selectedEnv.pythonVersion}</div>}
+                {selectedEnv.sitePackagesPath && <div>site-packages: {selectedEnv.sitePackagesPath}</div>}
+              </div>
+            )}
+          </Space>
+        </Card>
+
+        <Divider style={{ margin: '16px 0' }} />
+
         <Card size="small" title="上传离线包" style={{ marginBottom: 16 }}>
           <Upload
             beforeUpload={handleFileUpload}
