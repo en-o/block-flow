@@ -12,6 +12,7 @@ target/
 *.iws
 *.ipr
 
+python-envs
 
 # Log file
 *.log
