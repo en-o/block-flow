@@ -1,11 +1,14 @@
 package cn.tannn.cat.block.service;
 
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageOperationDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageUploadResultDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDTO;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import org.springframework.data.domain.Page;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -62,7 +65,6 @@ public interface PythonEnvironmentService {
      */
     List<PythonEnvironment> listAll();
 
-
     /**
      * 分页查询执行历史（使用查询条件）
      *
@@ -70,7 +72,6 @@ public interface PythonEnvironmentService {
      * @return Python环境分页列表
      */
     Page<PythonEnvironment> findPage(PythonEnvironmentPage where);
-
 
     /**
      * 搜索环境（名称或描述包含关键字）
@@ -129,4 +130,46 @@ public interface PythonEnvironmentService {
      * @return Python环境
      */
     PythonEnvironment importRequirements(Integer id, String requirementsText);
+
+    /**
+     * 初始化环境（创建目录结构）
+     *
+     * @param id 环境ID
+     * @return Python环境
+     */
+    PythonEnvironment initializeEnvironment(Integer id);
+
+    /**
+     * 上传离线包文件
+     *
+     * @param id   环境ID
+     * @param file 包文件
+     * @return 上传结果
+     */
+    PackageUploadResultDTO uploadPackageFile(Integer id, MultipartFile file);
+
+    /**
+     * 安装已上传的包文件
+     *
+     * @param id       环境ID
+     * @param fileName 包文件名
+     * @return Python环境
+     */
+    PythonEnvironment installPackageFile(Integer id, String fileName);
+
+    /**
+     * 列出已上传的包文件
+     *
+     * @param id 环境ID
+     * @return 包文件列表
+     */
+    List<UploadedPackageFileDTO> listUploadedPackageFiles(Integer id);
+
+    /**
+     * 删除包文件
+     *
+     * @param id       环境ID
+     * @param fileName 包文件名
+     */
+    void deletePackageFile(Integer id, String fileName);
 }

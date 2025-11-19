@@ -310,10 +310,13 @@ export interface PythonEnvironment {
   name: string;
   pythonVersion: string;
   description?: string;
-  packages?: Record<string, any>; // JSONObject（已安装包列表）
-  isDefault: boolean;
-  createTime: string;
-  updateTime: string;
+  packages?: any; // JSONObject（已安装包列表）
+  isDefault?: boolean;
+  pythonExecutable?: string;
+  envRootPath?: string;
+  sitePackagesPath?: string;
+  createTime?: string;
+  updateTime?: string;
 }
 
 // Python环境分页查询参数
@@ -328,8 +331,9 @@ export interface PythonEnvironmentCreateDTO {
   name: string; // 必填
   pythonVersion: string; // 必填
   description?: string;
-  packages?: Record<string, any>;
+  packages?: any;
   isDefault?: boolean;
+  pythonExecutable?: string;
 }
 
 // Python环境更新DTO
@@ -338,8 +342,9 @@ export interface PythonEnvironmentUpdateDTO {
   name?: string;
   pythonVersion?: string;
   description?: string;
-  packages?: Record<string, any>;
+  packages?: any;
   isDefault?: boolean;
+  pythonExecutable?: string;
 }
 
 // ===================

@@ -2,9 +2,11 @@ package cn.tannn.cat.block.controller;
 
 import cn.tannn.cat.block.contansts.JpaPageResult;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageOperationDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.PackageUploadResultDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentCreateDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentPage;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpdateDTO;
+import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDTO;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
 import cn.tannn.jdevelops.result.response.ResultPageVO;
@@ -14,7 +16,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -70,7 +74,8 @@ public class PythonEnvironmentController {
 
     @PostMapping("/page")
     @Operation(summary = "分页查询环境", description = "分页查询Python环境列表")
-    public ResultPageVO<PythonEnvironment, JpaPageResult<PythonEnvironment>> page(@RequestBody @Valid PythonEnvironmentPage where) {
+    public ResultPageVO<PythonEnvironment, JpaPageResult<PythonEnvironment>> page(
+            @RequestBody @Valid PythonEnvironmentPage where) {
         return ResultPageVO.success(JpaPageResult.toPage(pythonEnvironmentService.findPage(where)));
     }
 
@@ -121,5 +126,44 @@ public class PythonEnvironmentController {
             @Parameter(description = "环境ID") @PathVariable Integer id,
             @RequestBody String requirementsText) {
         return ResultVO.success(pythonEnvironmentService.importRequirements(id, requirementsText));
+    }
+
+    @PostMapping("/{id}/initialize")
+    @Operation(summary = "初始化环境", description = "初始化Python环境（创建目录结构）")
+    public ResultVO<PythonEnvironment> initializeEnvironment(
+            @Parameter(description = "环境ID") @PathVariable Integer id) {
+        return ResultVO.success(pythonEnvironmentService.initializeEnvironment(id));
+    }
+
+    @PostMapping(value = "/{id}/packages/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "上传离线包", description = "上传Python离线包文件（.whl或.tar.gz）")
+    public ResultVO<PackageUploadResultDTO> uploadPackageFile(
+            @Parameter(description = "环境ID") @PathVariable Integer id,
+            @Parameter(description = "包文件") @RequestParam("file") MultipartFile file) {
+        return ResultVO.success(pythonEnvironmentService.uploadPackageFile(id, file));
+    }
+
+    @PostMapping("/{id}/packages/install/{fileName}")
+    @Operation(summary = "安装已上传的包", description = "安装已上传的离线包文件")
+    public ResultVO<PythonEnvironment> installPackageFile(
+            @Parameter(description = "环境ID") @PathVariable Integer id,
+            @Parameter(description = "包文件名") @PathVariable String fileName) {
+        return ResultVO.success(pythonEnvironmentService.installPackageFile(id, fileName));
+    }
+
+    @GetMapping("/{id}/packages/files")
+    @Operation(summary = "获取已上传包列表", description = "获取环境中已上传的离线包文件列表")
+    public ResultVO<List<UploadedPackageFileDTO>> listUploadedPackageFiles(
+            @Parameter(description = "环境ID") @PathVariable Integer id) {
+        return ResultVO.success(pythonEnvironmentService.listUploadedPackageFiles(id));
+    }
+
+    @DeleteMapping("/{id}/packages/files/{fileName}")
+    @Operation(summary = "删除包文件", description = "删除已上传的离线包文件")
+    public ResultVO<Void> deletePackageFile(
+            @Parameter(description = "环境ID") @PathVariable Integer id,
+            @Parameter(description = "包文件名") @PathVariable String fileName) {
+        pythonEnvironmentService.deletePackageFile(id, fileName);
+        return ResultVO.success();
     }
 }

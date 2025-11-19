@@ -36,3 +36,8 @@ knife4j:
     enable-footer-custom: false
     # 动态参数默认开启
     enable-dynamic-parameter: true
+
+# Python环境配置
+python:
+  env:
+    root-path: ${user.dir}/python-envs  # Python环境根目录

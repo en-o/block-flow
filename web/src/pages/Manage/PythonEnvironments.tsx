@@ -15,6 +15,9 @@ import {
   List,
   Popconfirm,
   App,
+  Upload,
+  Tooltip,
+  Progress,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,6 +28,9 @@ import {
   StarFilled,
   DownloadOutlined,
   UploadOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { pythonEnvApi } from '../../api/pythonEnv';
 import type { PythonEnvironment, PythonEnvironmentCreateDTO, PythonEnvironmentUpdateDTO, PythonEnvironmentPage } from '../../types/api';
@@ -46,6 +52,10 @@ const PythonEnvironments: React.FC = () => {
   const [packageForm] = Form.useForm();
   const [requirementsModalVisible, setRequirementsModalVisible] = useState(false);
   const [requirementsForm] = Form.useForm();
+  const [uploadedFilesModalVisible, setUploadedFilesModalVisible] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [installingPackage, setInstallingPackage] = useState<string | null>(null);
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -222,6 +232,94 @@ const PythonEnvironments: React.FC = () => {
     }
   };
 
+  const handleInitializeEnvironment = async (env: PythonEnvironment) => {
+    try {
+      await pythonEnvApi.initializeEnvironment(env.id);
+      message.success('环境初始化成功');
+      fetchEnvironments();
+    } catch (error: any) {
+      message.error(error.message || '初始化失败');
+    }
+  };
+
+  const handleShowUploadedFiles = async (env: PythonEnvironment) => {
+    setSelectedEnv(env);
+    try {
+      const response = await pythonEnvApi.listUploadedPackageFiles(env.id);
+      if (response.code === 200 && response.data) {
+        setUploadedFiles(response.data);
+      }
+      setUploadedFilesModalVisible(true);
+    } catch (error: any) {
+      message.error(error.message || '获取包列表失败');
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!selectedEnv) return false;
+
+    // 验证文件类型
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.whl') && !fileName.endsWith('.tar.gz')) {
+      message.error('仅支持 .whl 和 .tar.gz 格式的包文件');
+      return false;
+    }
+
+    setUploadingFile(true);
+    try {
+      const response = await pythonEnvApi.uploadPackageFile(selectedEnv.id, file);
+      if (response.code === 200) {
+        message.success('上传成功');
+        // 刷新列表
+        const listResponse = await pythonEnvApi.listUploadedPackageFiles(selectedEnv.id);
+        if (listResponse.code === 200 && listResponse.data) {
+          setUploadedFiles(listResponse.data);
+        }
+      }
+    } catch (error: any) {
+      message.error(error.message || '上传失败');
+    } finally {
+      setUploadingFile(false);
+    }
+    return false; // 阻止默认上传行为
+  };
+
+  const handleInstallPackageFile = async (fileName: string) => {
+    if (!selectedEnv) return;
+
+    setInstallingPackage(fileName);
+    try {
+      await pythonEnvApi.installPackageFile(selectedEnv.id, fileName);
+      message.success('安装成功');
+      // 刷新环境和包列表
+      fetchEnvironments();
+      const listResponse = await pythonEnvApi.listUploadedPackageFiles(selectedEnv.id);
+      if (listResponse.code === 200 && listResponse.data) {
+        setUploadedFiles(listResponse.data);
+      }
+    } catch (error: any) {
+      message.error(error.message || '安装失败');
+    } finally {
+      setInstallingPackage(null);
+    }
+  };
+
+  const handleDeletePackageFile = async (fileName: string) => {
+    if (!selectedEnv) return;
+
+    try {
+      await pythonEnvApi.deletePackageFile(selectedEnv.id, fileName);
+      message.success('删除成功');
+      // 刷新列表
+      const listResponse = await pythonEnvApi.listUploadedPackageFiles(selectedEnv.id);
+      if (listResponse.code === 200 && listResponse.data) {
+        setUploadedFiles(listResponse.data);
+      }
+    } catch (error: any) {
+      message.error(error.message || '删除失败');
+    }
+  };
+
   const handleTableChange = (pag: any) => {
     setPagination(pag);
     fetchEnvironments({
@@ -297,6 +395,18 @@ const PythonEnvironments: React.FC = () => {
       fixed: 'right' as const,
       render: (_: any, record: PythonEnvironment) => (
         <Space>
+          {!record.envRootPath && (
+            <Tooltip title="初始化环境目录结构">
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                onClick={() => handleInitializeEnvironment(record)}
+                size="small"
+              >
+                初始化
+              </Button>
+            </Tooltip>
+          )}
           {!record.isDefault && (
             <Button
               type="link"
@@ -312,6 +422,15 @@ const PythonEnvironments: React.FC = () => {
           >
             管理包
           </Button>
+          {record.envRootPath && (
+            <Button
+              type="link"
+              icon={<UploadOutlined />}
+              onClick={() => handleShowUploadedFiles(record)}
+            >
+              离线包
+            </Button>
+          )}
           <Button
             type="link"
             icon={<DownloadOutlined />}
@@ -415,6 +534,10 @@ const PythonEnvironments: React.FC = () => {
             <Input.TextArea rows={3} placeholder="环境描述" />
           </Form.Item>
 
+          <Form.Item label="Python解释器路径" name="pythonExecutable">
+            <Input placeholder="例如: C:\Python39\python.exe 或 /usr/bin/python3" />
+          </Form.Item>
+
           <Form.Item
             label="是否默认"
             name="isDefault"
@@ -424,6 +547,94 @@ const PythonEnvironments: React.FC = () => {
             <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 离线包管理 Modal */}
+      <Modal
+        title={`离线包管理 - ${selectedEnv?.name}`}
+        open={uploadedFilesModalVisible}
+        onCancel={() => {
+          setUploadedFilesModalVisible(false);
+          setSelectedEnv(null);
+          setUploadedFiles([]);
+        }}
+        width={800}
+        footer={[
+          <Button key="close" onClick={() => setUploadedFilesModalVisible(false)}>
+            关闭
+          </Button>,
+        ]}
+      >
+        <Card size="small" title="上传离线包" style={{ marginBottom: 16 }}>
+          <Upload
+            beforeUpload={handleFileUpload}
+            showUploadList={false}
+            accept=".whl,.tar.gz"
+          >
+            <Button icon={<UploadOutlined />} loading={uploadingFile}>
+              {uploadingFile ? '上传中...' : '选择文件上传 (.whl 或 .tar.gz)'}
+            </Button>
+          </Upload>
+          <div style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
+            • 支持 .whl 和 .tar.gz 格式
+            <br />
+            • 文件大小限制 500MB
+          </div>
+        </Card>
+
+        <Card size="small" title="已上传包文件">
+          {uploadedFiles.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+              暂无已上传的包文件
+            </div>
+          ) : (
+            <List
+              dataSource={uploadedFiles}
+              renderItem={(file: any) => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="install"
+                      type="primary"
+                      size="small"
+                      icon={file.installed ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+                      onClick={() => handleInstallPackageFile(file.fileName)}
+                      loading={installingPackage === file.fileName}
+                      disabled={file.installed}
+                    >
+                      {file.installed ? '已安装' : '安装'}
+                    </Button>,
+                    <Popconfirm
+                      key="delete"
+                      title="确定删除这个包文件吗？"
+                      onConfirm={() => handleDeletePackageFile(file.fileName)}
+                    >
+                      <Button type="link" danger size="small">
+                        删除
+                      </Button>
+                    </Popconfirm>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        <span>{file.fileName}</span>
+                        {file.installed && <Tag color="green">已安装</Tag>}
+                      </Space>
+                    }
+                    description={
+                      <Space split="|分">
+                        <span>大小: {(file.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                        <span>类型: {file.fileType}</span>
+                        <span>上传时间: {new Date(file.uploadTime).toLocaleString()}</span>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          )}
+        </Card>
       </Modal>
 
       {/* 管理包 Modal */}

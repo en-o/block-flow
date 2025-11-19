@@ -28,7 +28,7 @@ import org.hibernate.type.SqlTypes;
         @Index(name = "idx_name", columnList = "name", unique = true)
 })
 @Comment("Python环境表")
-public class PythonEnvironment  extends EntityPfield {
+public class PythonEnvironment extends EntityPfield {
 
     @Column(unique = true, nullable = false, length = 100)
     @Comment("环境名称")
@@ -56,5 +56,19 @@ public class PythonEnvironment  extends EntityPfield {
     @Schema(description = "是否默认环境")
     private Boolean isDefault;
 
+    @Column(length = 500)
+    @Comment("Python解释器路径")
+    @Schema(description = "Python解释器路径，例如: C:\\Python39\\python.exe")
+    private String pythonExecutable;
+
+    @Column(length = 500)
+    @Comment("环境根目录路径")
+    @Schema(description = "环境根目录路径")
+    private String envRootPath;
+
+    @Column(length = 500)
+    @Comment("site-packages目录路径")
+    @Schema(description = "site-packages目录路径")
+    private String sitePackagesPath;
 
 }

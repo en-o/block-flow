@@ -29,4 +29,7 @@ public class PythonEnvironmentCreateDTO implements Serializable {
 
     @Schema(description = "是否默认环境", example = "false")
     private Boolean isDefault;
+
+    @Schema(description = "Python解释器路径", example = "C:\\Python39\\python.exe")
+    private String pythonExecutable;
 }

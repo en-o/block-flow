@@ -94,4 +94,38 @@ export const pythonEnvApi = {
       headers: { 'Content-Type': 'text/plain' }
     });
   },
+
+  // 初始化环境
+  // POST /python-envs/{id}/initialize
+  initializeEnvironment(id: number): Promise<ApiResponse<PythonEnvironment>> {
+    return http.post(`/python-envs/${id}/initialize`);
+  },
+
+  // 上传离线包
+  // POST /python-envs/{id}/packages/upload
+  uploadPackageFile(id: number, file: File): Promise<ApiResponse<any>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return http.post(`/python-envs/${id}/packages/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  // 安装已上传的包
+  // POST /python-envs/{id}/packages/install/{fileName}
+  installPackageFile(id: number, fileName: string): Promise<ApiResponse<PythonEnvironment>> {
+    return http.post(`/python-envs/${id}/packages/install/${encodeURIComponent(fileName)}`);
+  },
+
+  // 获取已上传包列表
+  // GET /python-envs/{id}/packages/files
+  listUploadedPackageFiles(id: number): Promise<ApiResponse<any[]>> {
+    return http.get(`/python-envs/${id}/packages/files`);
+  },
+
+  // 删除包文件
+  // DELETE /python-envs/{id}/packages/files/{fileName}
+  deletePackageFile(id: number, fileName: string): Promise<ApiResponse<void>> {
+    return http.delete(`/python-envs/${id}/packages/files/${encodeURIComponent(fileName)}`);
+  },
 };
