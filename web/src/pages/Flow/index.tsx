@@ -33,11 +33,14 @@ const Flow: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<BlockNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [selectedNode, setSelectedNode] = useState<Node<BlockNodeData> | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [copiedNode, setCopiedNode] = useState<Node<BlockNodeData> | null>(null);
   const [loading, setLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
+
+  // 本地输入值缓存，用于输入时避免频繁更新节点状态
+  const [inputValuesCache, setInputValuesCache] = useState<Record<string, Record<string, any>>>({});
 
   // 左侧面板相关状态
   const [leftPanelTab, setLeftPanelTab] = useState<'blocks' | 'workflows'>('blocks');
@@ -85,6 +88,8 @@ const Flow: React.FC = () => {
         return;
       }
 
+      const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
+
       // Delete 或 Ctrl+X: 删除选中的节点或边
       if (event.key === 'Delete' || ((event.ctrlKey || event.metaKey) && event.key === 'x')) {
         event.preventDefault();
@@ -98,7 +103,7 @@ const Flow: React.FC = () => {
           setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
           // 同时删除与该节点相关的所有连接
           setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
-          setSelectedNode(null);
+          setSelectedNodeId(null);
           if (event.key === 'Delete') {
             message.success('已删除节点');
           }
@@ -132,7 +137,7 @@ const Flow: React.FC = () => {
             },
           };
           setNodes((nds) => nds.concat(newNode));
-          setSelectedNode(newNode);
+          setSelectedNodeId(newNode.id);
           message.success('已粘贴节点');
         }
       }
@@ -143,7 +148,7 @@ const Flow: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedNode, selectedEdge, copiedNode, setNodes, setEdges]);
+  }, [selectedNodeId, selectedEdge, copiedNode, nodes, setNodes, setEdges]);
 
   const loadBlocks = async () => {
     try {
@@ -279,21 +284,24 @@ const Flow: React.FC = () => {
 
   // 选中节点
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    setSelectedNode(node as Node<BlockNodeData>);
+    setSelectedNodeId(node.id);
     setSelectedEdge(null); // 清除边的选择
   }, []);
 
   // 选中边
   const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
     setSelectedEdge(edge);
-    setSelectedNode(null); // 清除节点的选择
+    setSelectedNodeId(null); // 清除节点的选择
   }, []);
 
   // 点击画布空白处清除选择
   const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
+    setSelectedNodeId(null);
     setSelectedEdge(null);
   }, []);
+
+  // 获取当前选中的节点
+  const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
 
   // 检测输入是否已连接
   const isInputConnected = useCallback((nodeId: string, inputName: string) => {
@@ -302,8 +310,22 @@ const Flow: React.FC = () => {
     );
   }, [edges]);
 
-  // 更新节点的输入值
-  const updateNodeInputValue = useCallback((nodeId: string, inputName: string, value: any) => {
+  // 更新输入值缓存（输入时）
+  const updateInputCache = useCallback((nodeId: string, inputName: string, value: any) => {
+    setInputValuesCache(prev => ({
+      ...prev,
+      [nodeId]: {
+        ...(prev[nodeId] || {}),
+        [inputName]: value,
+      },
+    }));
+  }, []);
+
+  // 提交输入值到节点（失焦时）
+  const commitInputValue = useCallback((nodeId: string, inputName: string) => {
+    const cachedValue = inputValuesCache[nodeId]?.[inputName];
+    if (cachedValue === undefined) return;
+
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
@@ -313,7 +335,7 @@ const Flow: React.FC = () => {
               ...node.data,
               inputValues: {
                 ...(node.data.inputValues || {}),
-                [inputName]: value,
+                [inputName]: cachedValue,
               },
             },
           };
@@ -321,7 +343,14 @@ const Flow: React.FC = () => {
         return node;
       })
     );
-  }, [setNodes]);
+  }, [inputValuesCache, setNodes]);
+
+  // 获取输入值（优先从缓存，其次从节点）
+  const getInputValue = useCallback((nodeId: string, inputName: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    const cachedValue = inputValuesCache[nodeId]?.[inputName];
+    return cachedValue !== undefined ? cachedValue : (node?.data.inputValues?.[inputName] || '');
+  }, [nodes, inputValuesCache]);
 
   // 根据分类code获取分类名称
   const getCategoryName = (categoryCode: string | undefined) => {
@@ -374,7 +403,7 @@ const Flow: React.FC = () => {
     setNodes([]);
     setEdges([]);
     setCurrentWorkflow(null);
-    setSelectedNode(null);
+    setSelectedNodeId(null);
     message.success('已创建新流程');
   };
 
@@ -987,7 +1016,7 @@ const Flow: React.FC = () => {
                     <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
                       {Object.entries(selectedNode.data.inputs).map(([name, param]: [string, any]) => {
                         const connected = isInputConnected(selectedNode.id, name);
-                        const currentValue = selectedNode.data.inputValues?.[name] || '';
+                        const currentValue = getInputValue(selectedNode.id, name);
 
                         return (
                           <div key={name} style={{ marginBottom: '12px' }}>
@@ -1018,7 +1047,10 @@ const Flow: React.FC = () => {
                                   <Select
                                     size="small"
                                     value={currentValue}
-                                    onChange={(value) => updateNodeInputValue(selectedNode.id, name, value)}
+                                    onChange={(value) => {
+                                      updateInputCache(selectedNode.id, name, value);
+                                      commitInputValue(selectedNode.id, name);
+                                    }}
                                     style={{ width: '100%' }}
                                     placeholder="选择布尔值"
                                   >
@@ -1030,7 +1062,8 @@ const Flow: React.FC = () => {
                                     size="small"
                                     type="number"
                                     value={currentValue}
-                                    onChange={(e) => updateNodeInputValue(selectedNode.id, name, e.target.value ? Number(e.target.value) : '')}
+                                    onChange={(e) => updateInputCache(selectedNode.id, name, e.target.value ? Number(e.target.value) : '')}
+                                    onBlur={() => commitInputValue(selectedNode.id, name)}
                                     placeholder={`请输入${name}`}
                                     style={{ fontSize: '12px' }}
                                   />
@@ -1039,13 +1072,16 @@ const Flow: React.FC = () => {
                                     size="small"
                                     value={typeof currentValue === 'object' ? JSON.stringify(currentValue, null, 2) : currentValue}
                                     onChange={(e) => {
+                                      updateInputCache(selectedNode.id, name, e.target.value);
+                                    }}
+                                    onBlur={() => {
                                       try {
-                                        const parsed = JSON.parse(e.target.value);
-                                        updateNodeInputValue(selectedNode.id, name, parsed);
+                                        const parsed = JSON.parse(getInputValue(selectedNode.id, name));
+                                        updateInputCache(selectedNode.id, name, parsed);
                                       } catch (err) {
-                                        // 如果不是有效JSON，暂时保存原始字符串
-                                        updateNodeInputValue(selectedNode.id, name, e.target.value);
+                                        // 保持字符串格式
                                       }
+                                      commitInputValue(selectedNode.id, name);
                                     }}
                                     placeholder={`请输入JSON格式的${param.type}`}
                                     rows={3}
@@ -1055,7 +1091,8 @@ const Flow: React.FC = () => {
                                   <Input
                                     size="small"
                                     value={currentValue}
-                                    onChange={(e) => updateNodeInputValue(selectedNode.id, name, e.target.value)}
+                                    onChange={(e) => updateInputCache(selectedNode.id, name, e.target.value)}
+                                    onBlur={() => commitInputValue(selectedNode.id, name)}
                                     placeholder={`请输入${name}`}
                                     style={{ fontSize: '12px' }}
                                   />
