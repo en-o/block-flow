@@ -1601,15 +1601,9 @@ outputs = {
                                   >
                                     前往Python环境管理
                                   </Button>
-                                  <Button
-                                    size="small"
-                                    style={{ marginLeft: 8 }}
-                                    onClick={() => {
-                                      message.info('请在块编辑页面修改"Python环境"字段');
-                                    }}
-                                  >
-                                    更换环境
-                                  </Button>
+                                  <span style={{ marginLeft: 12, color: '#8c8c8c', fontSize: '12px' }}>
+                                    或在块信息的"Python环境"字段中更换环境
+                                  </span>
                                 </div>
                               )}
                             </div>
