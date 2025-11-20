@@ -14,6 +14,7 @@ import {
   Modal,
   Tooltip,
   Tag,
+  Alert,
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
@@ -1575,30 +1576,109 @@ outputs = {
               )}
 
               {/* 错误信息 */}
-              {!testResult.success && (testResult.error || testResult.errorMessage) && (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#ff4d4f' }}>
-                    ❌ 错误信息：
-                  </div>
-                  <pre
-                    style={{
-                      background: '#fff',
-                      border: '1px solid #ffccc7',
-                      borderRadius: 4,
-                      padding: 12,
-                      margin: 0,
-                      maxHeight: 200,
-                      overflowY: 'auto',
-                      fontSize: 13,
-                      fontFamily: 'Consolas, Monaco, monospace',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      color: '#ff4d4f',
-                    }}
-                  >
-                    {testResult.errorMessage || testResult.error}
-                  </pre>
-                </div>
+              {!testResult.success && (
+                <>
+                  {/* 友好错误提示 */}
+                  {testResult.friendlyMessage && (
+                    <div style={{ marginTop: 12 }}>
+                      <Alert
+                        message={testResult.friendlyMessage}
+                        description={
+                          testResult.suggestion ? (
+                            <div style={{ marginTop: 8 }}>
+                              <div style={{ fontWeight: 'bold', marginBottom: 4 }}>💡 解决建议：</div>
+                              <div style={{ whiteSpace: 'pre-wrap' }}>{testResult.suggestion}</div>
+
+                              {/* 如果是依赖缺失，提供快捷操作按钮 */}
+                              {testResult.errorType === 'MODULE_NOT_FOUND' && testResult.pythonEnvId && (
+                                <div style={{ marginTop: 12 }}>
+                                  <Button
+                                    type="primary"
+                                    size="small"
+                                    onClick={() => {
+                                      window.open(`/manage?tab=python&envId=${testResult.pythonEnvId}`, '_blank');
+                                    }}
+                                  >
+                                    前往Python环境管理
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    style={{ marginLeft: 8 }}
+                                    onClick={() => {
+                                      message.info('请在块编辑页面修改"Python环境"字段');
+                                    }}
+                                  >
+                                    更换环境
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ) : null
+                        }
+                        type="error"
+                        showIcon
+                      />
+                    </div>
+                  )}
+
+                  {/* 原始错误信息（可折叠） */}
+                  {(testResult.error || testResult.errorMessage) && (
+                    <div style={{ marginTop: 12 }}>
+                      <details>
+                        <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: '#ff4d4f', marginBottom: 8 }}>
+                          🔍 查看详细错误信息
+                        </summary>
+                        <pre
+                          style={{
+                            background: '#fff',
+                            border: '1px solid #ffccc7',
+                            borderRadius: 4,
+                            padding: 12,
+                            margin: 0,
+                            maxHeight: 200,
+                            overflowY: 'auto',
+                            fontSize: 13,
+                            fontFamily: 'Consolas, Monaco, monospace',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            color: '#ff4d4f',
+                          }}
+                        >
+                          {testResult.errorMessage || testResult.error}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+
+                  {/* stdout输出（错误时） */}
+                  {testResult.stdout && (
+                    <div style={{ marginTop: 12 }}>
+                      <details>
+                        <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: '#fa8c16', marginBottom: 8 }}>
+                          📋 查看标准输出 (stdout)
+                        </summary>
+                        <pre
+                          style={{
+                            background: '#fff',
+                            border: '1px solid #ffd591',
+                            borderRadius: 4,
+                            padding: 12,
+                            margin: 0,
+                            maxHeight: 200,
+                            overflowY: 'auto',
+                            fontSize: 12,
+                            fontFamily: 'Consolas, Monaco, monospace',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            color: '#fa8c16',
+                          }}
+                        >
+                          {testResult.stdout}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* 错误时的控制台输出 */}
@@ -1631,27 +1711,29 @@ outputs = {
               {/* 标准错误输出 */}
               {testResult.stderr && (
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#fa8c16' }}>
-                    ⚠️ 错误输出 (stderr)：
-                  </div>
-                  <pre
-                    style={{
-                      background: '#fff',
-                      border: '1px solid #ffd591',
-                      borderRadius: 4,
-                      padding: 12,
-                      margin: 0,
-                      maxHeight: 200,
-                      overflowY: 'auto',
-                      fontSize: 12,
-                      fontFamily: 'Consolas, Monaco, monospace',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      color: '#fa8c16',
-                    }}
-                  >
-                    {testResult.stderr}
-                  </pre>
+                  <details>
+                    <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: '#fa8c16', marginBottom: 8 }}>
+                      ⚠️ 查看错误输出 (stderr)
+                    </summary>
+                    <pre
+                      style={{
+                        background: '#fff',
+                        border: '1px solid #ffd591',
+                        borderRadius: 4,
+                        padding: 12,
+                        margin: 0,
+                        maxHeight: 200,
+                        overflowY: 'auto',
+                        fontSize: 12,
+                        fontFamily: 'Consolas, Monaco, monospace',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        color: '#fa8c16',
+                      }}
+                    >
+                      {testResult.stderr}
+                    </pre>
+                  </details>
                 </div>
               )}
 
