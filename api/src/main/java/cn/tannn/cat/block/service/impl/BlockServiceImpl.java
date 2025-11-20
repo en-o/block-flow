@@ -242,6 +242,23 @@ public class BlockServiceImpl implements BlockService {
                 }
                 response.put("exitCode", result.getExitCode());
 
+                // 添加友好的错误提示信息
+                if (result.getErrorType() != null) {
+                    response.put("errorType", result.getErrorType());
+                }
+                if (result.getMissingModule() != null) {
+                    response.put("missingModule", result.getMissingModule());
+                }
+                if (result.getFriendlyMessage() != null) {
+                    response.put("friendlyMessage", result.getFriendlyMessage());
+                }
+                if (result.getSuggestion() != null) {
+                    response.put("suggestion", result.getSuggestion());
+                }
+                if (result.getPythonEnvId() != null) {
+                    response.put("pythonEnvId", result.getPythonEnvId());
+                }
+
                 log.error("块测试失败: {}, 错误: {}", block.getName(), result.getErrorMessage());
             }
 

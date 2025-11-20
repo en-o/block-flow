@@ -173,6 +173,8 @@ public class PythonScriptExecutor {
                 result.setOutput(stdout.toString());
                 result.setError(stderr.toString());
                 result.setExecutionTime(endTime - startTime);
+                // 解析错误并生成友好提示
+                parseError(result, pythonEnvId);
                 log.error("脚本执行超时");
                 return result;
             }
@@ -202,12 +204,17 @@ public class PythonScriptExecutor {
             } else {
                 result.setSuccess(false);
                 result.setErrorMessage("脚本执行失败，退出代码: " + exitCode);
+                // 解析错误并生成友好提示
+                parseError(result, pythonEnvId);
                 log.error("脚本执行失败，退出代码: {}, stdout: {}, stderr: {}", exitCode, stdout, stderr);
             }
 
         } catch (Exception e) {
             result.setSuccess(false);
             result.setErrorMessage("脚本执行异常: " + e.getMessage());
+            result.setError(e.getMessage());
+            // 解析错误并生成友好提示
+            parseError(result, pythonEnvId);
             log.error("脚本执行异常", e);
         } finally {
             // 清理资源
@@ -306,6 +313,86 @@ public class PythonScriptExecutor {
     }
 
     /**
+     * 解析错误并生成友好提示
+     */
+    private void parseError(ExecutionResult result, Integer pythonEnvId) {
+        result.setPythonEnvId(pythonEnvId);
+
+        String errorOutput = result.getOutput();
+        String stderrOutput = result.getError();
+
+        // 合并输出和错误输出进行分析
+        String fullError = (errorOutput != null ? errorOutput : "") + "\n" + (stderrOutput != null ? stderrOutput : "");
+
+        // 1. 检测模块缺失错误
+        if (fullError.contains("ModuleNotFoundError") || fullError.contains("No module named")) {
+            result.setErrorType(ErrorType.MODULE_NOT_FOUND);
+
+            // 提取缺失的模块名称
+            String missingModule = extractModuleName(fullError);
+            result.setMissingModule(missingModule);
+
+            if (missingModule != null) {
+                result.setFriendlyMessage("缺少Python依赖模块: " + missingModule);
+                result.setSuggestion(String.format(
+                        "请执行以下操作之一:\n" +
+                        "1. 前往【管理后台 > Python环境】，选择环境ID=%d，安装依赖包 '%s'\n" +
+                        "2. 或在【块管理】中修改此块，更换到已安装 '%s' 的Python环境",
+                        pythonEnvId != null ? pythonEnvId : 0, missingModule, missingModule
+                ));
+            } else {
+                result.setFriendlyMessage("缺少Python依赖模块");
+                result.setSuggestion("请前往【管理后台 > Python环境】检查并安装所需依赖");
+            }
+
+        // 2. 检测语法错误
+        } else if (fullError.contains("SyntaxError") || fullError.contains("IndentationError")) {
+            result.setErrorType(ErrorType.SYNTAX_ERROR);
+            result.setFriendlyMessage("Python脚本存在语法错误");
+            result.setSuggestion("请检查脚本语法，确保缩进和语句正确");
+
+        // 3. 检测超时
+        } else if (fullError.contains("执行超时")) {
+            result.setErrorType(ErrorType.TIMEOUT);
+            result.setFriendlyMessage("脚本执行超时");
+            result.setSuggestion("脚本执行时间过长，请优化脚本逻辑或增加超时时间");
+
+        // 4. 其他运行时错误
+        } else if (fullError.contains("Error") || fullError.contains("Exception")) {
+            result.setErrorType(ErrorType.RUNTIME_ERROR);
+            result.setFriendlyMessage("脚本执行时发生错误");
+            result.setSuggestion("请查看详细错误信息，检查脚本逻辑");
+
+        // 5. 未知错误
+        } else {
+            result.setErrorType(ErrorType.UNKNOWN);
+            result.setFriendlyMessage("脚本执行失败");
+            result.setSuggestion("请查看详细日志了解具体原因");
+        }
+    }
+
+    /**
+     * 从错误信息中提取缺失的模块名称
+     */
+    private String extractModuleName(String errorText) {
+        // 匹配 "No module named 'xxx'" 或 "No module named xxx"
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("No module named ['\"]?([a-zA-Z0-9_.-]+)['\"]?");
+        java.util.regex.Matcher matcher = pattern.matcher(errorText);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        // 匹配 "ModuleNotFoundError: No module named 'xxx'"
+        pattern = java.util.regex.Pattern.compile("ModuleNotFoundError:.*['\"]([a-zA-Z0-9_.-]+)['\"]");
+        matcher = pattern.matcher(errorText);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        return null;
+    }
+
+    /**
      * 执行结果
      */
     @Data
@@ -330,5 +417,31 @@ public class PythonScriptExecutor {
 
         /** 执行耗时（毫秒） */
         private long executionTime;
+
+        /** 错误类型（用于前端识别错误类别） */
+        private String errorType;
+
+        /** 缺失的模块名称（当errorType为MODULE_NOT_FOUND时） */
+        private String missingModule;
+
+        /** 友好的错误提示 */
+        private String friendlyMessage;
+
+        /** 解决建议 */
+        private String suggestion;
+
+        /** Python环境ID */
+        private Integer pythonEnvId;
+    }
+
+    /**
+     * 错误类型常量
+     */
+    public static class ErrorType {
+        public static final String MODULE_NOT_FOUND = "MODULE_NOT_FOUND";
+        public static final String SYNTAX_ERROR = "SYNTAX_ERROR";
+        public static final String RUNTIME_ERROR = "RUNTIME_ERROR";
+        public static final String TIMEOUT = "TIMEOUT";
+        public static final String UNKNOWN = "UNKNOWN";
     }
 }
