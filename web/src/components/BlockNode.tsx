@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Badge, Tooltip, Tag } from 'antd';
+import { Handle, Position } from '@xyflow/react';
+import { Tooltip, Tag } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 
 export interface BlockNodeData {
@@ -12,10 +12,11 @@ export interface BlockNodeData {
   inputs?: Record<string, any>;
   outputs?: Record<string, any>;
   icon?: string;
+  inputValues?: Record<string, any>; // 存储每个输入参数的配置值（用于未连接的输入）
   [key: string]: any; // 索引签名，允许ReactFlow兼容
 }
 
-const BlockNode: React.FC<NodeProps<BlockNodeData>> = ({ data, selected }) => {
+const BlockNode: React.FC<any> = ({ data, selected }) => {
   const { blockName, blockTypeCode, color = '#5C7CFA', description, icon, inputs = {}, outputs = {} } = data;
 
   // 将 inputs 和 outputs 转换为数组

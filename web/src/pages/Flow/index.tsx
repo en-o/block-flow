@@ -267,6 +267,7 @@ const Flow: React.FC = () => {
             inputs: block.inputs || {},
             outputs: block.outputs || {},
             icon: block.icon,
+            inputValues: {}, // 初始化输入值对象
           },
         };
 
@@ -293,6 +294,34 @@ const Flow: React.FC = () => {
     setSelectedNode(null);
     setSelectedEdge(null);
   }, []);
+
+  // 检测输入是否已连接
+  const isInputConnected = useCallback((nodeId: string, inputName: string) => {
+    return edges.some(edge =>
+      edge.target === nodeId && edge.targetHandle === `input-${inputName}`
+    );
+  }, [edges]);
+
+  // 更新节点的输入值
+  const updateNodeInputValue = useCallback((nodeId: string, inputName: string, value: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              inputValues: {
+                ...(node.data.inputValues || {}),
+                [inputName]: value,
+              },
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
 
   // 根据分类code获取分类名称
   const getCategoryName = (categoryCode: string | undefined) => {
@@ -955,12 +984,87 @@ const Flow: React.FC = () => {
                 {/* 显示输入参数 */}
                 {selectedNode.data.inputs && Object.keys(selectedNode.data.inputs).length > 0 && (
                   <Form.Item label="输入参数">
-                    <div style={{ background: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-                      {Object.entries(selectedNode.data.inputs).map(([name, param]: [string, any]) => (
-                        <div key={name} style={{ marginBottom: '4px', fontSize: '12px' }}>
-                          <strong>{name}</strong>: {param.type} {param.description && `- ${param.description}`}
-                        </div>
-                      ))}
+                    <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
+                      {Object.entries(selectedNode.data.inputs).map(([name, param]: [string, any]) => {
+                        const connected = isInputConnected(selectedNode.id, name);
+                        const currentValue = selectedNode.data.inputValues?.[name] || '';
+
+                        return (
+                          <div key={name} style={{ marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <strong style={{ fontSize: '12px' }}>{name}</strong>
+                              <span style={{ fontSize: '11px', color: '#8c8c8c' }}>
+                                {param.type}
+                              </span>
+                              {connected ? (
+                                <span style={{ fontSize: '11px', color: '#52c41a', background: '#f6ffed', padding: '0 6px', borderRadius: '2px' }}>
+                                  已连接
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '11px', color: '#faad14', background: '#fffbe6', padding: '0 6px', borderRadius: '2px' }}>
+                                  未连接
+                                </span>
+                              )}
+                            </div>
+                            {param.description && (
+                              <div style={{ fontSize: '11px', color: '#8c8c8c', marginBottom: '4px' }}>
+                                {param.description}
+                              </div>
+                            )}
+                            {/* 未连接时显示输入框 */}
+                            {!connected && (
+                              <div>
+                                {param.type === 'boolean' ? (
+                                  <Select
+                                    size="small"
+                                    value={currentValue}
+                                    onChange={(value) => updateNodeInputValue(selectedNode.id, name, value)}
+                                    style={{ width: '100%' }}
+                                    placeholder="选择布尔值"
+                                  >
+                                    <Select.Option value={true}>true</Select.Option>
+                                    <Select.Option value={false}>false</Select.Option>
+                                  </Select>
+                                ) : param.type === 'number' ? (
+                                  <Input
+                                    size="small"
+                                    type="number"
+                                    value={currentValue}
+                                    onChange={(e) => updateNodeInputValue(selectedNode.id, name, e.target.value ? Number(e.target.value) : '')}
+                                    placeholder={`请输入${name}`}
+                                    style={{ fontSize: '12px' }}
+                                  />
+                                ) : param.type === 'object' || param.type === 'array' ? (
+                                  <Input.TextArea
+                                    size="small"
+                                    value={typeof currentValue === 'object' ? JSON.stringify(currentValue, null, 2) : currentValue}
+                                    onChange={(e) => {
+                                      try {
+                                        const parsed = JSON.parse(e.target.value);
+                                        updateNodeInputValue(selectedNode.id, name, parsed);
+                                      } catch (err) {
+                                        // 如果不是有效JSON，暂时保存原始字符串
+                                        updateNodeInputValue(selectedNode.id, name, e.target.value);
+                                      }
+                                    }}
+                                    placeholder={`请输入JSON格式的${param.type}`}
+                                    rows={3}
+                                    style={{ fontSize: '12px', fontFamily: 'monospace' }}
+                                  />
+                                ) : (
+                                  <Input
+                                    size="small"
+                                    value={currentValue}
+                                    onChange={(e) => updateNodeInputValue(selectedNode.id, name, e.target.value)}
+                                    placeholder={`请输入${name}`}
+                                    style={{ fontSize: '12px' }}
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </Form.Item>
                 )}
