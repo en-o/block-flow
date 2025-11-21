@@ -67,7 +67,7 @@ vim .env
 ### 运行
 > dockerhub:  https://hub.docker.com/r/tannnn/block-flow
 
-docker run
+运行之后需要自己将数据初始化进去[doc](api/doc)
 ```yaml
 docker run -d -p 1250:1250 --name block-flow tannnn/block-flow:latest
 ```
