@@ -1,0 +1,31 @@
+# H2 数据库配置
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    # 文件模式：数据保存在文件中，重启后数据不丢失
+    url: jdbc:h2:file:${H2_DB_PATH:./data/block-flow};MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    # 内存模式（可选）：数据保存在内存中，重启后数据丢失
+    # url: jdbc:h2:mem:block-flow;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: ${H2_USERNAME:sa}
+    password: ${H2_PASSWORD:sa$121}
+    hikari:
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 10
+      pool-name: ${spring.application.name}-h2
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    database: h2
+    # 显示SQL语句（调试用）
+    show-sql: false
+  # H2 控制台配置（可选）
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+      settings:
+        web-allow-others: ${H2_CONSOLE_ALLOW_OTHERS:false}
