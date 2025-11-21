@@ -3,11 +3,11 @@ import { authUtils } from '../utils/auth';
 import { getGlobalMessage } from '../utils/messageInstance';
 
 // API基础URL
-// 开发环境：使用相对路径，通过 Vite proxy 代理到后端
-// 生产环境：使用环境变量配置的完整URL
+// 开发环境：使用 /api 前缀，通过 Vite proxy 代理到后端
+// 生产环境（merged模式）：VITE_API_BASE_URL 为空时直接请求后端路径
 const BASE_URL = import.meta.env.MODE === 'development'
   ? '/api'
-  : (import.meta.env.VITE_API_BASE_URL || '/api');
+  : (import.meta.env.VITE_API_BASE_URL ?? '');
 
 // 创建axios实例
 const request: AxiosInstance = axios.create({

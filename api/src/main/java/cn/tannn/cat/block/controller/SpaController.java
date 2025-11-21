@@ -17,9 +17,11 @@ public class SpaController {
      * 处理前端路由
      * 将所有前端路由请求转发到 index.html
      * Spring Boot 会自动从 static 目录查找
+     * 此处的 login是get表示这个controller不会跟LoginController中的post接口冲突的
      */
     @ApiMapping(value = {
             "/",
+            "/login",
             "/manage",
             "/flow",
             "/manage/**"
