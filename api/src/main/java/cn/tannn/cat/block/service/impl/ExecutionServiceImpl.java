@@ -14,6 +14,7 @@ import cn.tannn.cat.block.repository.ExecutionLogRepository;
 import cn.tannn.cat.block.repository.WorkflowRepository;
 import cn.tannn.cat.block.service.ExecutionService;
 import cn.tannn.cat.block.service.PythonScriptExecutor;
+import cn.tannn.cat.block.util.ContextVariableUtil;
 import cn.tannn.jdevelops.exception.built.BusinessException;
 import cn.tannn.jdevelops.result.exception.ServiceException;
 import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
@@ -237,7 +238,7 @@ public class ExecutionServiceImpl implements ExecutionService {
                 // 4. 注入上下文变量（仅注入脚本中实际使用的上下文变量）
                 if (script != null && script.contains("ctx.")) {
                     // 解析脚本中使用的上下文变量 key
-                    List<String> contextKeys = extractContextKeys(script);
+                    List<String> contextKeys = ContextVariableUtil.extractContextKeys(script);
                     if (!contextKeys.isEmpty()) {
                         // 根据 key 查询对应的上下文变量
                         List<ContextVariable> contextVariables = contextVariableRepository.findByVarKeyIn(contextKeys);
@@ -249,7 +250,7 @@ public class ExecutionServiceImpl implements ExecutionService {
                             logsBuilder.append(String.format("  注入上下文变量: %d 个 %s\n",
                                 contextVariables.size(),
                                 contextVariables.stream()
-                                    .map(cv -> cv.getVarKey())
+                                    .map(ContextVariable::getVarKey)
                                     .collect(Collectors.joining(", ", "[", "]"))));
                         }
                     }
@@ -378,35 +379,6 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         // 如果有节点未被访问，说明存在循环
         return result.size() == nodes.size() ? result : null;
-    }
-
-    /**
-     * 从脚本中提取上下文变量的 key
-     * 匹配 inputs.get('ctx.XXX') 或 inputs.get("ctx.XXX") 格式
-     *
-     * @param script Python脚本
-     * @return 上下文变量 key 列表
-     */
-    private List<String> extractContextKeys(String script) {
-        List<String> keys = new ArrayList<>();
-        if (script == null || script.isEmpty()) {
-            return keys;
-        }
-
-        // 匹配 inputs.get('ctx.XXX') 或 inputs.get("ctx.XXX")
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-            "inputs\\.get\\(['\"]ctx\\.([A-Za-z0-9_]+)['\"]"
-        );
-        java.util.regex.Matcher matcher = pattern.matcher(script);
-
-        while (matcher.find()) {
-            String key = matcher.group(1); // 提取 XXX 部分
-            if (!keys.contains(key)) {
-                keys.add(key);
-            }
-        }
-
-        return keys;
     }
 
     @Override
