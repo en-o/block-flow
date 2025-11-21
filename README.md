@@ -20,9 +20,10 @@ docker run -d -p 1250:1250 --name block-flow  -e PYTHON_ENV_ROOT_PATH=/app/pytho
 
 # 第一次使用
 1. 初始化数据 [doc](api/doc), 默认库名：db_block_flow
-2. 进入后台管理创建python环境
- - windows 下载: xx-embed-amd64.zip
- - docker(linux) 下载：xx.tgz
+2. 进入后台管理创建python环境 （https://www.python.org/ftp/python/3.12.5/）
+ - windows 下载: xx-embed-amd64.zip （python-3.12.5-embed-amd64.zip）
+ - docker(linux) 下载：xx.tgz （Python-3.12.5.tgz）
+ - 安装 pip https://pypi.org/project/pip/#files （openpyxl-3.1.5-py2.py3-none-any.whl）
 3. 创建上下文变量（非必须
 4. 创建块
 5. 进入流程编排测试流程
