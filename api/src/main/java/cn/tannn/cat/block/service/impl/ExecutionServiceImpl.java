@@ -3,11 +3,13 @@ package cn.tannn.cat.block.service.impl;
 import cn.tannn.cat.block.controller.dto.execution.ExecutionLogPage;
 import cn.tannn.cat.block.controller.dto.workflow.WorkflowExecuteDTO;
 import cn.tannn.cat.block.entity.Block;
+import cn.tannn.cat.block.entity.ContextVariable;
 import cn.tannn.cat.block.entity.ExecutionLog;
 import cn.tannn.cat.block.entity.Workflow;
 import cn.tannn.cat.block.enums.ExecutionStatus;
 import cn.tannn.cat.block.enums.TriggerType;
 import cn.tannn.cat.block.repository.BlockRepository;
+import cn.tannn.cat.block.repository.ContextVariableRepository;
 import cn.tannn.cat.block.repository.ExecutionLogRepository;
 import cn.tannn.cat.block.repository.WorkflowRepository;
 import cn.tannn.cat.block.service.ExecutionService;
@@ -43,6 +45,7 @@ public class ExecutionServiceImpl implements ExecutionService {
     private final ExecutionLogRepository executionLogRepository;
     private final WorkflowRepository workflowRepository;
     private final BlockRepository blockRepository;
+    private final ContextVariableRepository contextVariableRepository;
     private final PythonScriptExecutor pythonScriptExecutor;
 
     @Override
@@ -229,6 +232,16 @@ public class ExecutionServiceImpl implements ExecutionService {
                 // 3. 添加全局输入参数
                 if (inputParams != null) {
                     blockInputs.putAll(inputParams);
+                }
+
+                // 4. 注入上下文变量（ctx.变量名）
+                List<ContextVariable> contextVariables = contextVariableRepository.findAll();
+                for (ContextVariable cv : contextVariables) {
+                    String key = "ctx." + cv.getVarKey();
+                    blockInputs.put(key, cv.getVarValue());
+                }
+                if (!contextVariables.isEmpty()) {
+                    logsBuilder.append(String.format("  注入上下文变量: %d 个\n", contextVariables.size()));
                 }
 
                 logsBuilder.append(String.format("  输入参数: %s\n", blockInputs));
