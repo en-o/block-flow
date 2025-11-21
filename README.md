@@ -19,7 +19,7 @@ docker-build.bat  [版本号]        # Windows
 ### 分步构建
 1. 本地打包 `./build-local.sh`
 
-2. Docker 镜像构建 `docker build -t tannnn/oasis:latest -f api/Dockerfile .`
+2. Docker 镜像构建 `docker build -t tannnn/block-flow:latest -f api/Dockerfile .`
 
 
 
