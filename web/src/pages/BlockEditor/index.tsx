@@ -134,9 +134,184 @@ outputs = {
   const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
   const [helpModalVisible, setHelpModalVisible] = useState(false);
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
+  // 使用 ref 存储最新的参数，解决闭包问题
+  const inputParamsRef = useRef<Array<{ name: string; type: string; defaultValue: string; description: string }>>([]);
+  const outputParamsRef = useRef<Array<{ name: string; type: string; description: string }>>([]);
+
+  // 同步 inputParams 到 ref
+  useEffect(() => {
+    inputParamsRef.current = inputParams;
+  }, [inputParams]);
+
+  // 同步 outputParams 到 ref
+  useEffect(() => {
+    outputParamsRef.current = outputParams;
+  }, [outputParams]);
 
   // 保存切换到可视化模式前的原始代码（用于恢复）
   const [originalScriptCode, setOriginalScriptCode] = useState<string>('');
+
+  // Monaco Editor 挂载时的处理函数
+  const handleEditorDidMount = (editor: any, monaco: any) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    // 注册代码提示提供器
+    monaco.languages.registerCompletionItemProvider('python', {
+      triggerCharacters: ['(', '.', "'", '"', '_'],  // 触发字符
+      provideCompletionItems: (model: any, position: any) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+
+        const line = model.getLineContent(position.lineNumber);
+        const textBeforeCursor = line.substring(0, position.column - 1);
+
+        const suggestions: any[] = [];
+
+        // 1. 检测 inputs.get( - 提示输入参数
+        if (textBeforeCursor.endsWith('inputs.get(')) {
+          inputParamsRef.current.forEach((param) => {
+            suggestions.push({
+              label: `'${param.name}'`,
+              kind: monaco.languages.CompletionItemKind.Property,
+              insertText: `'${param.name}', ${getDefaultValueForType(param.type, param.defaultValue)}`,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: `输入参数 (${param.type})`,
+              documentation: param.description || `${param.name} - ${param.type}类型`,
+              range: range,
+            });
+          });
+        }
+
+        // 2. 检测 outputs = { 或 outputs[""] - 提示输出参数
+        if (textBeforeCursor.match(/outputs\s*=\s*\{/) || textBeforeCursor.match(/outputs\[['"]$/)) {
+          outputParamsRef.current.forEach((param) => {
+            suggestions.push({
+              label: param.name,
+              kind: monaco.languages.CompletionItemKind.Property,
+              insertText: `"${param.name}": `,
+              detail: `输出参数 (${param.type})`,
+              documentation: param.description || `${param.name} - ${param.type}类型`,
+              range: range,
+            });
+          });
+        }
+
+        // 3. 检测 inputs.get('ctx. - 提示上下文变量
+        if (textBeforeCursor.match(/inputs\.get\(\s*['"]ctx\.$/)) {
+          // 这里可以添加从后端获取的上下文变量列表
+          // 目前提供常见的上下文变量示例
+          const contextVarExamples = [
+            { name: 'DB_HOST', type: 'string', desc: '数据库主机' },
+            { name: 'DB_PORT', type: 'number', desc: '数据库端口' },
+            { name: 'API_KEY', type: 'string', desc: 'API密钥' },
+            { name: 'USER_NAME', type: 'string', desc: '用户名' },
+          ];
+
+          contextVarExamples.forEach((ctx) => {
+            suggestions.push({
+              label: `ctx.${ctx.name}`,
+              kind: monaco.languages.CompletionItemKind.Variable,
+              insertText: `ctx.${ctx.name}', ${ctx.type === 'number' ? '0' : "''"}`,
+              detail: `上下文变量 (${ctx.type})`,
+              documentation: ctx.desc,
+              range: range,
+            });
+          });
+        }
+
+        // 4. 提供安全转换函数的代码片段
+        if (textBeforeCursor.match(/\bsafe_\w*$/)) {
+          suggestions.push(
+            {
+              label: 'safe_int',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'safe_int(inputs.get(\'${1:param_name}\'), ${2:0})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: '安全转换为整数',
+              documentation: '安全地将输入转换为整数，处理空值和无效值',
+              range: range,
+            },
+            {
+              label: 'safe_float',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'safe_float(inputs.get(\'${1:param_name}\'), ${2:0.0})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: '安全转换为浮点数',
+              documentation: '安全地将输入转换为浮点数，处理空值和无效值',
+              range: range,
+            },
+            {
+              label: 'safe_bool',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'safe_bool(inputs.get(\'${1:param_name}\'), ${2:False})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: '安全转换为布尔值',
+              documentation: '安全地将输入转换为布尔值',
+              range: range,
+            }
+          );
+        }
+
+        // 5. 提供 inputs. 的智能提示
+        if (textBeforeCursor.endsWith('inputs.')) {
+          suggestions.push({
+            label: 'get',
+            kind: monaco.languages.CompletionItemKind.Method,
+            insertText: 'get(\'${1:param_name}\', ${2:\'\'})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            detail: '获取输入参数',
+            documentation: '从inputs字典中获取参数值，支持默认值',
+            range: range,
+          });
+        }
+
+        // 6. 提供 outputs 的智能提示 - 快速创建输出字典
+        if (word.word === 'outputs' || textBeforeCursor.endsWith('output')) {
+          const outputSnippet = outputParamsRef.current.length > 0
+            ? `outputs = {\n\t${outputParamsRef.current.map((p, i) => `"${p.name}": \${${i + 1}:value}`).join(',\n\t')}\n}`
+            : 'outputs = {\n\t"success": ${1:True},\n\t"${2:result}": ${3:None}\n}';
+
+          suggestions.push({
+            label: 'outputs (完整)',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: outputSnippet,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            detail: '输出字典（根据配置的输出参数生成）',
+            documentation: '自动生成包含所有配置的输出参数的outputs字典',
+            range: range,
+          });
+        }
+
+        return { suggestions };
+      },
+    });
+  };
+
+  // 根据参数类型返回合适的默认值
+  const getDefaultValueForType = (type: string, defaultValue: string) => {
+    if (defaultValue) {
+      return type === 'string' ? `'${defaultValue}'` : defaultValue;
+    }
+    switch (type) {
+      case 'number':
+        return '0';
+      case 'boolean':
+        return 'False';
+      case 'object':
+        return '{}';
+      default:
+        return "''";
+    }
+  };
+
 
   // 加载块类型和Python环境
   useEffect(() => {
@@ -1374,11 +1549,25 @@ outputs = {
                   theme="vs-dark"
                   value={scriptCode}
                   onChange={(value) => setScriptCode(value || '')}
+                  onMount={handleEditorDidMount}
                   options={{
                     minimap: { enabled: true },
                     fontSize: 14,
                     wordWrap: 'on',
                     automaticLayout: true,
+                    suggestOnTriggerCharacters: true,
+                    quickSuggestions: {
+                      other: true,
+                      comments: false,
+                      strings: true,
+                    },
+                    parameterHints: {
+                      enabled: true,
+                    },
+                    suggest: {
+                      showWords: false,
+                      showSnippets: true,
+                    },
                   }}
                 />
               </div>
@@ -1747,7 +1936,7 @@ outputs = {
 
       {/* 类型转换规则帮助 Modal */}
       <Modal
-        title="Python 参数类型转换规则"
+        title="Python 参数类型转换规则与代码提示"
         open={helpModalVisible}
         onCancel={() => setHelpModalVisible(false)}
         width={800}
@@ -1758,6 +1947,48 @@ outputs = {
         ]}
       >
         <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <h3>💡 智能代码提示功能</h3>
+          <Card size="small" style={{ marginBottom: 16, background: '#e6f7ff', borderColor: '#91d5ff' }}>
+            <strong>编辑器已启用智能代码提示！</strong>
+            <br />
+            <br />
+            <strong>1. 输入参数提示</strong>
+            <br />
+            • 输入 <code>inputs.get(</code> 后按 <code>Ctrl+Space</code> 会自动提示已配置的输入参数
+            <br />
+            • 选择参数后会自动填充参数名和默认值
+            <br />
+            <br />
+            <strong>2. 输出参数提示</strong>
+            <br />
+            • 输入 <code>outputs = {`{`}</code> 后会自动提示已配置的输出参数
+            <br />
+            • 输入 <code>output</code> 并按 <code>Ctrl+Space</code> 可快速生成完整的 outputs 字典
+            <br />
+            <br />
+            <strong>3. 上下文变量提示</strong>
+            <br />
+            • 输入 <code>inputs.get('ctx.</code> 后会提示可用的上下文变量
+            <br />
+            <br />
+            <strong>4. 安全转换函数</strong>
+            <br />
+            • 输入 <code>safe_</code> 后会提示 safe_int, safe_float, safe_bool 函数
+            <br />
+            • 选择后会自动生成函数调用模板
+            <br />
+            <br />
+            <strong>快捷键：</strong>
+            <br />
+            • <code>Ctrl + Space</code> - 手动触发代码提示
+            <br />
+            • <code>Tab</code> 或 <code>Enter</code> - 选择提示项
+            <br />
+            • <code>Esc</code> - 关闭提示面板
+          </Card>
+
+          <Divider />
+
           <h3>⚠️ 重要提示</h3>
           <p>JSON传输时，所有参数都可能是字符串类型。即使前端传入数字，后端序列化后Python读取时也可能是字符串。</p>
 
