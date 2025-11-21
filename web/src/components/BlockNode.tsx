@@ -13,6 +13,12 @@ export interface BlockNodeData {
   outputs?: Record<string, any>;
   icon?: string;
   inputValues?: Record<string, any>; // 存储每个输入参数的配置值（用于未连接的输入）
+  blockSnapshot?: {
+    script: string;
+    pythonEnvId?: number;
+    definitionMode?: string;
+    blocklyDefinition?: string;
+  };
   [key: string]: any; // 索引签名，允许ReactFlow兼容
 }
 

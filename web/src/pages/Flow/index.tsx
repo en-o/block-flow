@@ -22,8 +22,9 @@ import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
 import { workflowCategoryApi } from '../../api/workflowCategory';
 import { executionApi } from '../../api/execution';
+import { pythonEnvApi } from '../../api/pythonEnv';
 import { authUtils } from '../../utils/auth';
-import type { Block, Workflow, WorkflowCategory, ExecutionLog } from '../../types/api';
+import type { Block, Workflow, WorkflowCategory, ExecutionLog, PythonEnvironment } from '../../types/api';
 import './index.css';
 
 const nodeTypes: NodeTypes = {
@@ -54,6 +55,7 @@ const Flow: React.FC = () => {
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [workflowCategories, setWorkflowCategories] = useState<WorkflowCategory[]>([]);
+  const [pythonEnvironments, setPythonEnvironments] = useState<PythonEnvironment[]>([]);
   const [saveForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -69,6 +71,7 @@ const Flow: React.FC = () => {
   useEffect(() => {
     loadBlocks();
     loadWorkflowCategories();
+    loadPythonEnvironments();
     loadPublicWorkflows();
     loadMyWorkflows();
   }, []);
@@ -186,6 +189,17 @@ const Flow: React.FC = () => {
       }
     } catch (error) {
       console.error('加载流程分类失败', error);
+    }
+  };
+
+  const loadPythonEnvironments = async () => {
+    try {
+      const response = await pythonEnvApi.listAll();
+      if (response.code === 200 && response.data) {
+        setPythonEnvironments(response.data);
+      }
+    } catch (error) {
+      console.error('加载Python环境失败', error);
     }
   };
 
@@ -368,6 +382,28 @@ const Flow: React.FC = () => {
     const cachedValue = inputValuesCache[nodeId]?.[inputName];
     return cachedValue !== undefined ? cachedValue : (node?.data.inputValues?.[inputName] || '');
   }, [nodes, inputValuesCache]);
+
+  // 更新节点的Python环境
+  const updateNodePythonEnv = useCallback((nodeId: string, pythonEnvId: number) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              blockSnapshot: {
+                ...node.data.blockSnapshot,
+                pythonEnvId: pythonEnvId,
+              },
+            },
+          };
+        }
+        return node;
+      })
+    );
+    message.success('Python环境已更新');
+  }, [setNodes]);
 
   // 根据分类code获取分类名称
   const getCategoryName = (categoryCode: string | undefined) => {
@@ -1187,6 +1223,21 @@ const Flow: React.FC = () => {
                     rows={3}
                     disabled
                   />
+                </Form.Item>
+                {/* Python运行环境选择 */}
+                <Form.Item label="Python运行环境">
+                  <Select
+                    value={selectedNode.data.blockSnapshot?.pythonEnvId}
+                    onChange={(value) => updateNodePythonEnv(selectedNode.id, value)}
+                    placeholder="选择Python环境"
+                    allowClear
+                  >
+                    {pythonEnvironments.map((env) => (
+                      <Select.Option key={env.id} value={env.id}>
+                        {env.name} ({env.pythonVersion})
+                      </Select.Option>
+                    ))}
+                  </Select>
                 </Form.Item>
                 {/* 显示输入参数 */}
                 {selectedNode.data.inputs && Object.keys(selectedNode.data.inputs).length > 0 && (
