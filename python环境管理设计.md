@@ -809,6 +809,570 @@ tar -czf python-packages.tar.gz packages/
 
 ---
 
+## 环境隔离实现原理
+
+### 1. 隔离机制概述
+
+BlockFlow 的 Python 环境隔离通过以下三个层次实现：
+
+```
+┌─────────────────────────────────────────────────┐
+│  层次1: 目录隔离                                 │
+│  • 每个环境有独立的根目录                       │
+│  • 独立的 site-packages                         │
+│  • 独立的包文件存储                             │
+├─────────────────────────────────────────────────┤
+│  层次2: 进程隔离                                 │
+│  • 每次执行使用独立的 Python 进程               │
+│  • 指定环境专属的解释器路径                     │
+│  • 独立的环境变量                               │
+├─────────────────────────────────────────────────┤
+│  层次3: 数据隔离                                 │
+│  • 环境元数据独立存储                           │
+│  • 包列表按环境分组                             │
+│  • 块与环境的关联关系                           │
+└─────────────────────────────────────────────────┘
+```
+
+### 2. 目录隔离详解
+
+#### 2.1 目录结构设计
+
+```
+block-flow/
+├── python-envs/                     # 环境根目录
+│   ├── env-{id}/                   # 环境目录（按ID隔离）
+│   │   ├── python/                 # Python 运行时
+│   │   │   ├── python.exe          # Python 解释器
+│   │   │   ├── python39.dll        # 核心库
+│   │   │   ├── python39._pth       # 模块搜索路径配置
+│   │   │   ├── python39.zip        # 标准库
+│   │   │   ├── Lib/                # 库目录
+│   │   │   │   └── site-packages/  # 第三方包
+│   │   │   │       ├── requests/   # 已安装的包
+│   │   │   │       ├── numpy/
+│   │   │   │       └── ...
+│   │   │   └── Scripts/            # 可执行脚本
+│   │   │       ├── pip.exe
+│   │   │       └── ...
+│   │   └── uploaded/               # 离线包存储
+│   │       ├── requests-2.28.0.whl
+│   │       └── numpy-1.24.0.whl
+│   │
+│   ├── env-{id+1}/                 # 另一个环境
+│   │   ├── python/
+│   │   └── uploaded/
+│   │
+│   └── env-{id+2}/                 # 第三个环境
+│       ├── python/
+│       └── uploaded/
+│
+└── temp/                            # 临时执行目录
+    └── block-{id}-{timestamp}/     # 块执行的临时目录
+        ├── script.py               # 执行脚本
+        └── output.json             # 执行结果
+```
+
+#### 2.2 环境初始化流程
+
+```java
+// PythonEnvironmentServiceImpl.java
+
+@Override
+public void initializeEnvironment(Long envId) {
+    PythonEnvironment env = repository.findById(envId)
+        .orElseThrow(() -> new RuntimeException("环境不存在"));
+
+    // 1. 创建环境根目录
+    String envRoot = pythonEnvRootPath + "/env-" + envId;
+    Path envPath = Paths.get(envRoot);
+    Files.createDirectories(envPath);
+
+    // 2. 创建子目录
+    Path pythonPath = envPath.resolve("python");
+    Path uploadedPath = envPath.resolve("uploaded");
+    Files.createDirectories(pythonPath);
+    Files.createDirectories(uploadedPath);
+
+    // 3. 更新环境配置
+    env.setEnvRootPath(envRoot);
+    repository.save(env);
+}
+```
+
+#### 2.3 site-packages 隔离
+
+每个环境的 `site-packages` 目录完全独立：
+
+```
+环境1 (env-1):
+  site-packages/
+    ├── requests/         # 版本 2.28.0
+    └── numpy/            # 版本 1.24.0
+
+环境2 (env-2):
+  site-packages/
+    ├── requests/         # 版本 2.31.0 (不同版本)
+    └── pandas/           # 不同的包
+
+环境3 (env-3):
+  site-packages/
+    ├── tensorflow/       # 机器学习包
+    └── scikit-learn/
+```
+
+**隔离效果**：
+- ✅ 同一个包的不同版本可以共存
+- ✅ 不同环境的包互不影响
+- ✅ 每个环境都是干净的独立空间
+
+### 3. 进程隔离详解
+
+#### 3.1 执行脚本的隔离机制
+
+```java
+// PythonScriptExecutor.java
+
+public Map<String, Object> executeScript(
+    String script,
+    Map<String, Object> inputs,
+    PythonEnvironment environment
+) {
+    // 1. 获取环境专属的 Python 解释器
+    String pythonExecutable = environment.getPythonExecutable();
+
+    // 2. 创建临时执行目录（每次执行都是新的）
+    String tempDir = createTempDirectory();
+    File scriptFile = new File(tempDir, "script.py");
+
+    // 3. 写入脚本
+    Files.writeString(scriptFile.toPath(), script, StandardCharsets.UTF_8);
+
+    // 4. 构建进程命令
+    ProcessBuilder pb = new ProcessBuilder(
+        pythonExecutable,      // 使用指定环境的 Python
+        scriptFile.getAbsolutePath()
+    );
+
+    // 5. 设置工作目录（隔离）
+    pb.directory(new File(tempDir));
+
+    // 6. 设置环境变量（隔离）
+    Map<String, String> env = pb.environment();
+    env.put("PYTHONPATH", environment.getSitePackagesPath());
+    env.put("PYTHONIOENCODING", "utf-8");
+
+    // 7. 启动独立进程
+    Process process = pb.start();
+
+    // 8. 执行完成后清理
+    cleanupTempDirectory(tempDir);
+}
+```
+
+#### 3.2 进程级别的隔离保障
+
+```
+块A执行（环境1）:
+  ├─ 进程ID: 12345
+  ├─ Python: /path/to/env-1/python/python.exe
+  ├─ site-packages: /path/to/env-1/python/Lib/site-packages
+  ├─ 工作目录: /temp/block-1-20250121-120000
+  └─ 环境变量:
+      • PYTHONPATH=/path/to/env-1/python/Lib/site-packages
+      • PYTHONIOENCODING=utf-8
+
+块B执行（环境2）:
+  ├─ 进程ID: 12346 (不同的进程)
+  ├─ Python: /path/to/env-2/python/python.exe (不同的解释器)
+  ├─ site-packages: /path/to/env-2/python/Lib/site-packages
+  ├─ 工作目录: /temp/block-2-20250121-120001 (不同的目录)
+  └─ 环境变量:
+      • PYTHONPATH=/path/to/env-2/python/Lib/site-packages
+      • PYTHONIOENCODING=utf-8
+```
+
+**隔离效果**：
+- ✅ 不同块的执行互不干扰
+- ✅ 即使同时执行，也是独立的进程
+- ✅ 进程崩溃不会影响其他块
+- ✅ 内存、CPU 资源独立计算
+
+### 4. 数据隔离详解
+
+#### 4.1 数据库层面的隔离
+
+```sql
+-- 环境表（每个环境独立一行）
+CREATE TABLE python_environment (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(255),
+    python_executable VARCHAR(500),     -- 环境专属的解释器路径
+    site_packages_path VARCHAR(500),    -- 环境专属的 site-packages
+    env_root_path VARCHAR(500),         -- 环境根目录
+    packages JSON,                      -- 环境的包列表（JSON字段）
+    is_default BOOLEAN,
+    create_time DATETIME
+);
+
+-- 块表（关联到环境）
+CREATE TABLE block (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(255),
+    script TEXT,
+    python_env_id BIGINT,               -- 关联到具体环境
+    FOREIGN KEY (python_env_id) REFERENCES python_environment(id)
+);
+```
+
+#### 4.2 包列表的隔离存储
+
+```json
+// 环境1的包列表
+{
+  "id": 1,
+  "name": "python39-prod",
+  "packages": {
+    "requests": {
+      "version": "2.28.0",
+      "installMethod": "pip",
+      "installedAt": "2025-01-21T10:00:00"
+    },
+    "numpy": {
+      "version": "1.24.0",
+      "installMethod": "offline",
+      "installedFrom": "numpy-1.24.0.whl"
+    }
+  }
+}
+
+// 环境2的包列表（完全独立）
+{
+  "id": 2,
+  "name": "python39-dev",
+  "packages": {
+    "requests": {
+      "version": "2.31.0",      // 不同版本
+      "installMethod": "pip"
+    },
+    "pandas": {                 // 不同的包
+      "version": "1.5.3",
+      "installMethod": "pip"
+    }
+  }
+}
+```
+
+**隔离效果**：
+- ✅ 每个环境的包列表独立存储
+- ✅ 包的元数据互不影响
+- ✅ 可以精确追踪每个环境的依赖
+
+### 5. 隔离级别对比
+
+#### 5.1 与其他隔离方案对比
+
+| 特性 | BlockFlow 环境隔离 | Python venv | Docker 容器 | Conda 环境 |
+|------|-------------------|-------------|-------------|-----------|
+| 目录隔离 | ✅ 完全隔离 | ✅ 完全隔离 | ✅ 完全隔离 | ✅ 完全隔离 |
+| 进程隔离 | ✅ 独立进程 | ✅ 独立进程 | ✅ 独立容器 | ✅ 独立进程 |
+| Python 版本隔离 | ✅ 支持 | ❌ 需要手动 | ✅ 支持 | ✅ 支持 |
+| 离线部署 | ✅ 支持 | ⚠️ 部分支持 | ✅ 支持 | ⚠️ 部分支持 |
+| GUI 管理 | ✅ Web 界面 | ❌ 命令行 | ⚠️ 部分支持 | ❌ 命令行 |
+| 轻量级 | ✅ 轻量 | ✅ 轻量 | ❌ 重量级 | ⚠️ 中等 |
+| 跨平台 | ✅ 支持 | ✅ 支持 | ✅ 支持 | ✅ 支持 |
+
+#### 5.2 BlockFlow 隔离的优势
+
+```
+优势1: 零学习成本
+  • 用户无需了解 venv、virtualenv、conda
+  • 通过 Web 界面可视化管理
+  • 一键创建、一键切换
+
+优势2: 完全可控
+  • 明确的目录结构
+  • 清晰的依赖追踪
+  • 可视化的包管理
+
+优势3: 离线友好
+  • 支持完全离线部署
+  • 可上传完整的 Python 运行时
+  • 离线包管理
+
+优势4: 细粒度控制
+  • 块级别的环境关联
+  • 可以为不同块选择不同环境
+  • 环境切换零成本
+```
+
+### 6. 隔离的实现细节
+
+#### 6.1 包安装的隔离
+
+**在线安装（使用 pip）**：
+
+```java
+// PythonEnvironmentServiceImpl.java
+
+public void installPackage(Long envId, String packageName, String version) {
+    PythonEnvironment env = getById(envId);
+
+    // 1. 构建 pip 命令，指定目标环境的 Python
+    String pythonExe = env.getPythonExecutable();
+    String command = String.format(
+        "%s -m pip install %s%s --target %s",
+        pythonExe,
+        packageName,
+        version != null ? "==" + version : "",
+        env.getSitePackagesPath()  // 安装到环境专属目录
+    );
+
+    // 2. 执行安装
+    Process process = Runtime.getRuntime().exec(command);
+
+    // 3. 更新环境的包列表
+    updatePackageList(env, packageName, version);
+}
+```
+
+**离线安装（直接解压）**：
+
+```java
+public void uploadAndInstallPackage(Long envId, MultipartFile file) {
+    PythonEnvironment env = getById(envId);
+
+    // 1. 保存到环境专属的 uploaded 目录
+    String uploadedPath = env.getEnvRootPath() + "/uploaded/" + file.getOriginalFilename();
+    file.transferTo(new File(uploadedPath));
+
+    // 2. 解压到环境专属的 site-packages
+    String sitePackages = env.getSitePackagesPath();
+    if (file.getOriginalFilename().endsWith(".whl")) {
+        // Wheel 包解压
+        unzipWheelPackage(uploadedPath, sitePackages);
+    } else {
+        // tar.gz 包解压
+        extractTarGz(uploadedPath, sitePackages);
+    }
+
+    // 3. 更新环境的包列表
+    updatePackageList(env, packageName, version);
+}
+```
+
+#### 6.2 Python 路径的隔离配置
+
+**Windows embeddable 版本的路径配置**：
+
+```python
+# python39._pth 文件内容
+python39.zip
+.
+
+# 系统会在上传 pip 包后自动修改为：
+python39.zip
+.
+Lib/site-packages           # 添加 site-packages 路径
+
+# 这样 Python 就能找到该环境的包
+```
+
+**环境变量配置**：
+
+```java
+// 执行脚本时设置环境变量
+Map<String, String> env = processBuilder.environment();
+
+// 1. 设置 PYTHONPATH（指向环境的 site-packages）
+env.put("PYTHONPATH", environment.getSitePackagesPath());
+
+// 2. 设置编码
+env.put("PYTHONIOENCODING", "utf-8");
+
+// 3. 清除可能干扰的系统变量
+env.remove("PYTHONHOME");  // 避免使用系统 Python
+```
+
+#### 6.3 执行时的临时目录隔离
+
+```java
+// 每次执行都创建临时目录
+private String createTempDirectory() {
+    String timestamp = LocalDateTime.now()
+        .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"));
+
+    String tempDir = tempBasePath + "/block-" + blockId + "-" + timestamp;
+    Files.createDirectories(Paths.get(tempDir));
+
+    return tempDir;
+}
+
+// 执行完成后清理
+private void cleanupTempDirectory(String tempDir) {
+    try {
+        FileUtils.deleteDirectory(new File(tempDir));
+    } catch (IOException e) {
+        log.warn("清理临时目录失败: {}", tempDir);
+    }
+}
+```
+
+**临时目录的作用**：
+```
+作用1: 避免文件冲突
+  • 多个块同时执行不会覆盖文件
+  • 每次执行都有干净的工作目录
+
+作用2: 安全隔离
+  • 块无法访问其他块的文件
+  • 执行完成后自动清理
+
+作用3: 日志隔离
+  • 每次执行的输出文件独立
+  • 便于追踪和调试
+```
+
+### 7. 隔离的安全性保障
+
+#### 7.1 文件系统隔离
+
+```
+权限控制:
+  ✓ 每个环境目录独立
+  ✓ 临时目录随机生成
+  ✓ 执行完成后立即清理
+  ✓ 块脚本无法访问其他环境
+
+路径校验:
+  ✓ 所有文件操作都进行路径验证
+  ✓ 防止路径穿越攻击
+  ✓ 限制在环境根目录内
+```
+
+#### 7.2 资源隔离
+
+```java
+// 设置进程超时
+Process process = processBuilder.start();
+boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+
+if (!finished) {
+    // 超时强制终止
+    process.destroyForcibly();
+    throw new RuntimeException("脚本执行超时");
+}
+
+// 资源限制
+- 执行时间：60秒
+- 输出大小：限制日志大小
+- 临时文件：执行后自动清理
+```
+
+### 8. 隔离的性能优化
+
+#### 8.1 缓存机制
+
+```java
+// 环境信息缓存（避免重复查询）
+@Cacheable(value = "python-env", key = "#envId")
+public PythonEnvironment getById(Long envId) {
+    return repository.findById(envId).orElse(null);
+}
+
+// 包列表缓存
+@Cacheable(value = "env-packages", key = "#envId")
+public Map<String, Object> getPackages(Long envId) {
+    PythonEnvironment env = getById(envId);
+    return env.getPackages();
+}
+```
+
+#### 8.2 进程复用
+
+```java
+// 对于同一环境的多次执行，可以优化进程启动
+private ProcessBuilder getCachedProcessBuilder(Long envId) {
+    return processBuilderCache.computeIfAbsent(envId, id -> {
+        PythonEnvironment env = getById(id);
+        return new ProcessBuilder(env.getPythonExecutable());
+    });
+}
+```
+
+### 9. 隔离的监控与调试
+
+#### 9.1 环境状态监控
+
+```json
+{
+  "envId": 1,
+  "name": "python39-prod",
+  "status": "active",
+  "stats": {
+    "totalPackages": 15,
+    "diskUsage": "245MB",
+    "lastUsed": "2025-01-21T15:30:00",
+    "executionCount": 1523
+  }
+}
+```
+
+#### 9.2 执行日志追踪
+
+```
+执行记录:
+  • 块ID: 123
+  • 环境ID: 1
+  • 环境名称: python39-prod
+  • Python版本: 3.9.7
+  • 执行时间: 2025-01-21 15:30:00
+  • 耗时: 1.23秒
+  • 状态: 成功
+  • 输出: {...}
+```
+
+### 10. 隔离机制总结
+
+```
+┌─────────────────────────────────────────────────────┐
+│  BlockFlow Python 环境隔离全景图                     │
+├─────────────────────────────────────────────────────┤
+│                                                      │
+│  数据库层                                            │
+│  ├─ 环境表：每个环境独立记录                         │
+│  ├─ 块表：关联到具体环境                            │
+│  └─ 包列表：JSON 字段存储环境包                     │
+│                                                      │
+│  文件系统层                                          │
+│  ├─ 环境根目录：/python-envs/env-{id}/              │
+│  ├─ Python 运行时：独立的解释器                     │
+│  ├─ site-packages：独立的包目录                     │
+│  └─ 临时目录：每次执行独立                          │
+│                                                      │
+│  进程层                                              │
+│  ├─ 独立进程：每次执行启动新进程                    │
+│  ├─ 环境变量：PYTHONPATH 指向环境                   │
+│  └─ 工作目录：临时目录隔离                          │
+│                                                      │
+│  应用层                                              │
+│  ├─ 块-环境关联：每个块选择环境                     │
+│  ├─ 执行器：根据环境调用对应 Python                 │
+│  └─ 结果隔离：每次执行独立输出                      │
+│                                                      │
+└─────────────────────────────────────────────────────┘
+```
+
+**核心优势**：
+- ✅ **完全隔离**：目录、进程、数据三层隔离
+- ✅ **灵活配置**：块级别的环境选择
+- ✅ **易于管理**：Web 界面可视化管理
+- ✅ **安全可靠**：权限控制、资源限制
+- ✅ **性能优化**：缓存、进程复用
+- ✅ **便于调试**：完整的日志追踪
+
+---
+
 ## 附录
 
 ### A. Python 运行时下载地址
