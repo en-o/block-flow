@@ -1,0 +1,100 @@
+# ==========================================
+# Block Flow Docker Compose 配置文件
+# ==========================================
+# 使用方法：
+#   启动: docker-compose up -d
+#   停止: docker-compose down
+#   查看日志: docker-compose logs -f block-flow-api
+#   重启: docker-compose restart
+# ==========================================
+
+version: '3.8'
+services:
+  block-flow-api:
+    image: tannnn/block-flow:latest
+    container_name: block-flow
+    # 构建配置（如需本地构建，取消注释）
+    # build:
+    #   context: .
+    #   dockerfile: api/Dockerfile
+    ports:
+      - "${HOST_PORT:-8777}:8777"
+    environment:
+      # 运行环境配置
+      CONFIG_ENV: ${CONFIG_ENV:-prod}
+      SPRING_PROFILES_ACTIVE: ${CONFIG_ENV:-prod}
+      # 文件上传配置
+      FILE_MAX_SIZE: ${FILE_MAX_SIZE:-2GB}
+      FILE_MAX_REQUEST: ${FILE_MAX_REQUEST:-2GB}
+      # Python 环境配置
+      PYTHON_ENV_ROOT_PATH: /app/python-envs
+      # JVM 配置
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m}
+    volumes:
+      # 数据持久化
+      - ${DATA_PATH:-./data}:/app/data
+      # 日志持久化
+      - ${LOGS_PATH:-./logs}:/app/logs
+      # Python 环境持久化
+      - ${PYTHON_ENVS_PATH:-./python-envs}:/app/python-envs
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8777/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # 重启策略
+    restart: unless-stopped
+    # 网络配置
+    networks:
+      - block-flow-network
+
+# ==========================================
+# 可选：MySQL 数据库服务
+# 如需使用 MySQL 替代默认数据库，取消以下注释
+# ==========================================
+#  mysql:
+#    image: mysql:8.0
+#    container_name: block-flow-mysql
+#    environment:
+#      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root123}
+#      MYSQL_DATABASE: ${DB_NAME:-block_flow}
+#      MYSQL_USER: ${DB_USERNAME:-blockflow}
+#      MYSQL_PASSWORD: ${DB_PASSWORD:-blockflow123}
+#    volumes:
+#      - mysql-data:/var/lib/mysql
+#      - ./api/doc/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+#      - ./api/doc/init_block.sql:/docker-entrypoint-initdb.d/02-init_block.sql:ro
+#      - ./api/doc/init_context.sql:/docker-entrypoint-initdb.d/03-init_context.sql:ro
+#      - ./api/doc/init_workflows.sql:/docker-entrypoint-initdb.d/04-init_workflows.sql:ro
+#    ports:
+#      - "${DB_PORT:-3306}:3306"
+#    healthcheck:
+#      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-root123}"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 3
+#    restart: unless-stopped
+#    networks:
+#      - block-flow-network
+
+networks:
+  block-flow-network:
+    driver: bridge
+
+# ==========================================
+# 数据卷配置（如启用 MySQL）
+# ==========================================
+#volumes:
+#  mysql-data:
