@@ -1520,7 +1520,7 @@ const Flow: React.FC = () => {
                             <div>执行人: {log.executorUsername || '未知'}</div>
                             {log.endTime && (
                               <div>
-                                耗时: {log.duration ? `${log.duration}秒` : '计算中...'}
+                                耗时: {log.duration != null ? `${log.duration}秒` : '计算中...'}
                               </div>
                             )}
                             {log.status === 'FAILED' && log.errorMessage && (
