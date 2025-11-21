@@ -31,6 +31,8 @@ export default defineConfig(({ mode }) => {
     build: {
       // 输出目录
       outDir: outDir,
+      // 允许清空输出目录（即使在项目根目录外）
+      emptyOutDir: true,
       // 静态资源目录
       assetsDir: 'assets',
       // 启用/禁用 CSS 代码拆分
