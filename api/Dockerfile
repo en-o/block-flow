@@ -19,9 +19,12 @@ WORKDIR /build
 COPY web/package*.json ./
 COPY web/ ./
 
-# 安装依赖并构建
+# 设置 Docker 构建标志（确保输出到 dist 目录）
+ENV DOCKER_BUILD=true
+
+# 安装依赖并构建（使用优化的 merged 模式）
 RUN npm install && \
-    npm run build
+    npm run build:merged
 
 # ==================== 阶段 2: 运行时镜像 ====================
 FROM eclipse-temurin:17-jre-alpine

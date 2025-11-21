@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:merged": "tsc -b && vite build --mode production",
+    "build:standalone": "tsc -b && vite build --mode standalone",
     "lint": "eslint .",
     "preview": "vite preview"
   },
