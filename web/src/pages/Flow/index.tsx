@@ -15,7 +15,7 @@ import {
   Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown, Drawer, Tag, List, Divider } from 'antd';
+import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown, Drawer, Tag, List, Divider, App } from 'antd';
 import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, FileTextOutlined, ReloadOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
@@ -31,6 +31,8 @@ const nodeTypes: NodeTypes = {
 };
 
 const Flow: React.FC = () => {
+  // 获取 App 上下文中的 modal 实例
+  const { modal } = App.useApp();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<BlockNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -689,29 +691,48 @@ const Flow: React.FC = () => {
     }
 
     try {
+      console.log('开始执行流程, workflowId:', currentWorkflow.id);
+
       // 使用 executionApi 执行流程
-      await executionApi.execute({
+      const response = await executionApi.execute({
         workflowId: currentWorkflow.id,
         executorUsername: '', // 后端会从JWT token中自动获取
         inputParams: undefined, // 可选的全局输入参数
       });
 
-      // 提示用户并询问是否查看日志
-      Modal.success({
-        title: '流程已提交执行',
-        content: '流程正在后台执行，是否立即查看执行日志？',
-        okText: '查看日志',
-        cancelText: '稍后查看',
-        onOk: () => {
-          // 用户选择查看日志
-          setExecLogDrawerVisible(true);
-          loadExecutionLogs();
-        },
-        okCancel: true, // 显示取消按钮
-      });
-    } catch (error) {
+      console.log('执行API响应:', response);
+
+      // 检查响应是否成功
+      if (response && response.code === 200) {
+        console.log('准备显示modal.confirm');
+
+        // 使用 modal 实例的 confirm 方法
+        modal.confirm({
+          title: '流程已提交执行',
+          content: '流程正在后台执行，是否立即查看执行日志？',
+          okText: '查看日志',
+          cancelText: '稍后查看',
+          icon: null, // 移除默认图标
+          onOk: () => {
+            console.log('用户选择查看日志');
+            // 用户选择查看日志
+            setExecLogDrawerVisible(true);
+            loadExecutionLogs();
+          },
+          onCancel: () => {
+            console.log('用户选择稍后查看');
+            message.info('可以随时点击"查看执行日志"按钮查看执行情况');
+          },
+        });
+
+        console.log('modal.confirm已调用');
+      } else {
+        // 处理业务错误
+        message.error(`执行失败: ${response?.message || '未知错误'}`);
+      }
+    } catch (error: any) {
       console.error('执行流程失败', error);
-      message.error('执行流程失败，请查看控制台');
+      message.error(`执行流程失败: ${error.message || '请查看控制台'}`);
     }
   };
 
