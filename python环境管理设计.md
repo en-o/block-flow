@@ -1373,6 +1373,467 @@ private ProcessBuilder getCachedProcessBuilder(Long envId) {
 
 ---
 
+## Python._pth 文件详解
+
+### 什么是 ._pth 文件？
+
+`._pth` 文件是 **Python 嵌入式版本（Embeddable Package）** 专用的路径配置文件,用于控制 Python 解释器的模块搜索路径。
+
+### 文件命名规则
+
+```
+文件名格式: python<版本号>._pth
+
+示例:
+  python39._pth      # Python 3.9.x
+  python311._pth     # Python 3.11.x
+  python312._pth     # Python 3.12.x
+```
+
+### 核心作用
+
+```
+┌─────────────────────────────────────────────────┐
+│  ._pth 文件的三大核心作用                        │
+├─────────────────────────────────────────────────┤
+│  1. 定义模块搜索路径（import 搜索顺序）          │
+│     • 控制 Python 从哪些目录查找模块            │
+│     • 按行顺序依次搜索                          │
+│                                                  │
+│  2. 隔离系统 Python 环境                         │
+│     • 禁用系统级的 site-packages                │
+│     • 避免与系统 Python 冲突                    │
+│                                                  │
+│  3. 启用/禁用 site 模块                          │
+│     • 控制是否导入 site.py                      │
+│     • 影响 pip 等工具的可用性                   │
+└─────────────────────────────────────────────────┘
+```
+
+### 文件格式与语法
+
+#### 基本语法规则
+
+```python
+# ._pth 文件的语法规则
+
+# 1. 每行一个路径
+#    - 可以是相对路径（相对于 Python 解释器所在目录）
+#    - 也可以是绝对路径
+
+# 2. 以 # 开头的行是注释
+#    - 会被完全忽略
+
+# 3. 空行会被忽略
+
+# 4. import site
+#    - 特殊指令，表示导入 site 模块
+#    - 没有这行，site.py 不会被执行
+#    - 没有 site 模块，pip 等工具无法使用
+```
+
+### Python 嵌入式版本的默认 ._pth
+
+#### Windows embeddable 默认配置
+
+```python
+# python39._pth（初始内容）
+
+python39.zip
+.
+
+# import site  # 默认被注释掉
+```
+
+**解释**：
+```
+第1行: python39.zip
+  → Python 标准库压缩包
+  → 包含 os, sys, json, re 等内置模块
+  → 解释器启动时会从这里加载标准库
+
+第2行: .
+  → 当前目录（Python 解释器所在目录）
+  → 用于查找当前目录下的 .py 文件
+
+第3行: # import site
+  → 被注释掉，意味着不导入 site 模块
+  → 结果：无法使用 pip
+  → 结果：无法使用 site-packages
+```
+
+### BlockFlow 系统的 ._pth 配置流程
+
+#### 初始状态（上传 Python 运行时后）
+
+```python
+# python39._pth（系统解压后的初始状态）
+
+python39.zip
+.
+# import site  ← 没有 site，无法使用 pip
+```
+
+**此时状态**：
+- ✅ Python 解释器可以运行
+- ✅ 可以使用标准库（os, sys, json...）
+- ❌ **无法使用 pip**（site 模块未启用）
+- ❌ **无法 import 第三方包**（site-packages 不在搜索路径）
+
+#### 上传 pip 包后（系统自动修改）
+
+当用户上传 `pip-24.0-py3-none-any.whl` 后，BlockFlow 系统会：
+
+**步骤1**: 解压 pip 包到 `Lib/site-packages/`
+
+**步骤2**: **自动修改 ._pth 文件**，添加 site-packages 路径
+
+```python
+# python39._pth（系统自动修改后）
+
+python39.zip
+.
+Lib/site-packages  ← 新增：第三方包搜索路径
+
+# import site 仍然注释，但不影响使用
+```
+
+**此时状态**：
+- ✅ Python 解释器可以运行
+- ✅ 可以使用标准库
+- ✅ **可以使用 pip**（pip 已在 site-packages 中）
+- ✅ **可以 import 第三方包**（site-packages 已在搜索路径）
+
+### ._pth 文件的工作原理
+
+#### 模块搜索顺序
+
+当执行 `import requests` 时，Python 按以下顺序搜索：
+
+```python
+# 基于 ._pth 配置：
+# python39.zip
+# .
+# Lib/site-packages
+
+搜索顺序:
+  1. 检查内建模块（built-in modules）
+     → sys, os 等 C 语言实现的模块
+
+  2. 搜索 python39.zip
+     → 查找 requests.py 或 requests/__init__.py
+     → 没找到，继续
+
+  3. 搜索当前目录 (.)
+     → 查找当前目录下的 requests.py
+     → 没找到，继续
+
+  4. 搜索 Lib/site-packages
+     → 查找 site-packages/requests/
+     → ✓ 找到！导入成功
+
+如果所有路径都没找到:
+  → 抛出 ModuleNotFoundError
+```
+
+#### 与标准 Python 的区别
+
+```
+标准 Python 安装版:
+  • 使用环境变量 PYTHONPATH
+  • 自动启用 site 模块
+  • 自动包含多个系统路径
+  • site-packages 自动在搜索路径中
+
+Python 嵌入式版本 + ._pth:
+  • 忽略环境变量 PYTHONPATH
+  • 只使用 ._pth 文件定义的路径
+  • 完全隔离，不受系统影响
+  • site-packages 需要手动添加到 ._pth
+```
+
+### BlockFlow 系统中的实现
+
+#### 后端代码：修改 ._pth 文件
+
+```java
+// PythonEnvironmentServiceImpl.java
+
+private void configurePthFile(PythonEnvironment env) {
+    // 1. 定位 ._pth 文件
+    String pythonDir = new File(env.getPythonExecutable()).getParent();
+    File[] pthFiles = new File(pythonDir).listFiles((dir, name) ->
+        name.endsWith("._pth"));
+
+    if (pthFiles == null || pthFiles.length == 0) {
+        log.warn("未找到 ._pth 文件");
+        return;
+    }
+
+    File pthFile = pthFiles[0];
+
+    // 2. 读取现有内容
+    List<String> lines = Files.readAllLines(pthFile.toPath());
+
+    // 3. 检查是否已包含 site-packages
+    String sitePackagesEntry = "Lib/site-packages";
+    boolean hasEntry = lines.stream()
+        .anyMatch(line -> line.trim().equals(sitePackagesEntry));
+
+    // 4. 如果没有，添加 site-packages 路径
+    if (!hasEntry) {
+        lines.add(sitePackagesEntry);
+        Files.write(pthFile.toPath(), lines);
+        log.info("已配置 ._pth 文件，添加 site-packages 路径");
+    }
+}
+```
+
+#### 触发时机
+
+```
+系统在以下情况下会修改 ._pth 文件:
+
+情况1: 上传 pip 包时
+  → 检测到文件名包含 "pip"
+  → 自动调用 configurePthFile()
+  → 添加 Lib/site-packages 到 ._pth
+
+情况2: 上传 Python 运行时后检测到 pip
+  → 解压运行时时发现已有 pip
+  → 自动配置 ._pth
+
+情况3: 用户手动触发检测
+  → 点击"自动检测Python路径"
+  → 检测过程中配置 ._pth
+```
+
+### ._pth 文件的高级用法
+
+#### 添加多个搜索路径
+
+```python
+# python39._pth（高级配置示例）
+
+python39.zip
+.
+Lib/site-packages
+../shared-libs           # 共享库目录
+C:/MyProject/modules     # 绝对路径
+```
+
+#### 使用相对路径
+
+```python
+# python39._pth
+
+python39.zip
+.
+Lib/site-packages
+../../common-packages    # 上两级目录的 common-packages
+./extensions            # 当前目录下的 extensions
+```
+
+### 常见问题排查
+
+#### Q1: 上传包后仍然无法 import？
+
+**诊断步骤**：
+
+```python
+# 1. 检查 ._pth 文件内容
+# 位置: <env-root>/python/python39._pth
+
+cat python39._pth
+
+# 预期内容:
+# python39.zip
+# .
+# Lib/site-packages  ← 必须有这一行
+
+# 2. 检查包是否在正确位置
+ls Lib/site-packages/
+
+# 预期: 应该看到 requests/ 等目录
+
+# 3. 测试模块搜索路径
+python -c "import sys; print('\n'.join(sys.path))"
+
+# 预期输出应包含:
+# <env-root>/python/Lib/site-packages
+```
+
+#### Q2: ._pth 文件被意外修改？
+
+**恢复方法**：
+
+```python
+# 最小可用配置
+python39.zip
+.
+Lib/site-packages
+```
+
+#### Q3: import site 要不要取消注释？
+
+**答案**：
+
+```
+在 BlockFlow 系统中，不需要取消注释 import site
+
+原因:
+  1. 我们通过直接添加 Lib/site-packages 到 ._pth 来实现路径配置
+  2. 不依赖 site 模块的自动路径发现
+  3. pip 可以直接从 site-packages 中使用（作为模块）
+  4. 保持简单，避免引入不必要的依赖
+
+如果取消注释会怎样:
+  • site 模块会被导入
+  • 可能引入额外的系统路径
+  • 可能导致环境隔离被破坏
+  • 不推荐
+```
+
+### ._pth 文件与环境隔离
+
+#### 为什么使用 ._pth 文件？
+
+```
+优势1: 路径完全可控
+  • 只加载 ._pth 中定义的路径
+  • 不受系统环境变量影响
+  • 确保环境完全隔离
+
+优势2: 轻量级配置
+  • 一个文本文件即可配置
+  • 无需复杂的环境变量设置
+  • 易于备份和迁移
+
+优势3: 适合嵌入式部署
+  • Python 嵌入式版本的标准配置方式
+  • 与 BlockFlow 的离线部署理念一致
+  • 无需安装，解压即用
+```
+
+#### 与虚拟环境的对比
+
+```
+Python venv（虚拟环境）:
+  • 使用 pyvenv.cfg 配置
+  • 依赖 site 模块
+  • 需要激活脚本
+  • 相对复杂
+
+._pth 文件（嵌入式）:
+  • 配置简单直接
+  • 不需要 site 模块
+  • 无需激活
+  • 更轻量
+```
+
+### 最佳实践
+
+#### 推荐的 ._pth 配置
+
+```python
+# python39._pth（BlockFlow 推荐配置）
+
+# 标准库（必需）
+python39.zip
+
+# 当前目录（可选，用于开发调试）
+.
+
+# 第三方包目录（必需）
+Lib/site-packages
+
+# 不要添加:
+# - 系统路径
+# - 其他环境的路径
+# - import site（保持注释状态）
+```
+
+#### 检查清单
+
+```
+✅ 验证 ._pth 文件存在
+   → 位置: <python-dir>/python<version>._pth
+
+✅ 验证包含必要的路径
+   → python39.zip
+   → Lib/site-packages
+
+✅ 验证路径格式正确
+   → 相对路径使用 / 或 \（取决于平台）
+   → 无多余空格
+
+✅ 验证 site-packages 目录存在
+   → <python-dir>/Lib/site-packages/
+
+✅ 测试包导入
+   → python -c "import <package>"
+```
+
+### 调试技巧
+
+#### 查看实际搜索路径
+
+```python
+# 方法1: 使用 sys.path
+python -c "import sys; print('\n'.join(sys.path))"
+
+# 方法2: 导入后检查模块位置
+python -c "import requests; print(requests.__file__)"
+# 预期输出: <env-root>/python/Lib/site-packages/requests/__init__.py
+```
+
+#### 检测 ._pth 是否生效
+
+```python
+# 检测是否启用了 site 模块
+python -c "import sys; print('site' in sys.modules)"
+# 输出 False → ._pth 正在控制路径，未导入 site（正常）
+# 输出 True → 可能 import site 被取消注释（需检查）
+```
+
+### 总结
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ._pth 文件在 BlockFlow 中的关键作用                 │
+├─────────────────────────────────────────────────────┤
+│                                                      │
+│  1. 路径隔离                                         │
+│     • 只加载 ._pth 定义的路径                       │
+│     • 忽略系统 PYTHONPATH                           │
+│     • 确保环境完全独立                              │
+│                                                      │
+│  2. 启用 pip                                         │
+│     • 上传 pip 包后自动配置                         │
+│     • 添加 Lib/site-packages 到搜索路径             │
+│     • 使 pip 模块可被 import                        │
+│                                                      │
+│  3. 第三方包支持                                     │
+│     • 将 site-packages 加入搜索路径                 │
+│     • 使离线上传的包可以被导入                      │
+│     • 支持 requests, numpy 等第三方库               │
+│                                                      │
+│  4. 简化部署                                         │
+│     • 一个文本文件完成配置                          │
+│     • 无需环境变量                                  │
+│     • 解压即用，符合离线部署需求                    │
+│                                                      │
+└─────────────────────────────────────────────────────┘
+```
+
+**关键要点**：
+- ._pth 文件是 Python 嵌入式版本的核心配置文件
+- BlockFlow 通过自动修改 ._pth 来启用 pip 和第三方包
+- 不需要取消注释 `import site`，直接添加路径即可
+- 确保环境隔离的关键机制之一
+
+---
+
 ## 附录
 
 ### A. Python 运行时下载地址
