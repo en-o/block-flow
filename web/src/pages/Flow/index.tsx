@@ -15,14 +15,15 @@ import {
   Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown, Drawer, Tag, List, Divider } from 'antd';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, FileTextOutlined, ReloadOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
 import { workflowCategoryApi } from '../../api/workflowCategory';
+import { executionApi } from '../../api/execution';
 import { authUtils } from '../../utils/auth';
-import type { Block, Workflow, WorkflowCategory } from '../../types/api';
+import type { Block, Workflow, WorkflowCategory, ExecutionLog } from '../../types/api';
 import './index.css';
 
 const nodeTypes: NodeTypes = {
@@ -54,6 +55,13 @@ const Flow: React.FC = () => {
   const [saveForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+  // 执行日志相关状态
+  const [execLogDrawerVisible, setExecLogDrawerVisible] = useState(false);
+  const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
+  const [logDetail, setLogDetail] = useState<string>('');
 
   // 加载块库和流程分类
   useEffect(() => {
@@ -683,8 +691,134 @@ const Flow: React.FC = () => {
     try {
       await workflowApi.execute(currentWorkflow.id);
       message.success('流程已提交执行');
+      // 自动打开执行日志抽屉
+      setExecLogDrawerVisible(true);
+      loadExecutionLogs();
     } catch (error) {
       console.error('执行流程失败', error);
+    }
+  };
+
+  // 加载执行日志列表
+  const loadExecutionLogs = async () => {
+    if (!currentWorkflow) {
+      message.warning('请先加载一个流程');
+      return;
+    }
+
+    try {
+      setLoadingLogs(true);
+      const response = await executionApi.page({
+        workflowId: currentWorkflow.id,
+        page: { pageNum: 0, pageSize: 20 },
+      });
+      if (response.code === 200 && response.data?.rows) {
+        setExecutionLogs(response.data.rows);
+      }
+    } catch (error) {
+      console.error('加载执行日志失败', error);
+      message.error('加载执行日志失败');
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  // 查看日志详情
+  const handleViewLogDetail = async (logId: number) => {
+    try {
+      setSelectedLogId(logId);
+      const response = await executionApi.getLogs(logId);
+      if (response.code === 200 && response.data) {
+        setLogDetail(response.data);
+      }
+    } catch (error) {
+      console.error('加载日志详情失败', error);
+      message.error('加载日志详情失败');
+    }
+  };
+
+  // 删除执行记录
+  const handleDeleteLog = async (logId: number) => {
+    try {
+      await executionApi.delete(logId);
+      message.success('删除成功');
+      loadExecutionLogs();
+      if (selectedLogId === logId) {
+        setSelectedLogId(null);
+        setLogDetail('');
+      }
+    } catch (error) {
+      console.error('删除执行记录失败', error);
+      message.error('删除失败');
+    }
+  };
+
+  // 取消执行
+  const handleCancelExecution = async (logId: number) => {
+    try {
+      await executionApi.cancel(logId);
+      message.success('已取消执行');
+      loadExecutionLogs();
+    } catch (error: any) {
+      message.error(error.message || '取消失败');
+    }
+  };
+
+  // 打开执行日志抽屉
+  const handleOpenExecutionLogs = () => {
+    if (!currentWorkflow) {
+      message.warning('请先加载一个流程');
+      return;
+    }
+    setExecLogDrawerVisible(true);
+    loadExecutionLogs();
+  };
+
+  // 自动刷新正在运行的执行
+  useEffect(() => {
+    if (!execLogDrawerVisible) return;
+
+    // 检查是否有正在运行的执行
+    const hasRunning = executionLogs.some(log => log.status === 'RUNNING');
+
+    if (hasRunning) {
+      const interval = setInterval(() => {
+        loadExecutionLogs();
+      }, 3000); // 每3秒刷新一次
+
+      return () => clearInterval(interval);
+    }
+  }, [execLogDrawerVisible, executionLogs]);
+
+  // 根据状态获取标签颜色
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'RUNNING':
+        return 'processing';
+      case 'SUCCESS':
+        return 'success';
+      case 'FAILED':
+        return 'error';
+      case 'CANCELLED':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
+
+  // 根据状态获取标签文本
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'RUNNING':
+        return '运行中';
+      case 'SUCCESS':
+        return '成功';
+      case 'FAILED':
+        return '失败';
+      case 'CANCELLED':
+        return '已取消';
+      default:
+        return status;
     }
   };
 
@@ -1187,6 +1321,12 @@ const Flow: React.FC = () => {
         >
           执行流程
         </Button>
+        <Button
+          icon={<FileTextOutlined />}
+          onClick={handleOpenExecutionLogs}
+        >
+          查看执行日志
+        </Button>
         {currentWorkflow && (
           <Button icon={<EditOutlined />} onClick={handleEditInfo}>
             编辑流程信息
@@ -1273,6 +1413,164 @@ const Flow: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 执行日志抽屉 */}
+      <Drawer
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>执行日志 - {currentWorkflow?.name || ''}</span>
+            <Button
+              icon={<ReloadOutlined />}
+              size="small"
+              onClick={loadExecutionLogs}
+              loading={loadingLogs}
+            >
+              刷新
+            </Button>
+          </div>
+        }
+        placement="right"
+        width={800}
+        open={execLogDrawerVisible}
+        onClose={() => {
+          setExecLogDrawerVisible(false);
+          setSelectedLogId(null);
+          setLogDetail('');
+        }}
+      >
+        <Spin spinning={loadingLogs}>
+          {executionLogs.length === 0 ? (
+            <Empty description="暂无执行记录" />
+          ) : (
+            <div style={{ display: 'flex', gap: '16px', height: 'calc(100vh - 140px)' }}>
+              {/* 左侧：执行记录列表 */}
+              <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid #f0f0f0', paddingRight: '16px' }}>
+                <List
+                  dataSource={executionLogs}
+                  renderItem={(log) => (
+                    <List.Item
+                      key={log.id}
+                      style={{
+                        cursor: 'pointer',
+                        background: selectedLogId === log.id ? '#e6f7ff' : 'transparent',
+                        padding: '12px',
+                        borderRadius: '4px',
+                        marginBottom: '8px',
+                        border: selectedLogId === log.id ? '1px solid #1890ff' : '1px solid #f0f0f0',
+                      }}
+                      onClick={() => handleViewLogDetail(log.id)}
+                    >
+                      <List.Item.Meta
+                        title={
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Tag color={getStatusColor(log.status)}>
+                              {getStatusText(log.status)}
+                            </Tag>
+                            <span style={{ fontSize: '13px' }}>
+                              执行于 {new Date(log.startTime).toLocaleString('zh-CN')}
+                            </span>
+                          </div>
+                        }
+                        description={
+                          <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                            <div>执行人: {log.executorUsername || '未知'}</div>
+                            {log.endTime && (
+                              <div>
+                                耗时: {log.duration ? `${log.duration}秒` : '计算中...'}
+                              </div>
+                            )}
+                            {log.status === 'FAILED' && log.errorMessage && (
+                              <div style={{ color: '#ff4d4f', marginTop: '4px' }}>
+                                错误: {log.errorMessage.substring(0, 50)}
+                                {log.errorMessage.length > 50 ? '...' : ''}
+                              </div>
+                            )}
+                          </div>
+                        }
+                      />
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {log.status === 'RUNNING' && (
+                          <Popconfirm
+                            title="确认取消"
+                            description="确定要取消此次执行吗?"
+                            onConfirm={(e) => {
+                              e?.stopPropagation();
+                              handleCancelExecution(log.id);
+                            }}
+                            okText="确认"
+                            cancelText="取消"
+                          >
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<CloseCircleOutlined />}
+                              onClick={(e) => e.stopPropagation()}
+                              danger
+                            >
+                              取消
+                            </Button>
+                          </Popconfirm>
+                        )}
+                        <Popconfirm
+                          title="确认删除"
+                          description="确定要删除此执行记录吗？"
+                          onConfirm={(e) => {
+                            e?.stopPropagation();
+                            handleDeleteLog(log.id);
+                          }}
+                          okText="确认"
+                          cancelText="取消"
+                        >
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={(e) => e.stopPropagation()}
+                            danger
+                          />
+                        </Popconfirm>
+                      </div>
+                    </List.Item>
+                  )}
+                />
+              </div>
+
+              {/* 右侧：日志详情 */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {selectedLogId ? (
+                  <div>
+                    <Divider orientation="left">执行日志详情</Divider>
+                    {logDetail ? (
+                      <pre
+                        style={{
+                          background: '#f5f5f5',
+                          padding: '16px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          lineHeight: '1.6',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          maxHeight: 'calc(100vh - 220px)',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {logDetail}
+                      </pre>
+                    ) : (
+                      <Spin tip="加载日志中..." />
+                    )}
+                  </div>
+                ) : (
+                  <Empty
+                    description="请选择一条执行记录查看详情"
+                    style={{ marginTop: '60px' }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </Spin>
+      </Drawer>
     </div>
   );
 };
