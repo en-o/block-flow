@@ -695,10 +695,20 @@ const Flow: React.FC = () => {
         executorUsername: '', // 后端会从JWT token中自动获取
         inputParams: undefined, // 可选的全局输入参数
       });
-      message.success('流程已提交执行');
-      // 自动打开执行日志抽屉
-      setExecLogDrawerVisible(true);
-      loadExecutionLogs();
+
+      // 提示用户并询问是否查看日志
+      Modal.success({
+        title: '流程已提交执行',
+        content: '流程正在后台执行，是否立即查看执行日志？',
+        okText: '查看日志',
+        cancelText: '稍后查看',
+        onOk: () => {
+          // 用户选择查看日志
+          setExecLogDrawerVisible(true);
+          loadExecutionLogs();
+        },
+        okCancel: true, // 显示取消按钮
+      });
     } catch (error) {
       console.error('执行流程失败', error);
       message.error('执行流程失败，请查看控制台');
