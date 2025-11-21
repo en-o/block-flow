@@ -58,6 +58,8 @@ vim .env
 > dockerhub:  https://hub.docker.com/r/tannnn/block-flow
 
 运行之后需要自己将数据初始化进去[doc](api/doc)
-```yaml
-docker run -d -p 1250:1250 --name block-flow tannnn/block-flow:latest
+```shell
+# -e MYSQL_DB=db_block_flow
+# -e MYSQL_URL=192.168.0.162:3306
+docker run -d -p 1250:1250 --name block-flow  -e PYTHON_ENV_ROOT_PATH=/app/python-envs -v $(pwd)/python-envs:/app/python-envs -v $(pwd)/logs:/app/logs  tannnn/block-flow:0.0.1
 ```
