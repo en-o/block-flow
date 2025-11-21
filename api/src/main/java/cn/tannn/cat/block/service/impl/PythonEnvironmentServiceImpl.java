@@ -1089,6 +1089,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
             // 确保Python可执行文件有执行权限
             ensurePythonExecutablePermissions(new File(extractPath));
+
+            // 输出解压后的文件结构（用于调试）
+            logDirectoryStructure(new File(extractPath), 0, 3);
         } catch (Exception e) {
             log.error("解压运行时文件失败", e);
             throw new ServiceException(500, "解压运行时文件失败: " + e.getMessage());
@@ -1097,7 +1100,8 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 自动检测Python可执行文件
         String pythonExecutable = detectPythonExecutableInDirectory(extractPath);
         if (pythonExecutable == null) {
-            throw new ServiceException(500, "未能在解压目录中检测到Python可执行文件");
+            log.error("未能检测到Python可执行文件，解压目录: {}", extractPath);
+            throw new ServiceException(500, "未能在解压目录中检测到Python可执行文件。请确保上传的是完整的Python运行时压缩包（包含python.exe或python可执行文件）");
         }
 
         // 检测Python版本
@@ -1512,6 +1516,34 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
      */
     private void ensurePythonExecutablePermissions(File directory) {
         ensurePythonExecutablePermissionsRecursively(directory, 0, 3);
+    }
+
+    /**
+     * 记录目录结构（用于调试）
+     */
+    private void logDirectoryStructure(File directory, int depth, int maxDepth) {
+        if (depth > maxDepth || !directory.exists()) {
+            return;
+        }
+
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        String indent = "  ".repeat(depth);
+        for (File file : files) {
+            if (file.isDirectory()) {
+                log.info("{}[DIR] {}", indent, file.getName());
+                logDirectoryStructure(file, depth + 1, maxDepth);
+            } else {
+                String permissions = String.format("[%s%s%s]",
+                        file.canRead() ? "r" : "-",
+                        file.canWrite() ? "w" : "-",
+                        file.canExecute() ? "x" : "-");
+                log.info("{}[FILE] {} {} ({}bytes)", indent, file.getName(), permissions, file.length());
+            }
+        }
     }
 
     private void ensurePythonExecutablePermissionsRecursively(File directory, int depth, int maxDepth) {
