@@ -89,7 +89,7 @@ echo.
 echo [提示] 下一步操作：
 echo.
 echo    1. 直接运行容器（快速启动）：
-echo       docker run -d -p 8777:8777 --name block-flow %FULL_IMAGE_NAME%
+echo       docker run -d -p 1250:1250 --name block-flow %FULL_IMAGE_NAME%
 echo.
 echo    2. 使用 Docker Compose（推荐）：
 echo       docker-compose up -d
@@ -98,8 +98,8 @@ echo    3. 查看日志：
 echo       docker logs -f block-flow
 echo.
 echo    4. 访问应用：
-echo       应用首页: http://localhost:8777
-echo       API文档:  http://localhost:8777/doc.html
+echo       应用首页: http://localhost:1250
+echo       API文档:  http://localhost:1250/doc.html
 echo.
 echo ==========================================
 

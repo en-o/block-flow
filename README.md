@@ -69,5 +69,5 @@ vim .env
 
 docker run
 ```yaml
-docker run -d -p 8080:8777 --name block-flow tannnn/block-flow:latest
+docker run -d -p 1250:1250 --name block-flow tannnn/block-flow:latest
 ```

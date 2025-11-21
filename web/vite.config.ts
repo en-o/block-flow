@@ -10,7 +10,7 @@ export default defineConfig({
     proxy: {
       // 代理所有 /api 请求到后端服务器
       '/api': {
-        target: 'http://localhost:8777',
+        target: 'http://localhost:1250',
         changeOrigin: true,
         // 后端路径已包含/api，不需要重写路径
         rewrite: (path) => path.replace(/^\/api/, '')

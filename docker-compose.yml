@@ -20,16 +20,29 @@ services:
     #   context: .
     #   dockerfile: api/Dockerfile
     ports:
-      - "${HOST_PORT:-8777}:8777"
+      - "${HOST_PORT:-1250}:1250"
     environment:
       # 运行环境配置
       CONFIG_ENV: ${CONFIG_ENV:-prod}
       SPRING_PROFILES_ACTIVE: ${CONFIG_ENV:-prod}
+
       # 文件上传配置
       FILE_MAX_SIZE: ${FILE_MAX_SIZE:-2GB}
       FILE_MAX_REQUEST: ${FILE_MAX_REQUEST:-2GB}
+
       # Python 环境配置
-      PYTHON_ENV_ROOT_PATH: /app/python-envs
+      PYTHON_ENV_ROOT_PATH: ${PYTHON_ENV_ROOT_PATH:-/app/python-envs}
+
+      # Swagger API 文档认证
+      DOC_USERNAME: ${DOC_USERNAME:-tan}
+      DOC_PASSWORD: ${DOC_PASSWORD:-tan}
+
+      # MySQL 数据库配置
+      MYSQL_URL: ${MYSQL_URL:-localhost:3306}
+      MYSQL_DB: ${MYSQL_DB:-db_block_flow}
+      MYSQL_UNM: ${MYSQL_UNM:-root}
+      MYSQL_PWD: ${MYSQL_PWD:-root}
+
       # JVM 配置
       JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m}
     volumes:
@@ -43,11 +56,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 2G
+          cpus: ${CPU_LIMIT:-1}
+          memory: ${MEMORY_LIMIT:-2G}
         reservations:
-          cpus: '1'
-          memory: 1G
+          cpus: ${CPU_RESERVATION:-1}
+          memory: ${MEMORY_RESERVATION:-1G}
 
     # 网络配置
     networks:
@@ -55,16 +68,17 @@ services:
 
 # ==========================================
 # 可选：MySQL 数据库服务
-# 如需使用 MySQL 替代默认数据库，取消以下注释
+# 如需使用 MySQL 数据库，取消以下注释
+# 注意：需要同时修改 block-flow-api 的 MYSQL_URL 为 mysql:3306
 # ==========================================
 #  mysql:
 #    image: mysql:8.0
 #    container_name: block-flow-mysql
 #    environment:
-#      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root123}
-#      MYSQL_DATABASE: ${DB_NAME:-block_flow}
-#      MYSQL_USER: ${DB_USERNAME:-blockflow}
-#      MYSQL_PASSWORD: ${DB_PASSWORD:-blockflow123}
+#      MYSQL_ROOT_PASSWORD: ${MYSQL_PWD:-root}
+#      MYSQL_DATABASE: ${MYSQL_DB:-db_block_flow}
+#      MYSQL_USER: ${MYSQL_UNM:-root}
+#      MYSQL_PASSWORD: ${MYSQL_PWD:-root}
 #    volumes:
 #      - mysql-data:/var/lib/mysql
 #      - ./api/doc/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -72,12 +86,8 @@ services:
 #      - ./api/doc/init_context.sql:/docker-entrypoint-initdb.d/03-init_context.sql:ro
 #      - ./api/doc/init_workflows.sql:/docker-entrypoint-initdb.d/04-init_workflows.sql:ro
 #    ports:
-#      - "${DB_PORT:-3306}:3306"
-#    healthcheck:
-#      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-root123}"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 3
+#      - "${MYSQL_PORT:-3306}:3306"
+#    command: --default-authentication-plugin=mysql_native_password
 #    restart: unless-stopped
 #    networks:
 #      - block-flow-network

@@ -49,7 +49,7 @@ COPY --chown=appuser:appuser api/target/block-flow-0.0.1-SNAPSHOT.jar /app/block
 COPY --from=frontend-builder --chown=appuser:appuser /build/dist /app/static
 
 # 暴露端口
-EXPOSE 8777
+EXPOSE 1250
 
 # 设置环境变量
 ENV JAVA_OPTS="-Xms256m -Xmx512m" \
