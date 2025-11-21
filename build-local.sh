@@ -1,6 +1,6 @@
 #!/bin/bash
 # Block Flow 本地构建脚本
-# 功能：在宿主机上执行 Maven 打包，生成 Docker 构建所需的产物
+# 功能：在宿主机上执行 Maven 打包，包含前端构建，生成 Docker 构建所需的产物
 
 set -e  # 遇到错误立即退出
 
@@ -49,10 +49,19 @@ echo ""
 echo "📂 进入 api 目录..."
 cd api
 
-# 执行 Maven 打包
+# 执行 Maven 打包（会自动构建前端）
 echo ""
-echo "🔨 开始 Maven 打包..."
+echo "🔨 开始 Maven 打包（包含前端构建）..."
 echo -e "${YELLOW}执行命令: mvn clean package -DskipTests${NC}"
+echo ""
+echo "提示：Maven 会自动执行以下步骤："
+echo "  1. 安装 Node.js 和 npm"
+echo "  2. 安装前端依赖 (npm install)"
+echo "  3. 构建前端项目 (npm run build:merged)"
+echo "  4. 编译 Java 代码"
+echo "  5. 打包 JAR 文件"
+echo "  6. 拷贝依赖到 lib/ 目录"
+echo "  7. 拷贝资源到 resources/ 目录"
 echo ""
 
 mvn clean package -DskipTests
@@ -61,9 +70,26 @@ mvn clean package -DskipTests
 echo ""
 echo "🔍 检查构建产物..."
 
-if [ ! -f "target/block-flow-0.0.1-SNAPSHOT.jar" ]; then
+if [ ! -f "target/output/block-flow-0.0.1-SNAPSHOT.jar" ]; then
     echo -e "${RED}❌ 构建失败：未找到 JAR 文件${NC}"
     exit 1
+fi
+
+if [ ! -d "target/output/lib" ]; then
+    echo -e "${RED}❌ 构建失败：未找到 lib 目录${NC}"
+    exit 1
+fi
+
+if [ ! -d "target/output/resources" ]; then
+    echo -e "${RED}❌ 构建失败：未找到 resources 目录${NC}"
+    exit 1
+fi
+
+# 检查前端静态文件
+if [ ! -d "target/output/resources/static" ]; then
+    echo -e "${YELLOW}⚠️  警告：未找到前端静态文件目录${NC}"
+else
+    echo -e "${GREEN}✅ 前端静态文件已构建${NC}"
 fi
 
 # 返回项目根目录
@@ -73,13 +99,21 @@ echo ""
 echo -e "${GREEN}✅ 本地构建完成！${NC}"
 echo ""
 echo "📦 构建产物位置："
-echo "   - api/target/block-flow-0.0.1-SNAPSHOT.jar"
+echo "   - api/target/output/block-flow-0.0.1-SNAPSHOT.jar (应用 JAR)"
+echo "   - api/target/output/lib/ (所有依赖库)"
+echo "   - api/target/output/resources/ (配置文件和静态资源)"
+echo ""
+echo "📊 构建产物统计："
+echo "   - JAR 文件大小: $(ls -lh api/target/output/block-flow-0.0.1-SNAPSHOT.jar | awk '{print $5}')"
+echo "   - 依赖库数量: $(ls -1 api/target/output/lib | wc -l)"
+echo "   - 资源文件数量: $(find api/target/output/resources -type f | wc -l)"
 echo ""
 echo "💡 下一步："
 echo "   方式1：直接运行 JAR："
-echo "          cd api/target && java -jar block-flow-0.0.1-SNAPSHOT.jar"
+echo "          cd api/target/output && java -jar block-flow-0.0.1-SNAPSHOT.jar"
 echo ""
 echo "   方式2：构建 Docker 镜像："
 echo "          ./docker-build.sh"
 echo ""
 echo "=========================================="
+

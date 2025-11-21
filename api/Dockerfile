@@ -1,41 +1,43 @@
-# ==============================================
+# ============================================
 # Block Flow Docker 镜像构建文件
+# ============================================
+# 构建方式：本地打包 + Docker 单阶段构建
 #
-# 构建方式：分离式构建（本地打包 + Docker 两阶段构建）
+# 【重要】构建前提条件:
+# 1. 必须先在本地执行 Maven 打包
+#    Linux/Mac: ./build-local.sh
+#    Windows:   build-local.bat
+# 2. 确保 api/target/output/ 目录包含以下文件：
+#    - block-flow-*.jar（使用通配符匹配版本号）
+#    - lib/（所有依赖 jar）
+#    - resources/（所有资源文件，包含前端静态文件）
 #
-# 阶段1: 前端构建 (Node.js)
-# 阶段2: 运行时镜像 (JRE 17)
+# 构建命令（从项目根目录执行）:
+#   docker build -t tannnn/block-flow:latest -f api/Dockerfile .
 #
-# 使用方法：
-#   运行: ./docker-build.sh
-# ==============================================
+# 或使用构建脚本（推荐）:
+#   Linux/Mac: ./docker-build.sh
+#   Windows:   docker-build.bat
+# ============================================
 
-# ==================== 阶段 1: 前端构建 ====================
-FROM node:20-alpine AS frontend-builder
-
-WORKDIR /build
-
-# 复制前端源码
-COPY web/package*.json ./
-COPY web/ ./
-
-# 设置 Docker 构建标志（确保输出到 dist 目录）
-ENV DOCKER_BUILD=true
-
-# 安装依赖并构建（使用优化的 merged 模式）
-RUN npm install && \
-    npm run build:merged
-
-# ==================== 阶段 2: 运行时镜像 ====================
+# ============================================
+# 运行时镜像
+# ============================================
 FROM eclipse-temurin:17-jre-alpine
 
-# 元数据
+# 添加维护者信息
 LABEL maintainer="tannnn"
+LABEL author="tannnn"
 LABEL description="Block Flow - Python脚本编排平台"
-LABEL version="0.0.1-SNAPSHOT"
+LABEL build.method="local-maven-build"
 
 # 设置工作目录
 WORKDIR /app
+
+# 从本地构建产物复制文件（使用通配符匹配版本号）
+COPY api/target/output/block-flow-*.jar /app/block-flow.jar
+COPY api/target/output/lib /app/lib
+COPY api/target/output/resources /app/resources
 
 # 创建必要的目录
 RUN mkdir -p /app/data \
@@ -45,22 +47,17 @@ RUN mkdir -p /app/data \
     adduser -D -u 1000 -G appuser appuser && \
     chown -R appuser:appuser /app
 
-# 从本地复制后端构建产物
-COPY --chown=appuser:appuser api/target/block-flow-0.0.1-SNAPSHOT.jar /app/block-flow.jar
-
-# 从阶段1复制前端构建产物到 static 目录
-COPY --from=frontend-builder --chown=appuser:appuser /build/dist /app/static
-
 # 暴露端口
 EXPOSE 1250
 
-# 设置环境变量
-ENV JAVA_OPTS="-Xms256m -Xmx512m" \
-    CONFIG_ENV="prod" \
-    SPRING_PROFILES_ACTIVE="prod"
+# 设置环境变量（默认值）
+ENV JAVA_OPTS="-Xms256m -Xmx512m"
+ENV CONFIG_ENV="prod"
+ENV SPRING_PROFILES_ACTIVE="prod"
 
 # 切换到非 root 用户
 USER appuser
 
-# 启动命令
+# 启动应用
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/block-flow.jar"]
+

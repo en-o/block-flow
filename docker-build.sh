@@ -38,6 +38,7 @@ echo "清理 node_modules、dist、target 目录..."
 
 rm -rf web/node_modules
 rm -rf web/dist
+rm -rf web/node
 rm -rf api/target
 
 echo -e "${GREEN}✅ 清理完成${NC}"
@@ -59,13 +60,26 @@ echo ""
 # 步骤 3: 验证构建产物
 echo -e "${YELLOW}🔍 步骤 3/4: 验证构建产物${NC}"
 
-if [ ! -f "api/target/block-flow-0.0.1-SNAPSHOT.jar" ]; then
+if [ ! -f "api/target/output/block-flow-0.0.1-SNAPSHOT.jar" ]; then
     echo -e "${RED}❌ 错误：未找到 JAR 文件${NC}"
-    echo "   期望位置: api/target/block-flow-0.0.1-SNAPSHOT.jar"
+    echo "   期望位置: api/target/output/block-flow-0.0.1-SNAPSHOT.jar"
+    exit 1
+fi
+
+if [ ! -d "api/target/output/lib" ]; then
+    echo -e "${RED}❌ 错误：未找到 lib 目录${NC}"
+    exit 1
+fi
+
+if [ ! -d "api/target/output/resources" ]; then
+    echo -e "${RED}❌ 错误：未找到 resources 目录${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}✅ 构建产物验证通过${NC}"
+echo "   - JAR 文件: $(ls -lh api/target/output/block-flow-0.0.1-SNAPSHOT.jar | awk '{print $5}')"
+echo "   - 依赖库数量: $(ls -1 api/target/output/lib | wc -l)"
+echo "   - 资源文件数量: $(find api/target/output/resources -type f | wc -l)"
 echo ""
 
 # 步骤 4: 构建 Docker 镜像

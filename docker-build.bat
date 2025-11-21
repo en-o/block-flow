@@ -32,6 +32,7 @@ echo 清理 node_modules、dist、target 目录...
 
 if exist "web\node_modules" rd /s /q "web\node_modules"
 if exist "web\dist" rd /s /q "web\dist"
+if exist "web\node" rd /s /q "web\node"
 if exist "api\target" rd /s /q "api\target"
 
 echo [完成] 清理完成
@@ -57,13 +58,28 @@ echo.
 REM 步骤 3: 验证构建产物
 echo [步骤 3/4] 验证构建产物
 
-if not exist "api\target\block-flow-0.0.1-SNAPSHOT.jar" (
+if not exist "api\target\output\block-flow-0.0.1-SNAPSHOT.jar" (
     echo [错误] 未找到 JAR 文件
-    echo    期望位置: api\target\block-flow-0.0.1-SNAPSHOT.jar
+    echo    期望位置: api\target\output\block-flow-0.0.1-SNAPSHOT.jar
     exit /b 1
 )
 
+if not exist "api\target\output\lib" (
+    echo [错误] 未找到 lib 目录
+    exit /b 1
+)
+
+if not exist "api\target\output\resources" (
+    echo [错误] 未找到 resources 目录
+    exit /b 1
+)
+
+REM 统计依赖库数量
+set lib_count=0
+for %%F in (api\target\output\lib\*) do set /a lib_count+=1
+
 echo [完成] 构建产物验证通过
+echo    - 依赖库数量: !lib_count!
 echo.
 
 REM 步骤 4: 构建 Docker 镜像
