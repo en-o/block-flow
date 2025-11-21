@@ -18,6 +18,13 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
 docker run -d -p 1250:1250 --name block-flow  -e PYTHON_ENV_ROOT_PATH=/app/python-envs -v $(pwd)/python-envs:/app/python-envs -v $(pwd)/logs:/app/logs  tannnn/block-flow:0.0.1
 ```
 
+# 第一次使用
+1. 初始化数据 [doc](api/doc), 默认库名：db_block_flow
+2. 进入后台管理创建python环境
+3. 创建上下文变量（非必须
+4. 创建块
+5. 进入流程编排测试流程
+
 # 注意
 1. 不建议使用h2数据库，体验可以，其他问题不敢保证也不会去修复
 2. 数据初始化 [doc](api/doc)
