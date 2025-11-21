@@ -1,3 +1,4 @@
+chcp 65001 >nul
 @echo off
 REM Block Flow Docker 镜像构建脚本
 REM 功能：自动化完成清理环境、Maven 打包、Docker 镜像构建的全流程
