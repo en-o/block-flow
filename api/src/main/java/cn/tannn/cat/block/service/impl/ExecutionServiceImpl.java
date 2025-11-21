@@ -234,14 +234,16 @@ public class ExecutionServiceImpl implements ExecutionService {
                     blockInputs.putAll(inputParams);
                 }
 
-                // 4. 注入上下文变量（ctx.变量名）
-                List<ContextVariable> contextVariables = contextVariableRepository.findAll();
-                for (ContextVariable cv : contextVariables) {
-                    String key = "ctx." + cv.getVarKey();
-                    blockInputs.put(key, cv.getVarValue());
-                }
-                if (!contextVariables.isEmpty()) {
-                    logsBuilder.append(String.format("  注入上下文变量: %d 个\n", contextVariables.size()));
+                // 4. 注入上下文变量（仅当脚本中使用了 ctx. 时才注入）
+                if (script != null && script.contains("ctx.")) {
+                    List<ContextVariable> contextVariables = contextVariableRepository.findAll();
+                    for (ContextVariable cv : contextVariables) {
+                        String key = "ctx." + cv.getVarKey();
+                        blockInputs.put(key, cv.getVarValue());
+                    }
+                    if (!contextVariables.isEmpty()) {
+                        logsBuilder.append(String.format("  注入上下文变量: %d 个\n", contextVariables.size()));
+                    }
                 }
 
                 logsBuilder.append(String.format("  输入参数: %s\n", blockInputs));
