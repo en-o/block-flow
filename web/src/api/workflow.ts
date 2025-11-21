@@ -5,8 +5,7 @@ import type {
   Workflow,
   WorkflowPage,
   WorkflowCreateDTO,
-  WorkflowUpdateDTO,
-  WorkflowExecuteDTO
+  WorkflowUpdateDTO
 } from '../types/api';
 
 export const workflowApi = {
