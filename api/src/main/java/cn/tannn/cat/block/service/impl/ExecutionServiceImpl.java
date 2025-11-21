@@ -174,9 +174,24 @@ public class ExecutionServiceImpl implements ExecutionService {
                 logsBuilder.append(String.format("--- 执行节点 [%d/%d]: %s ---\n",
                         i + 1, executionOrder.size(), blockName));
 
-                // 获取块定义
-                Block block = blockRepository.findById(blockId)
-                        .orElseThrow(() -> new RuntimeException("块不存在: " + blockName));
+                // 从快照获取块信息（优先使用快照，兼容旧流程）
+                JSONObject blockSnapshot = nodeData.getJSONObject("blockSnapshot");
+                String script;
+                Integer pythonEnvId;
+
+                if (blockSnapshot != null && blockSnapshot.getString("script") != null) {
+                    // 使用快照中的块信息
+                    script = blockSnapshot.getString("script");
+                    pythonEnvId = blockSnapshot.getInteger("pythonEnvId");
+                    logsBuilder.append("  使用流程快照中的块定义\n");
+                } else {
+                    // 兼容旧流程：从数据库获取块定义
+                    Block block = blockRepository.findById(blockId)
+                            .orElseThrow(() -> new RuntimeException("块不存在: " + blockName));
+                    script = block.getScript();
+                    pythonEnvId = block.getPythonEnvId();
+                    logsBuilder.append("  使用数据库中的块定义（旧流程兼容模式）\n");
+                }
 
                 // 准备输入参数
                 Map<String, Object> blockInputs = new HashMap<>();
@@ -221,8 +236,8 @@ public class ExecutionServiceImpl implements ExecutionService {
                 // 执行块
                 try {
                     PythonScriptExecutor.ExecutionResult result = pythonScriptExecutor.execute(
-                            block.getPythonEnvId(),
-                            block.getScript(),
+                            pythonEnvId,
+                            script,
                             blockInputs,
                             60L
                     );
