@@ -78,8 +78,9 @@ const PythonEnvironments: React.FC = () => {
   // 检测 URL 参数，自动打开包管理弹窗
   useEffect(() => {
     const shouldOpenPackageManagement = urlSearchParams.get('openPackageManagement') === 'true';
+    const shouldOpenOnlineInstall = urlSearchParams.get('openOnlineInstall') === 'true';
 
-    if (shouldOpenPackageManagement && environments.length > 0) {
+    if ((shouldOpenPackageManagement || shouldOpenOnlineInstall) && environments.length > 0) {
       // 查找默认环境或第一个环境
       const defaultEnv = environments.find(env => env.isDefault) || environments[0];
 
@@ -87,14 +88,21 @@ const PythonEnvironments: React.FC = () => {
         // 延迟一下，确保页面已经渲染完成
         setTimeout(async () => {
           setSelectedEnv(defaultEnv);
-          try {
-            const response = await pythonEnvApi.listUploadedPackageFiles(defaultEnv.id);
-            if (response.code === 200 && response.data) {
-              setUploadedFiles(response.data);
+
+          if (shouldOpenOnlineInstall) {
+            // 打开在线包管理弹窗
+            setPackagesModalVisible(true);
+          } else {
+            // 打开离线包上传弹窗
+            try {
+              const response = await pythonEnvApi.listUploadedPackageFiles(defaultEnv.id);
+              if (response.code === 200 && response.data) {
+                setUploadedFiles(response.data);
+              }
+              setUploadedFilesModalVisible(true);
+            } catch (error: any) {
+              message.error(error.message || '获取包列表失败');
             }
-            setUploadedFilesModalVisible(true);
-          } catch (error: any) {
-            message.error(error.message || '获取包列表失败');
           }
         }, 300);
       }
