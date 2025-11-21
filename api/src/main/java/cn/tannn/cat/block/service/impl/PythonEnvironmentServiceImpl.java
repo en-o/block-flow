@@ -1086,6 +1086,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             }
 
             log.info("Python运行时解压成功: {}", extractPath);
+
+            // 确保Python可执行文件有执行权限
+            ensurePythonExecutablePermissions(new File(extractPath));
         } catch (Exception e) {
             log.error("解压运行时文件失败", e);
             throw new ServiceException(500, "解压运行时文件失败: " + e.getMessage());
@@ -1389,7 +1392,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
                     // 在Unix/Linux系统上设置可执行权限
                     File extractedFile = new File(filePath);
-                    if (entry.getName().contains("/bin/") || entry.getName().contains("/Scripts/")) {
+                    String entryName = entry.getName().toLowerCase();
+                    // 对bin/Scripts目录下的文件和python可执行文件设置执行权限
+                    if (entryName.contains("/bin/") || entryName.contains("/scripts/") ||
+                            entryName.endsWith("python") || entryName.endsWith("python3") ||
+                            entryName.endsWith("python.exe") || entryName.endsWith("python3.exe") ||
+                            entryName.endsWith("pip") || entryName.endsWith("pip3") ||
+                            entryName.endsWith("pip.exe") || entryName.endsWith("pip3.exe")) {
                         extractedFile.setExecutable(true);
                     }
                 } else {
@@ -1494,6 +1503,43 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     // 递归处理子目录
                     setBinExecutable(file);
                 }
+            }
+        }
+    }
+
+    /**
+     * 确保目录中的Python可执行文件有执行权限（递归搜索，限制深度为3层）
+     */
+    private void ensurePythonExecutablePermissions(File directory) {
+        ensurePythonExecutablePermissionsRecursively(directory, 0, 3);
+    }
+
+    private void ensurePythonExecutablePermissionsRecursively(File directory, int depth, int maxDepth) {
+        if (depth > maxDepth || !directory.isDirectory()) {
+            return;
+        }
+
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if (file.isFile()) {
+                String name = file.getName().toLowerCase();
+                // 对Python相关可执行文件设置执行权限
+                if (name.equals("python") || name.equals("python3") ||
+                        name.equals("python.exe") || name.equals("python3.exe") ||
+                        name.startsWith("python3.") ||
+                        name.equals("pip") || name.equals("pip3") ||
+                        name.equals("pip.exe") || name.equals("pip3.exe")) {
+                    boolean result = file.setExecutable(true);
+                    if (result) {
+                        log.info("设置执行权限成功: {}", file.getAbsolutePath());
+                    }
+                }
+            } else if (file.isDirectory() && !file.getName().startsWith(".")) {
+                ensurePythonExecutablePermissionsRecursively(file, depth + 1, maxDepth);
             }
         }
     }
