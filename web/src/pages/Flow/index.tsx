@@ -1225,7 +1225,10 @@ const Flow: React.FC = () => {
                   />
                 </Form.Item>
                 {/* Python运行环境选择 */}
-                <Form.Item label="Python运行环境">
+                <Form.Item
+                  label="Python运行环境"
+                  tooltip="⚠️ 非必要请勿改动，可能导致脚本执行异常"
+                >
                   <Select
                     value={selectedNode.data.blockSnapshot?.pythonEnvId}
                     onChange={(value) => updateNodePythonEnv(selectedNode.id, value)}
