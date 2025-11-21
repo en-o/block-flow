@@ -1,3 +1,4 @@
+chcp 65001 >nul
 @echo off
 REM Block Flow 本地构建脚本
 REM 功能：在宿主机上执行 Maven 打包，包含前端构建，生成 Docker 构建所需的产物
@@ -107,4 +108,5 @@ echo.
 echo ==========================================
 
 endlocal
+exit /b 0
 
