@@ -68,8 +68,7 @@ echo   2. 安装前端依赖 (npm install)
 echo   3. 构建前端项目 (npm run build:merged)
 echo   4. 编译 Java 代码
 echo   5. 打包 JAR 文件
-echo   6. 拷贝依赖到 lib/ 目录
-echo   7. 拷贝资源到 resources/ 目录
+echo   6. 打包完整的可执行 JAR（包含所有依赖）
 echo.
 
 call mvn clean package -DskipTests
@@ -83,34 +82,11 @@ REM 检查构建结果
 echo.
 echo [检查] 检查构建产物...
 
-if not exist "target\output\block-flow-0.0.1-SNAPSHOT.jar" (
+if not exist "target\block-flow-0.0.1-SNAPSHOT.jar" (
     echo [错误] 构建失败：未找到 JAR 文件
     cd ..
     exit /b 1
 )
-
-if not exist "target\output\lib" (
-    echo [错误] 构建失败：未找到 lib 目录
-    cd ..
-    exit /b 1
-)
-
-if not exist "target\output\resources" (
-    echo [错误] 构建失败：未找到 resources 目录
-    cd ..
-    exit /b 1
-)
-
-REM 检查前端静态文件
-if not exist "target\output\resources\static" (
-    echo [警告] 未找到前端静态文件目录
-) else (
-    echo [完成] 前端静态文件已构建
-)
-
-REM 统计依赖库数量
-set lib_count=0
-for %%F in (target\output\lib\*) do set /a lib_count+=1
 
 REM 返回项目根目录
 cd ..
@@ -119,16 +95,11 @@ echo.
 echo [成功] 本地构建完成！
 echo.
 echo [产物] 构建产物位置：
-echo    - api\target\output\block-flow-0.0.1-SNAPSHOT.jar (应用 JAR)
-echo    - api\target\output\lib\ (所有依赖库)
-echo    - api\target\output\resources\ (配置文件和静态资源)
-echo.
-echo [统计] 构建产物统计：
-echo    - 依赖库数量: !lib_count!
+echo    - api\target\block-flow-0.0.1-SNAPSHOT.jar (完整的可执行 JAR)
 echo.
 echo [提示] 下一步：
 echo    方式1：直接运行 JAR：
-echo           cd api\target\output ^&^& java -jar block-flow-0.0.1-SNAPSHOT.jar
+echo           cd api\target ^&^& java -jar block-flow-0.0.1-SNAPSHOT.jar
 echo.
 echo    方式2：构建 Docker 镜像：
 echo           docker-build.bat

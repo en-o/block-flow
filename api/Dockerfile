@@ -7,10 +7,8 @@
 # 1. 必须先在本地执行 Maven 打包
 #    Linux/Mac: ./build-local.sh
 #    Windows:   build-local.bat
-# 2. 确保 api/target/output/ 目录包含以下文件：
-#    - block-flow-*.jar（使用通配符匹配版本号）
-#    - lib/（所有依赖 jar）
-#    - resources/（所有资源文件，包含前端静态文件）
+# 2. 确保 api/target/ 目录包含完整的 Spring Boot JAR：
+#    - block-flow-*.jar（完整的可执行 JAR，包含所有依赖和前端静态资源）
 #
 # 构建命令（从项目根目录执行）:
 #   docker build -t tannnn/block-flow:latest -f api/Dockerfile .
@@ -34,10 +32,8 @@ LABEL build.method="local-maven-build"
 # 设置工作目录
 WORKDIR /app
 
-# 从本地构建产物复制文件（使用通配符匹配版本号）
-COPY api/target/output/block-flow-*.jar /app/block-flow.jar
-COPY api/target/output/lib /app/lib
-COPY api/target/output/resources /app/resources
+# 从本地构建产物复制完整 JAR（使用通配符匹配版本号）
+COPY api/target/block-flow-*.jar /app/block-flow.jar
 
 # 创建必要的目录
 RUN mkdir -p /app/data \
