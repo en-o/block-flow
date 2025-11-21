@@ -1,3 +1,11 @@
+## run
+```shell
+npm install
+npm run dev
+```
+
+
+
 ## 部署指南
 
 ### 方式一：合并部署（推荐）
