@@ -1596,7 +1596,10 @@ outputs = {
                                     type="primary"
                                     size="small"
                                     onClick={() => {
-                                      window.open(`/manage?tab=python&envId=${testResult.pythonEnvId}`, '_blank');
+                                      // 在线安装
+                                      window.open(`/manage/python-envs?openOnlineInstall=true`, '_blank');
+                                      // 离线安装
+                                      // window.open(`/manage/python-envs?openPackageManagement=true`, '_blank');
                                     }}
                                   >
                                     前往Python环境管理
