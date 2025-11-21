@@ -393,6 +393,7 @@ const Flow: React.FC = () => {
             data: {
               ...node.data,
               blockSnapshot: {
+                script: node.data.blockSnapshot?.script || '',
                 ...node.data.blockSnapshot,
                 pythonEnvId: pythonEnvId,
               },
@@ -601,17 +602,6 @@ const Flow: React.FC = () => {
     event.dataTransfer.setData('application/workflow', JSON.stringify(workflow));
     event.dataTransfer.effectAllowed = 'copy';
   };
-
-  const onDropWorkflow = useCallback(
-    (event: React.DragEvent) => {
-      const workflowData = event.dataTransfer.getData('application/workflow');
-      if (workflowData) {
-        const workflow: Workflow = JSON.parse(workflowData);
-        handleUsePublicWorkflow(workflow);
-      }
-    },
-    []
-  );
 
   // 导入流程
   const handleImportWorkflow = (file: File) => {

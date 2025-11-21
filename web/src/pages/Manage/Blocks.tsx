@@ -1,16 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message, Tag, Card, App, Divider } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, message, Tag, Card, App, Divider } from 'antd';
 import { PlusOutlined, DeleteOutlined, CopyOutlined, TagsOutlined, SearchOutlined, CodeOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { blockApi } from '../../api/block';
-import { blockTypeApi } from '../../api/blockType';
-import type { Block, BlockType, BlockPage } from '../../types/api';
+import type { Block, BlockPage } from '../../types/api';
 
 const Blocks: React.FC = () => {
   const navigate = useNavigate();
   const { modal } = App.useApp();
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [blockTypes, setBlockTypes] = useState<BlockType[]>([]);
   const [loading, setLoading] = useState(false);
   const [tagsStatistics, setTagsStatistics] = useState<Record<string, number>>({});
   const [searchParams, setSearchParams] = useState<BlockPage>({});
@@ -24,7 +22,6 @@ const Blocks: React.FC = () => {
 
   useEffect(() => {
     fetchBlocks();
-    fetchBlockTypes();
     fetchTagsStatistics();
   }, []);
 
@@ -53,17 +50,6 @@ const Blocks: React.FC = () => {
       console.error('获取块列表失败', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchBlockTypes = async () => {
-    try {
-      const response = await blockTypeApi.listAll();
-      if (response.code === 200 && response.data) {
-        setBlockTypes(response.data);
-      }
-    } catch (error) {
-      console.error('获取块类型失败', error);
     }
   };
 

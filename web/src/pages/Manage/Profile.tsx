@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, message, Descriptions, Divider, Space, Tag } from 'antd';
+import { Card, Form, Input, Button, message, Descriptions, Tag } from 'antd';
 import { UserOutlined, LockOutlined, SaveOutlined } from '@ant-design/icons';
 import { userApi } from '../../api/user';
 import type { User, UpdateProfileDTO, ChangePasswordDTO } from '../../types/api';

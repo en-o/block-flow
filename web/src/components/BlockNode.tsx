@@ -94,7 +94,7 @@ const BlockNode: React.FC<any> = ({ data, selected }) => {
       {inputList.length > 0 && (
         <div style={{ marginBottom: '8px' }}>
           <div style={{ fontSize: '11px', color: '#8c8c8c', marginBottom: '4px', fontWeight: 500 }}>输入:</div>
-          {inputList.map((input, index) => (
+          {inputList.map((input) => (
             <div
               key={input.name}
               style={{
@@ -134,7 +134,7 @@ const BlockNode: React.FC<any> = ({ data, selected }) => {
       {outputList.length > 0 && (
         <div>
           <div style={{ fontSize: '11px', color: '#8c8c8c', marginBottom: '4px', fontWeight: 500 }}>输出:</div>
-          {outputList.map((output, index) => (
+          {outputList.map((output) => (
             <div
               key={output.name}
               style={{

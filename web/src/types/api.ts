@@ -421,6 +421,8 @@ export interface WorkflowUpdateDTO {
 
 // 流程执行DTO
 export interface WorkflowExecuteDTO {
+  workflowId: number;
+  executorUsername?: string;
   inputParams?: Record<string, any>;
 }
 

@@ -9,7 +9,6 @@ import {
   message,
   Tag,
   Card,
-  InputNumber,
   Switch,
   Divider,
   List,
@@ -31,7 +30,6 @@ import {
   DownloadOutlined,
   UploadOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   ThunderboltOutlined,
   RocketOutlined,
   ScanOutlined,
@@ -375,7 +373,7 @@ const PythonEnvironments: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 800));
       setInstallLogs(prev => [...prev, '正在安装...']);
 
-      const response = await installPromise;
+      await installPromise;
 
       setInstallLogs(prev => [...prev, `✓ Successfully installed ${packageName}`]);
       setInstallLogs(prev => [...prev, `✓ 包 ${values.packageName} 安装成功！`]);
@@ -487,16 +485,6 @@ const PythonEnvironments: React.FC = () => {
       fetchEnvironments();
     } catch (error) {
       console.error('导入失败', error);
-    }
-  };
-
-  const handleInitializeEnvironment = async (env: PythonEnvironment) => {
-    try {
-      await pythonEnvApi.initializeEnvironment(env.id);
-      message.success('环境初始化成功');
-      fetchEnvironments();
-    } catch (error: any) {
-      message.error(error.message || '初始化失败');
     }
   };
 

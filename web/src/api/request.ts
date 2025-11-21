@@ -9,9 +9,6 @@ const BASE_URL = import.meta.env.MODE === 'development'
   ? '/api'
   : (import.meta.env.VITE_API_BASE_URL || '/api');
 
-// 是否启用调试日志
-const DEBUG = import.meta.env.MODE === 'development';
-
 // 创建axios实例
 const request: AxiosInstance = axios.create({
   baseURL: BASE_URL,

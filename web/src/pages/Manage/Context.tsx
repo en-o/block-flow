@@ -21,7 +21,6 @@ const Context: React.FC = () => {
     groupName?: string;
     environment?: 'DEFAULT' | 'DEV' | 'TEST' | 'PROD';
   }>({});
-  const [searchKeyword, setSearchKeyword] = useState('');
   const [form] = Form.useForm();
   const [filterForm] = Form.useForm();
   const [searchForm] = Form.useForm();
@@ -144,7 +143,6 @@ const Context: React.FC = () => {
   const handleResetFilter = () => {
     filterForm.resetFields();
     setFilterParams({});
-    setSearchKeyword('');
     setPagination(prev => ({ ...prev, current: 1 }));
     fetchVariables(0, pagination.pageSize);
   };
@@ -152,7 +150,6 @@ const Context: React.FC = () => {
   const handleSearch = async () => {
     const values = await searchForm.validateFields();
     const keyword = values.keyword || '';
-    setSearchKeyword(keyword);
     setPagination(prev => ({ ...prev, current: 1 }));
 
     if (!keyword) {
