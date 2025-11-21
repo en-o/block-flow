@@ -1547,7 +1547,8 @@ outputs = {
                   height="100%"
                   defaultLanguage="python"
                   theme="vs-dark"
-                  value={scriptCode}
+                  defaultValue={scriptCode}
+                  key={block?.id || 'new'}
                   onChange={(value) => setScriptCode(value || '')}
                   onMount={handleEditorDidMount}
                   options={{
