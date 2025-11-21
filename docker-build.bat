@@ -86,7 +86,7 @@ echo   [成功] Docker 镜像构建成功！
 echo ==========================================
 echo.
 echo [镜像] 镜像信息：
-echo    名称: %FULL_IMAGE_NAME%
+echo    name: %FULL_IMAGE_NAME%
 echo.
 echo [提示] 下一步操作：
 echo.
