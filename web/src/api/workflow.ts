@@ -5,8 +5,7 @@ import type {
   Workflow,
   WorkflowPage,
   WorkflowCreateDTO,
-  WorkflowUpdateDTO,
-  WorkflowExecuteDTO
+  WorkflowUpdateDTO
 } from '../types/api';
 
 export const workflowApi = {
@@ -47,11 +46,8 @@ export const workflowApi = {
   },
 
 
-  // 执行流程
-  // POST /workflows/{id}/execute
-  execute(id: number, data?: WorkflowExecuteDTO): Promise<ApiResponse<any>> {
-    return http.post(`/workflows/${id}/execute`, data || {});
-  },
+  // 注意：执行流程的接口已移至 executionApi.execute()
+  // 请使用 executionApi.execute() 来执行流程
 
   // 克隆流程
   // POST /workflows/{id}/clone
