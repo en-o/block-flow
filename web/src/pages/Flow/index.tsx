@@ -689,13 +689,19 @@ const Flow: React.FC = () => {
     }
 
     try {
-      await workflowApi.execute(currentWorkflow.id);
+      // 使用 executionApi 执行流程
+      await executionApi.execute({
+        workflowId: currentWorkflow.id,
+        executorUsername: '', // 后端会从JWT token中自动获取
+        inputParams: undefined, // 可选的全局输入参数
+      });
       message.success('流程已提交执行');
       // 自动打开执行日志抽屉
       setExecLogDrawerVisible(true);
       loadExecutionLogs();
     } catch (error) {
       console.error('执行流程失败', error);
+      message.error('执行流程失败，请查看控制台');
     }
   };
 
