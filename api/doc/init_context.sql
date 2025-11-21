@@ -1,0 +1,1 @@
+INSERT INTO `context_variables` (`create_time`, `update_time`, `description`, `environment`, `group_name`, `is_encrypted`, `var_key`, `var_type`, `var_value`) VALUES ('2025-11-19 20:31:44.364435', '2025-11-19 20:31:44.364435', 'test', 'DEFAULT', 'test', b'0', 'USER_NAME', 'TEXT', 'tan宁');
