@@ -3,8 +3,10 @@ spring:
   datasource:
     driver-class-name: org.h2.Driver
     # 文件模式：数据保存在文件中，重启后数据不丢失
+    # H2控制台连接URL: jdbc:h2:file:./data/block-flow （不要加后面的参数）
     url: jdbc:h2:file:${H2_DB_PATH:./data/block-flow};MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     # 内存模式（可选）：数据保存在内存中，重启后数据丢失
+    # H2控制台连接URL: jdbc:h2:mem:block-flow
     # url: jdbc:h2:mem:block-flow;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: ${H2_USERNAME:sa}
     password: ${H2_PASSWORD:sa$121}
