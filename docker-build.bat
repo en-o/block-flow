@@ -1,17 +1,25 @@
 @echo off
 REM Block Flow Docker 镜像构建脚本
 REM 功能：自动化完成清理环境、Maven 打包、Docker 镜像构建的全流程
+REM 用法: docker-build.bat [版本号]
+REM 示例: docker-build.bat 1.0.0
+REM       docker-build.bat        (默认使用 latest)
 
 setlocal enabledelayedexpansion
+
+REM 获取版本号参数，默认为 latest
+set VERSION=%1
+if "%VERSION%"=="" set VERSION=latest
 
 echo ==========================================
 echo   Block Flow - Docker 镜像构建脚本
 echo ==========================================
+echo 构建版本: %VERSION%
 echo.
 
 REM 配置变量
 set IMAGE_NAME=tannnn/block-flow
-set IMAGE_TAG=latest
+set IMAGE_TAG=%VERSION%
 set FULL_IMAGE_NAME=%IMAGE_NAME%:%IMAGE_TAG%
 
 echo [信息] Docker 镜像信息：

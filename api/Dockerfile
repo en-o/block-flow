@@ -42,9 +42,6 @@ RUN mkdir -p /app/data \
     adduser -D -u 1000 -G appuser appuser && \
     chown -R appuser:appuser /app
 
-# 安装运行时依赖（wget 用于健康检查）
-RUN apk add --no-cache wget
-
 # 从本地复制后端构建产物
 COPY --chown=appuser:appuser api/target/block-flow-0.0.1-SNAPSHOT.jar /app/block-flow.jar
 
@@ -61,10 +58,6 @@ ENV JAVA_OPTS="-Xms256m -Xmx512m" \
 
 # 切换到非 root 用户
 USER appuser
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=60s \
-    CMD wget --quiet --tries=1 --spider http://localhost:8777/actuator/health || exit 1
 
 # 启动命令
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/block-flow.jar"]

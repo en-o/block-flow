@@ -1,12 +1,19 @@
 #!/bin/bash
 # Block Flow Docker 镜像构建脚本
 # 功能：自动化完成清理环境、Maven 打包、Docker 镜像构建的全流程
+# 用法: ./docker-build.sh [版本号]
+# 示例: ./docker-build.sh 1.0.0
+#       ./docker-build.sh        (默认使用 latest)
 
 set -e  # 遇到错误立即退出
+
+# 获取版本号参数，默认为 latest
+VERSION=${1:-latest}
 
 echo "=========================================="
 echo "  Block Flow - Docker 镜像构建脚本"
 echo "=========================================="
+echo "构建版本: $VERSION"
 echo ""
 
 # 颜色定义
@@ -18,7 +25,7 @@ NC='\033[0m' # No Color
 
 # 配置变量
 IMAGE_NAME="tannnn/block-flow"
-IMAGE_TAG="latest"
+IMAGE_TAG="$VERSION"
 FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 
 echo -e "${BLUE}🐳 Docker 镜像信息：${NC}"
