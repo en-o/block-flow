@@ -31,6 +31,14 @@ public interface ContextVariableRepository extends JpaRepository<ContextVariable
     Optional<ContextVariable> findByVarKey(String varKey);
 
     /**
+     * 根据变量名列表批量查找
+     *
+     * @param varKeys 变量名列表
+     * @return 上下文变量列表
+     */
+    List<ContextVariable> findByVarKeyIn(List<String> varKeys);
+
+    /**
      * 根据分组名称查找
      *
      * @param groupName 分组名称

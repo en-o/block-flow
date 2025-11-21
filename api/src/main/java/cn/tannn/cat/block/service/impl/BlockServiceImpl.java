@@ -10,6 +10,7 @@ import cn.tannn.cat.block.repository.BlockRepository;
 import cn.tannn.cat.block.repository.ContextVariableRepository;
 import cn.tannn.cat.block.service.BlockService;
 import cn.tannn.cat.block.service.PythonScriptExecutor;
+import cn.tannn.cat.block.util.ContextVariableUtil;
 import cn.tannn.jdevelops.exception.built.BusinessException;
 import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import com.alibaba.fastjson2.JSON;
@@ -193,16 +194,23 @@ public class BlockServiceImpl implements BlockService {
                 mergedInputs.putAll(testDTO.getInputs());
             }
 
-            // 获取所有上下文变量，并以 ctx.变量名 的格式添加
-            List<ContextVariable> contextVariables = contextVariableRepository.findAll();
-            for (ContextVariable cv : contextVariables) {
-                String key = "ctx." + cv.getVarKey();
-                mergedInputs.put(key, cv.getVarValue());
-                log.debug("注入上下文变量: {} = {}", key, cv.getVarValue());
+            // 注入上下文变量（仅注入脚本中实际使用的上下文变量）
+            if (scriptToExecute != null && scriptToExecute.contains("ctx.")) {
+                List<String> contextKeys = ContextVariableUtil.extractContextKeys(scriptToExecute);
+                if (!contextKeys.isEmpty()) {
+                    List<ContextVariable> contextVariables = contextVariableRepository.findByVarKeyIn(contextKeys);
+                    for (ContextVariable cv : contextVariables) {
+                        String key = "ctx." + cv.getVarKey();
+                        mergedInputs.put(key, cv.getVarValue());
+                    }
+                    log.info("注入上下文变量: {} 个 {}", contextVariables.size(),
+                        contextVariables.stream()
+                            .map(ContextVariable::getVarKey)
+                            .collect(Collectors.toList()));
+                }
             }
 
-            log.info("合并后的输入参数数量: {}, 其中上下文变量: {}",
-                    mergedInputs.size(), contextVariables.size());
+            log.info("测试块 {}, 输入参数数量: {}", block.getName(), mergedInputs.size());
 
             // 执行Python脚本（使用确定的脚本）
             PythonScriptExecutor.ExecutionResult result = pythonScriptExecutor.execute(
