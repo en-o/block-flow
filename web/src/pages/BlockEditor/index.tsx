@@ -1596,7 +1596,8 @@ outputs = {
                                     type="primary"
                                     size="small"
                                     onClick={() => {
-                                      window.open(`/manage?tab=python&envId=${testResult.pythonEnvId}`, '_blank');
+                                      // window.open(`/manage?tab=python&envId=${testResult.pythonEnvId}`, '_blank');
+                                      window.open(`/manage/python-envs?openPackageManagement=true`, '_blank');
                                     }}
                                   >
                                     前往Python环境管理
