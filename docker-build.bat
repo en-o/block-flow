@@ -24,7 +24,7 @@ set IMAGE_TAG=%VERSION%
 set FULL_IMAGE_NAME=%IMAGE_NAME%:%IMAGE_TAG%
 
 echo [信息] Docker 镜像信息：
-echo    镜像名称: %FULL_IMAGE_NAME%
+echo    - 镜像名称: %FULL_IMAGE_NAME%
 echo.
 
 REM 步骤 1: 清理环境
@@ -86,7 +86,7 @@ echo   [成功] Docker 镜像构建成功！
 echo ==========================================
 echo.
 echo [镜像] 镜像信息：
-echo    名称: %FULL_IMAGE_NAME%
+echo    - 名称: %FULL_IMAGE_NAME%
 echo.
 echo [提示] 下一步操作：
 echo.

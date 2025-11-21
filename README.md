@@ -21,6 +21,8 @@ docker run -d -p 1250:1250 --name block-flow  -e PYTHON_ENV_ROOT_PATH=/app/pytho
 # 第一次使用
 1. 初始化数据 [doc](api/doc), 默认库名：db_block_flow
 2. 进入后台管理创建python环境
+ - windows 下载: xx-embed-amd64.zip
+ - docker(linux) 下载：xx.tgz
 3. 创建上下文变量（非必须
 4. 创建块
 5. 进入流程编排测试流程
