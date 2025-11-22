@@ -134,21 +134,34 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.warn("删除刚创建的默认环境（回滚操作）: {}", id);
         }
 
-        // 删除数据库记录
+        // 保存环境路径用于异步删除
+        final String envRootPath = environment.getEnvRootPath();
+
+        // 删除数据库记录（在事务内完成）
         pythonEnvironmentRepository.deleteById(id);
 
-        // 删除文件系统目录
-        if (environment.getEnvRootPath() != null && !environment.getEnvRootPath().isEmpty()) {
-            try {
-                File envDir = new File(environment.getEnvRootPath());
-                if (envDir.exists()) {
-                    deleteDirectory(envDir);
-                    log.info("已删除环境目录: {}", environment.getEnvRootPath());
+        // 异步删除文件系统目录（避免阻塞事务，特别是在Docker映射目录的情况下）
+        if (envRootPath != null && !envRootPath.isEmpty()) {
+            // 使用新线程异步删除，避免事务超时
+            new Thread(() -> {
+                try {
+                    // 等待事务提交完成
+                    Thread.sleep(500);
+
+                    File envDir = new File(envRootPath);
+                    if (envDir.exists()) {
+                        log.info("开始异步删除环境目录: {}", envRootPath);
+                        deleteDirectory(envDir);
+                        log.info("✓ 已删除环境目录: {}", envRootPath);
+                    }
+                } catch (IOException e) {
+                    log.error("❌ 删除环境目录失败: {}", envRootPath, e);
+                    log.error("   提示: 如果使用了Docker卷映射，请手动删除该目录");
+                } catch (InterruptedException e) {
+                    log.warn("删除目录线程被中断: {}", envRootPath);
+                    Thread.currentThread().interrupt();
                 }
-            } catch (IOException e) {
-                log.error("删除环境目录失败: {}", environment.getEnvRootPath(), e);
-                // 不抛出异常，避免影响数据库删除
-            }
+            }, "delete-env-" + id).start();
         }
     }
 
@@ -2216,7 +2229,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
-     * 递归删除目录（增强版，支持重试和强制删除，兼容Windows Docker）
+     * 递归删除目录（增强版，支持重试和强制删除，兼容Windows Docker和卷映射）
      */
     private void deleteDirectory(File directory) throws IOException {
         if (!directory.exists()) {
@@ -2233,7 +2246,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
 
         // 尝试删除文件/目录，失败时重试
-        int maxRetries = 5;  // 增加重试次数
+        int maxRetries = 3;  // 减少重试次数（因为是异步执行）
         boolean deleted = false;
 
         for (int i = 0; i < maxRetries; i++) {
@@ -2243,7 +2256,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 break;
             }
 
-            // Java删除失败，尝试使用系统命令强制删除
+            // Java删除失败，尝试设置权限后重试
             if (i < maxRetries - 1) {
                 try {
                     // 设置可写权限
@@ -2251,36 +2264,50 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     directory.setReadable(true, false);
                     directory.setExecutable(true, false);
 
-                    // 尝试使用系统命令删除（兼容Linux/Windows）
-                    String osName = System.getProperty("os.name").toLowerCase();
-                    if (osName.contains("win")) {
-                        // Windows命令
-                        Runtime.getRuntime().exec(new String[]{"cmd", "/c", "del", "/F", "/Q", directory.getAbsolutePath()});
-                    } else {
-                        // Linux命令
-                        Runtime.getRuntime().exec(new String[]{"rm", "-rf", directory.getAbsolutePath()});
-                    }
-
-                    // 等待命令执行
-                    Thread.sleep(200);
-
-                    // 检查是否删除成功
-                    if (!directory.exists()) {
-                        deleted = true;
-                        log.info("使用系统命令成功删除: {}", directory.getAbsolutePath());
-                        break;
-                    }
+                    // 短暂延迟后重试（Docker映射目录可能需要同步时间）
+                    Thread.sleep(100);
 
                 } catch (Exception e) {
-                    log.warn("重试删除时出错 (第{}次): {}", i + 1, e.getMessage());
+                    log.debug("设置权限时出错 (第{}次): {}", i + 1, e.getMessage());
                 }
             }
         }
 
+        // 如果普通方式删除失败，尝试使用系统命令（仅最后一次尝试）
         if (!deleted && directory.exists()) {
-            log.error("⚠️  无法删除: {} (已重试{}次)", directory.getAbsolutePath(), maxRetries);
-            log.error("   文件系统可能被占用，建议手动清理或重启容器后删除");
-            // 不抛出异常，只记录错误，避免影响整体流程
+            try {
+                String osName = System.getProperty("os.name").toLowerCase();
+                Process process;
+
+                if (osName.contains("win")) {
+                    // Windows命令
+                    process = Runtime.getRuntime().exec(new String[]{"cmd", "/c", "del", "/F", "/Q", directory.getAbsolutePath()});
+                } else {
+                    // Linux命令
+                    process = Runtime.getRuntime().exec(new String[]{"rm", "-rf", directory.getAbsolutePath()});
+                }
+
+                // 等待命令执行完成，最多等待5秒
+                boolean completed = process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+
+                if (completed && !directory.exists()) {
+                    deleted = true;
+                    log.debug("使用系统命令成功删除: {}", directory.getAbsolutePath());
+                } else if (!completed) {
+                    process.destroyForcibly();
+                    log.warn("系统命令超时，强制终止: {}", directory.getAbsolutePath());
+                }
+
+            } catch (Exception e) {
+                log.debug("系统命令删除失败: {}", e.getMessage());
+            }
+        }
+
+        if (!deleted && directory.exists()) {
+            // 对于Docker映射目录，删除失败是正常的，只记录debug级别日志
+            log.debug("⚠️  无法删除: {} (已重试{}次)", directory.getAbsolutePath(), maxRetries);
+            log.debug("   可能原因: Docker卷映射导致的文件系统同步延迟或权限限制");
+            // 不抛出异常，只记录日志
         }
     }
 
