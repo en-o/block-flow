@@ -1111,8 +1111,12 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 }
             } else {
                 finalExtractPath = extractPath;
-                // 确保Python可执行文件有执行权限
+                log.info("检测到预编译Python包（如python-build-standalone），开始设置执行权限...");
+                // 确保Python可执行文件和共享库有执行权限
                 ensurePythonExecutablePermissions(new File(extractPath));
+                // 特别处理bin/lib目录的权限（python-build-standalone需要）
+                setBinAndLibPermissions(new File(extractPath));
+                log.info("预编译Python包权限设置完成");
             }
 
             // 输出解压后的文件结构（用于调试）
@@ -1162,12 +1166,25 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         result.setSitePackagesPath(sitePackagesPath);
         result.setHasPip(hasPip);
 
-        // 如果没有pip，提供友好提示
+        // 提供友好提示信息
+        StringBuilder message = new StringBuilder();
+        message.append("Python运行时上传成功！");
+
+        // 推荐使用python-build-standalone
+        message.append("\n\n【推荐】使用预编译Python运行时（python-build-standalone）:");
+        message.append("\n  下载地址: https://github.com/astral-sh/python-build-standalone/releases");
+        message.append("\n  选择对应平台的cpython版本（如: cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz）");
+        message.append("\n  优点: 完整、可移植、无需系统依赖");
+
         if (!hasPip) {
-            result.setMessage("上传的Python环境不包含pip模块，无法使用在线安装功能。" +
-                    "您可以通过\"配置/离线包\"功能上传pip的.whl包（如pip-24.0-py3-none-any.whl）来启用pip功能，" +
-                    "或继续使用离线包安装其他依赖。");
+            message.append("\n\n【提示】当前Python环境不包含pip模块，无法使用在线安装功能。");
+            message.append("\n  解决方案:");
+            message.append("\n  1. 推荐重新上传包含pip的Python运行时（python-build-standalone默认包含pip）");
+            message.append("\n  2. 或通过\"配置/离线包\"上传pip.whl包（如pip-24.0-py3-none-any.whl）来启用pip");
+            message.append("\n  3. 或继续使用离线包安装其他Python依赖");
         }
+
+        result.setMessage(message.toString());
 
         return result;
     }
@@ -1689,10 +1706,87 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     boolean result = file.setExecutable(true);
                     if (result) {
                         log.info("设置执行权限成功: {}", file.getAbsolutePath());
+                    } else {
+                        log.warn("设置执行权限失败: {}", file.getAbsolutePath());
                     }
                 }
             } else if (file.isDirectory() && !file.getName().startsWith(".")) {
                 ensurePythonExecutablePermissionsRecursively(file, depth + 1, maxDepth);
+            }
+        }
+    }
+
+    /**
+     * 设置bin和lib目录的权限（针对python-build-standalone等预编译包）
+     */
+    private void setBinAndLibPermissions(File directory) {
+        if (!directory.exists() || !directory.isDirectory()) {
+            return;
+        }
+
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                String dirName = file.getName().toLowerCase();
+
+                // 处理bin目录：所有文件设置执行权限
+                if (dirName.equals("bin") || dirName.equals("scripts")) {
+                    log.info("处理{}目录，设置所有文件执行权限: {}", dirName, file.getAbsolutePath());
+                    File[] binFiles = file.listFiles();
+                    if (binFiles != null) {
+                        for (File binFile : binFiles) {
+                            if (binFile.isFile()) {
+                                boolean result = binFile.setExecutable(true);
+                                if (!result) {
+                                    log.warn("设置执行权限失败: {}", binFile.getAbsolutePath());
+                                }
+                            }
+                        }
+                    }
+                }
+                // 处理lib目录：递归设置.so/.dylib文件的执行权限（共享库需要）
+                else if (dirName.equals("lib") || dirName.equals("lib64")) {
+                    log.info("处理{}目录，设置共享库文件执行权限: {}", dirName, file.getAbsolutePath());
+                    setLibraryPermissionsRecursively(file, 0, 5);
+                }
+                // 递归处理子目录（限制深度避免过深）
+                else if (!dirName.startsWith(".")) {
+                    setBinAndLibPermissions(file);
+                }
+            }
+        }
+    }
+
+    /**
+     * 递归设置共享库文件权限
+     */
+    private void setLibraryPermissionsRecursively(File directory, int depth, int maxDepth) {
+        if (depth > maxDepth || !directory.isDirectory()) {
+            return;
+        }
+
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if (file.isFile()) {
+                String name = file.getName().toLowerCase();
+                // 共享库文件需要执行权限
+                if (name.endsWith(".so") || name.contains(".so.") ||
+                    name.endsWith(".dylib") || name.endsWith(".dll")) {
+                    boolean result = file.setExecutable(true);
+                    if (!result) {
+                        log.debug("设置共享库执行权限失败: {}", file.getAbsolutePath());
+                    }
+                }
+            } else if (file.isDirectory() && !file.getName().startsWith(".")) {
+                setLibraryPermissionsRecursively(file, depth + 1, maxDepth);
             }
         }
     }
