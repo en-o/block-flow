@@ -1095,11 +1095,50 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         progressLogService.sendLog(taskId, "开始上传Python运行时...");
         progressLogService.sendProgress(taskId, 5, "验证文件格式和大小");
 
-        // 创建runtime目录
+        // 如果已有Python运行时配置，先清理旧环境
         String runtimeDir = environment.getEnvRootPath() + File.separator + "runtime";
+        File runtimeDirFile = new File(runtimeDir);
+
+        if (runtimeDirFile.exists()) {
+            progressLogService.sendLog(taskId, "检测到旧的Python运行时，开始清理...");
+            log.info("清理旧的Python运行时目录: {}", runtimeDir);
+
+            try {
+                // 删除整个runtime目录
+                deleteDirectory(runtimeDirFile);
+                progressLogService.sendLog(taskId, "✓ 已清理旧的Python运行时");
+                log.info("✓ 成功删除旧运行时目录");
+            } catch (IOException e) {
+                log.warn("清理旧运行时目录失败: {}, 继续上传新环境", e.getMessage());
+                progressLogService.sendLog(taskId, "⚠ 清理旧环境时出现警告，继续上传新环境");
+            }
+        }
+
+        // 清空环境配置（准备重新检测）
+        if (environment.getPythonExecutable() != null ||
+            environment.getPythonVersion() != null ||
+            environment.getSitePackagesPath() != null ||
+            (environment.getPackages() != null && !environment.getPackages().isEmpty())) {
+
+            log.info("清空旧的Python环境配置");
+            environment.setPythonExecutable(null);
+            environment.setPythonVersion(null);
+            environment.setSitePackagesPath(null);
+
+            // 清空已安装的包记录（因为runtime目录已删除）
+            if (environment.getPackages() != null && !environment.getPackages().isEmpty()) {
+                log.info("清空已安装的包记录（共{}个包）", environment.getPackages().size());
+                environment.setPackages(new JSONObject());
+            }
+
+            pythonEnvironmentRepository.save(environment);
+            progressLogService.sendLog(taskId, "✓ 已清空旧的环境配置");
+        }
+
+        // 创建runtime目录
         try {
             Files.createDirectories(Paths.get(runtimeDir));
-            progressLogService.sendLog(taskId, "创建runtime目录成功");
+            progressLogService.sendLog(taskId, "创建runtime目录");
         } catch (IOException e) {
             log.error("创建runtime目录失败", e);
             progressLogService.sendError(taskId, "创建runtime目录失败: " + e.getMessage());
@@ -1124,9 +1163,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         try {
             progressLogService.sendProgress(taskId, 20, "开始解压压缩包...");
 
-            // 如果已存在解压目录，先删除
+            // 创建解压目录（如果存在就先删除，作为二次保险）
             Path extractPathObj = Paths.get(extractPath);
             if (Files.exists(extractPathObj)) {
+                log.warn("解压目录已存在（应该在前面已删除），再次删除: {}", extractPath);
                 deleteDirectory(extractPathObj.toFile());
             }
             Files.createDirectories(extractPathObj);
