@@ -1146,43 +1146,32 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             File extractDir = new File(extractPath);
             File[] subItems = extractDir.listFiles();
 
-            // 如果解压后只有一个子目录，可能需要进入该目录
+            // 如果解压后只有一个子目录，进入该目录
             if (subItems != null && subItems.length == 1 && subItems[0].isDirectory()) {
                 File singleSubDir = subItems[0];
                 log.info("检测到解压后只有一个子目录: {}", singleSubDir.getName());
                 progressLogService.sendLog(taskId, "检测到解压后的子目录: " + singleSubDir.getName());
 
-                // 检查子目录名称，判断是否是 python-build-standalone 格式
-                String subDirName = singleSubDir.getName().toLowerCase();
-                boolean isPythonBuildStandalone = subDirName.startsWith("cpython-") ||
-                                                   subDirName.startsWith("python-");
+                // 无论目录名是什么，都进入单一子目录
+                extractPath = singleSubDir.getAbsolutePath();
+                extractDir = singleSubDir;
+                log.info("进入单一子目录作为Python根目录: {}", extractPath);
 
-                if (isPythonBuildStandalone) {
-                    log.info("检测到 python-build-standalone 包: {}", singleSubDir.getName());
-                    progressLogService.sendLog(taskId, "✓ 识别为 python-build-standalone 预编译包");
-
-                    // 进入子目录
-                    extractPath = singleSubDir.getAbsolutePath();
-                    extractDir = singleSubDir;
-                    log.info("使用子目录作为Python根目录: {}", extractPath);
-
-                    // 输出目录结构用于调试
-                    log.info("Python根目录内容:");
-                    logDirectoryStructure(extractDir, 0, 2);
-                } else {
-                    // 普通的单目录包，也进入
-                    log.info("进入单一子目录: {}", singleSubDir.getName());
-                    extractPath = singleSubDir.getAbsolutePath();
-                    extractDir = singleSubDir;
-                }
+                // 输出目录结构用于调试
+                log.info("Python根目录内容:");
+                logDirectoryStructure(extractDir, 0, 2);
             } else if (subItems != null) {
                 log.info("解压后包含 {} 个项目", subItems.length);
                 progressLogService.sendLog(taskId, "解压后包含 " + subItems.length + " 个文件/目录");
             }
 
-            // 检测是否为Python源代码包（包含 configure 文件）
+            // 先尝试检测Python可执行文件（预编译包）
+            progressLogService.sendProgress(taskId, 50, "检测Python可执行文件...");
+            String detectedPython = detectPythonExecutableInDirectory(extractPath);
+
+            // 如果找不到Python可执行文件，再检测是否为源代码包
             File configureFile = new File(extractDir, "configure");
-            boolean isSourcePackage = configureFile.exists();
+            boolean isSourcePackage = (detectedPython == null) && configureFile.exists();
 
             if (isSourcePackage) {
                 log.info("检测到Python源代码包（包含configure文件），开始自动编译...");
@@ -1197,9 +1186,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     throw new ServiceException(500, "编译Python源代码失败: " + e.getMessage());
                 }
             } else {
-                log.info("检测到预编译Python包（如python-build-standalone），开始设置执行权限...");
+                log.info("检测到预编译Python包，开始设置执行权限...");
                 log.info("  Python根目录: {}", extractPath);
-                progressLogService.sendProgress(taskId, 50, "检测到预编译包，设置执行权限");
+                progressLogService.sendProgress(taskId, 55, "设置执行权限");
 
                 finalExtractPath = extractPath;
 
@@ -1209,7 +1198,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 setBinAndLibPermissions(extractDir);
 
                 log.info("预编译Python包权限设置完成");
-                progressLogService.sendLog(taskId, "权限设置完成");
+                progressLogService.sendLog(taskId, "✓ 权限设置完成");
             }
 
             // 输出解压后的文件结构（用于调试）
@@ -1255,6 +1244,20 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             errorMsg.append("🔍 问题诊断\n");
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             errorMsg.append(archMismatchHint).append("\n\n");
+
+            // 检查是否是Windows Docker环境
+            if (osName.contains("linux") && new File("/proc/version").exists()) {
+                try {
+                    String procVersion = Files.readString(new File("/proc/version").toPath()).toLowerCase();
+                    if (procVersion.contains("microsoft") || procVersion.contains("wsl")) {
+                        errorMsg.append("⚠️  检测到WSL/Windows Docker环境\n");
+                        errorMsg.append("   - 符号链接可能在Windows环境下损坏\n");
+                        errorMsg.append("   - 建议：使用完整的install_only版本，避免使用包含符号链接的包\n\n");
+                    }
+                } catch (Exception e) {
+                    // 忽略读取错误
+                }
+            }
 
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             errorMsg.append("✅ 解决方案：使用 python-build-standalone\n");
@@ -1449,7 +1452,20 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 continue;
             }
 
-            log.debug("搜索目录: {}", searchDir);
+            log.info("正在搜索目录: {}", searchDir);
+
+            // 列出目录内容用于调试
+            File[] files = searchDirFile.listFiles();
+            if (files != null && files.length > 0) {
+                log.info("  目录包含 {} 个文件:", files.length);
+                for (File f : files) {
+                    if (f.isFile()) {
+                        log.info("    - {} ({}字节, 可执行:{})", f.getName(), f.length(), f.canExecute());
+                    }
+                }
+            } else {
+                log.warn("  目录为空或无法访问");
+            }
 
             for (String pythonName : pythonNames) {
                 String pythonPath = searchDir + File.separator + pythonName;
@@ -1461,6 +1477,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     // 检查文件大小（避免空文件或损坏的符号链接）
                     if (pythonFile.length() == 0) {
                         log.warn("Python文件大小为0（可能是损坏的符号链接）: {}", pythonPath);
+                        log.warn("  这通常发生在Windows Docker环境下，符号链接无法正确处理");
                         continue;
                     }
 
@@ -1495,6 +1512,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
 
         // 递归搜索（限制深度为3层）
+        log.info("在常见路径未找到，开始递归搜索（深度3层）...");
         try {
             String found = findPythonExecutableRecursively(dir, 0, 3);
             if (found != null) {
