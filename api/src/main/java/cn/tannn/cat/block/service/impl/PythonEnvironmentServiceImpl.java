@@ -1088,20 +1088,27 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
             log.info("Python运行时解压成功: {}", extractPath);
 
-            // 检测是否为Python源代码包
-            File configureFile = new File(extractPath, "configure");
-            File[] subDirs = new File(extractPath).listFiles(File::isDirectory);
-            if (subDirs != null && subDirs.length == 1) {
-                // 检查子目录中是否有 configure 文件（tar.gz 解压可能多一层目录）
-                File subConfigure = new File(subDirs[0], "configure");
-                if (subConfigure.exists()) {
-                    configureFile = subConfigure;
-                    extractPath = subDirs[0].getAbsolutePath();
-                }
+            // 检查是否需要进入子目录（tar.gz 解压可能多一层目录）
+            File extractDir = new File(extractPath);
+            File[] subItems = extractDir.listFiles();
+
+            // 如果解压后只有一个子目录，可能需要进入该目录
+            if (subItems != null && subItems.length == 1 && subItems[0].isDirectory()) {
+                File singleSubDir = subItems[0];
+                log.info("检测到解压后只有一个子目录: {}", singleSubDir.getName());
+
+                // 进入子目录
+                extractPath = singleSubDir.getAbsolutePath();
+                extractDir = singleSubDir;
+                log.info("使用子目录作为Python根目录: {}", extractPath);
             }
 
-            if (configureFile.exists()) {
-                log.info("检测到Python源代码包，开始自动编译...");
+            // 检测是否为Python源代码包（包含 configure 文件）
+            File configureFile = new File(extractDir, "configure");
+            boolean isSourcePackage = configureFile.exists();
+
+            if (isSourcePackage) {
+                log.info("检测到Python源代码包（包含configure文件），开始自动编译...");
                 try {
                     finalExtractPath = compilePythonSource(extractPath);
                     log.info("Python源代码编译完成: {}", finalExtractPath);
@@ -1110,16 +1117,21 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     throw new ServiceException(500, "编译Python源代码失败: " + e.getMessage());
                 }
             } else {
-                finalExtractPath = extractPath;
                 log.info("检测到预编译Python包（如python-build-standalone），开始设置执行权限...");
+                log.info("  Python根目录: {}", extractPath);
+
+                finalExtractPath = extractPath;
+
                 // 确保Python可执行文件和共享库有执行权限
-                ensurePythonExecutablePermissions(new File(extractPath));
+                ensurePythonExecutablePermissions(extractDir);
                 // 特别处理bin/lib目录的权限（python-build-standalone需要）
-                setBinAndLibPermissions(new File(extractPath));
+                setBinAndLibPermissions(extractDir);
+
                 log.info("预编译Python包权限设置完成");
             }
 
             // 输出解压后的文件结构（用于调试）
+            log.info("最终Python目录结构:");
             logDirectoryStructure(new File(finalExtractPath), 0, 3);
         } catch (Exception e) {
             log.error("解压运行时文件失败", e);
@@ -1136,8 +1148,8 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 检测Python版本
         String pythonVersion = detectPythonVersion(pythonExecutable);
 
-        // 检测site-packages路径
-        String sitePackagesPath = detectSitePackagesPath(extractPath);
+        // 检测site-packages路径（使用最终的Python目录）
+        String sitePackagesPath = detectSitePackagesPath(finalExtractPath);
 
         // 处理Python embed版本的._pth文件（修复pip无法使用的问题）
         configurePythonPath(pythonExecutable, sitePackagesPath);
@@ -1160,7 +1172,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         result.setFileName(originalFilename);
         result.setFileSize(file.getSize());
         result.setUploadTime(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        result.setExtractPath(extractPath);
+        result.setExtractPath(finalExtractPath);  // 使用最终路径
         result.setPythonExecutable(pythonExecutable);
         result.setPythonVersion(pythonVersion);
         result.setSitePackagesPath(sitePackagesPath);
@@ -1228,29 +1240,55 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     private String detectPythonExecutableInDirectory(String directory) {
         File dir = new File(directory);
         if (!dir.exists() || !dir.isDirectory()) {
+            log.warn("目录不存在或不是目录: {}", directory);
             return null;
         }
 
-        // 常见的Python可执行文件名
+        log.info("开始在目录中查找Python可执行文件: {}", directory);
+
+        // 常见的Python可执行文件名（优先级从高到低）
         String[] pythonNames = {"python3", "python", "python.exe", "python3.exe"};
 
         // 常见的Python可执行文件路径（相对于根目录）
         String[] commonPaths = {
+                "bin",                                 // Unix/Linux标准路径（最常见）
                 "",                                    // 根目录
-                "bin",                                 // Unix/Linux标准路径
                 "Scripts",                             // Windows虚拟环境
-                "python" + File.separator + "bin",     // 可能的嵌套结构
+                "install" + File.separator + "bin",   // python-build-standalone的install目录
+                "python" + File.separator + "bin",     // 嵌套结构
                 "python" + File.separator + "Scripts"
         };
 
+        // 先在常见路径查找
         for (String path : commonPaths) {
             String searchDir = path.isEmpty() ? directory : directory + File.separator + path;
+            log.debug("搜索目录: {}", searchDir);
+
             for (String pythonName : pythonNames) {
                 String pythonPath = searchDir + File.separator + pythonName;
                 File pythonFile = new File(pythonPath);
-                if (pythonFile.exists() && pythonFile.canExecute()) {
-                    log.info("检测到Python可执行文件: {}", pythonPath);
-                    return pythonPath;
+
+                if (pythonFile.exists()) {
+                    log.info("找到Python文件: {}", pythonPath);
+
+                    // 如果文件存在但没有执行权限，尝试设置执行权限
+                    if (!pythonFile.canExecute()) {
+                        log.warn("Python文件没有执行权限，尝试设置: {}", pythonPath);
+                        boolean setResult = pythonFile.setExecutable(true);
+                        if (setResult) {
+                            log.info("成功设置执行权限: {}", pythonPath);
+                        } else {
+                            log.error("设置执行权限失败: {}", pythonPath);
+                        }
+                    }
+
+                    // 再次检查是否可执行（Windows下.exe文件总是可执行）
+                    if (pythonFile.canExecute() || pythonName.endsWith(".exe")) {
+                        log.info("✓ 检测到Python可执行文件: {}", pythonPath);
+                        return pythonPath;
+                    } else {
+                        log.warn("文件存在但无法设置为可执行: {}", pythonPath);
+                    }
                 }
             }
         }
@@ -1284,21 +1322,48 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 先检查当前目录
         for (File file : files) {
-            if (file.isFile() && file.canExecute()) {
+            if (file.isFile()) {
                 String name = file.getName().toLowerCase();
                 if (name.equals("python") || name.equals("python3") ||
                         name.equals("python.exe") || name.equals("python3.exe")) {
-                    return file.getAbsolutePath();
+
+                    // 尝试设置执行权限
+                    if (!file.canExecute()) {
+                        file.setExecutable(true);
+                    }
+
+                    // Windows下.exe文件或可执行的文件
+                    if (file.canExecute() || name.endsWith(".exe")) {
+                        log.info("✓ 递归搜索找到Python可执行文件: {}", file.getAbsolutePath());
+                        return file.getAbsolutePath();
+                    }
                 }
             }
         }
 
-        // 然后递归检查子目录
+        // 然后递归检查子目录（优先检查bin和Scripts目录）
         for (File file : files) {
             if (file.isDirectory() && !file.getName().startsWith(".")) {
-                String found = findPythonExecutableRecursively(file, depth + 1, maxDepth);
-                if (found != null) {
-                    return found;
+                String dirName = file.getName().toLowerCase();
+                // 优先搜索bin和Scripts目录
+                if (dirName.equals("bin") || dirName.equals("scripts")) {
+                    String found = findPythonExecutableRecursively(file, depth + 1, maxDepth);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+            }
+        }
+
+        // 然后检查其他子目录
+        for (File file : files) {
+            if (file.isDirectory() && !file.getName().startsWith(".")) {
+                String dirName = file.getName().toLowerCase();
+                if (!dirName.equals("bin") && !dirName.equals("scripts")) {
+                    String found = findPythonExecutableRecursively(file, depth + 1, maxDepth);
+                    if (found != null) {
+                        return found;
+                    }
                 }
             }
         }
