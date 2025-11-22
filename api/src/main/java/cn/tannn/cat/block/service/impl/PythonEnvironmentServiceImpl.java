@@ -1150,11 +1150,34 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             if (subItems != null && subItems.length == 1 && subItems[0].isDirectory()) {
                 File singleSubDir = subItems[0];
                 log.info("检测到解压后只有一个子目录: {}", singleSubDir.getName());
+                progressLogService.sendLog(taskId, "检测到解压后的子目录: " + singleSubDir.getName());
 
-                // 进入子目录
-                extractPath = singleSubDir.getAbsolutePath();
-                extractDir = singleSubDir;
-                log.info("使用子目录作为Python根目录: {}", extractPath);
+                // 检查子目录名称，判断是否是 python-build-standalone 格式
+                String subDirName = singleSubDir.getName().toLowerCase();
+                boolean isPythonBuildStandalone = subDirName.startsWith("cpython-") ||
+                                                   subDirName.startsWith("python-");
+
+                if (isPythonBuildStandalone) {
+                    log.info("检测到 python-build-standalone 包: {}", singleSubDir.getName());
+                    progressLogService.sendLog(taskId, "✓ 识别为 python-build-standalone 预编译包");
+
+                    // 进入子目录
+                    extractPath = singleSubDir.getAbsolutePath();
+                    extractDir = singleSubDir;
+                    log.info("使用子目录作为Python根目录: {}", extractPath);
+
+                    // 输出目录结构用于调试
+                    log.info("Python根目录内容:");
+                    logDirectoryStructure(extractDir, 0, 2);
+                } else {
+                    // 普通的单目录包，也进入
+                    log.info("进入单一子目录: {}", singleSubDir.getName());
+                    extractPath = singleSubDir.getAbsolutePath();
+                    extractDir = singleSubDir;
+                }
+            } else if (subItems != null) {
+                log.info("解压后包含 {} 个项目", subItems.length);
+                progressLogService.sendLog(taskId, "解压后包含 " + subItems.length + " 个文件/目录");
             }
 
             // 检测是否为Python源代码包（包含 configure 文件）
@@ -1214,6 +1237,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
             // 获取当前系统架构
             String osArch = System.getProperty("os.arch").toLowerCase();
+            String osName = System.getProperty("os.name").toLowerCase();
             String recommendedArch = getRecommendedArchitecture(osArch);
             String downloadUrl = "https://github.com/astral-sh/python-build-standalone/releases";
 
@@ -1223,8 +1247,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             errorMsg.append("📋 系统信息\n");
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-            errorMsg.append("当前系统架构: ").append(osArch).append("\n");
-            errorMsg.append("需要下载架构: ").append(recommendedArch).append("\n\n");
+            errorMsg.append("操作系统: ").append(osName).append("\n");
+            errorMsg.append("系统架构: ").append(osArch).append("\n");
+            errorMsg.append("需要下载: ").append(recommendedArch).append(" 架构的Python\n\n");
 
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             errorMsg.append("🔍 问题诊断\n");
@@ -1232,15 +1257,49 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             errorMsg.append(archMismatchHint).append("\n\n");
 
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-            errorMsg.append("✅ 解决方案\n");
+            errorMsg.append("✅ 解决方案：使用 python-build-standalone\n");
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             errorMsg.append("1. 访问下载页面:\n");
             errorMsg.append("   ").append(downloadUrl).append("\n\n");
-            errorMsg.append("2. 选择文件名包含以下关键字的版本:\n");
-            errorMsg.append("   📦 ").append(recommendedArch).append("-unknown-linux-gnu-install_only.tar.gz\n\n");
-            errorMsg.append("3. 下载示例（选择最新版本）:\n");
-            errorMsg.append("   cpython-3.11.9+20240726-").append(recommendedArch).append("-unknown-linux-gnu-install_only.tar.gz\n\n");
-            errorMsg.append("4. 重新上传下载的文件\n");
+
+            errorMsg.append("2. 选择正确的文件（文件名格式说明）:\n");
+            errorMsg.append("   cpython-{版本}+{日期}-{架构}-{平台}-install_only.tar.gz\n\n");
+
+            errorMsg.append("3. 根据您的系统选择对应文件:\n\n");
+
+            if (osName.contains("linux")) {
+                errorMsg.append("   【Linux 系统】\n");
+                if (osArch.contains("aarch") || osArch.contains("arm")) {
+                    errorMsg.append("   ✓ ARM64架构，选择包含 'aarch64' 的文件:\n");
+                    errorMsg.append("     📦 cpython-3.10.19+20251120-aarch64-unknown-linux-gnu-install_only.tar.gz\n");
+                    errorMsg.append("     📦 cpython-3.11.10+20241016-aarch64-unknown-linux-gnu-install_only.tar.gz\n");
+                    errorMsg.append("     📦 cpython-3.12.7+20241016-aarch64-unknown-linux-gnu-install_only.tar.gz\n");
+                } else {
+                    errorMsg.append("   ✓ x86_64架构，选择包含 'x86_64' 的文件:\n");
+                    errorMsg.append("     📦 cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz\n");
+                    errorMsg.append("     📦 cpython-3.11.10+20241016-x86_64-unknown-linux-gnu-install_only.tar.gz\n");
+                    errorMsg.append("     📦 cpython-3.12.7+20241016-x86_64-unknown-linux-gnu-install_only.tar.gz\n");
+                }
+            } else if (osName.contains("win")) {
+                errorMsg.append("   【Windows 系统】\n");
+                errorMsg.append("   ✓ 选择包含 'windows' 的文件:\n");
+                errorMsg.append("     📦 cpython-3.11.10+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz\n");
+                errorMsg.append("     📦 cpython-3.12.7+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz\n");
+            } else if (osName.contains("mac") || osName.contains("darwin")) {
+                errorMsg.append("   【macOS 系统】\n");
+                errorMsg.append("   ✓ 选择包含 'darwin' 的文件:\n");
+                errorMsg.append("     📦 cpython-3.11.10+...-x86_64-apple-darwin-install_only.tar.gz\n");
+                errorMsg.append("     📦 cpython-3.11.10+...-aarch64-apple-darwin-install_only.tar.gz (Apple Silicon)\n");
+            }
+
+            errorMsg.append("\n");
+            errorMsg.append("4. 关键要点:\n");
+            errorMsg.append("   • 文件名必须包含 'install_only'\n");
+            errorMsg.append("   • 架构必须匹配（x86_64 或 aarch64）\n");
+            errorMsg.append("   • 平台必须匹配（linux-gnu, windows-msvc, apple-darwin）\n");
+            errorMsg.append("   • 版本号可以选择 3.10, 3.11, 3.12 等\n\n");
+
+            errorMsg.append("5. 下载后重新上传该文件\n");
 
             progressLogService.sendError(taskId, errorMsg.toString());
             throw new ServiceException(500, errorMsg.toString());
@@ -1362,14 +1421,20 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         log.info("开始在目录中查找Python可执行文件: {}", directory);
 
         // 常见的Python可执行文件名（优先级从高到低）
-        String[] pythonNames = {"python3", "python", "python.exe", "python3.exe"};
+        // 注意：python-build-standalone 通常包含 python3.10, python3.11 等带版本号的
+        String[] pythonNames = {
+                "python3.13", "python3.12", "python3.11", "python3.10", "python3.9",  // 带版本号的优先
+                "python3",                                                              // 通用python3
+                "python",                                                               // 通用python
+                "python.exe", "python3.exe"                                            // Windows
+        };
 
         // 常见的Python可执行文件路径（相对于根目录）
         String[] commonPaths = {
-                "bin",                                 // Unix/Linux标准路径（最常见）
+                "bin",                                 // Unix/Linux标准路径（python-build-standalone使用这个）
                 "",                                    // 根目录
                 "Scripts",                             // Windows虚拟环境
-                "install" + File.separator + "bin",   // python-build-standalone的install目录
+                "install" + File.separator + "bin",   // 某些安装包的install目录
                 "python" + File.separator + "bin",     // 嵌套结构
                 "python" + File.separator + "Scripts"
         };
@@ -1377,6 +1442,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 先在常见路径查找
         for (String path : commonPaths) {
             String searchDir = path.isEmpty() ? directory : directory + File.separator + path;
+            File searchDirFile = new File(searchDir);
+
+            if (!searchDirFile.exists() || !searchDirFile.isDirectory()) {
+                log.debug("搜索目录不存在: {}", searchDir);
+                continue;
+            }
+
             log.debug("搜索目录: {}", searchDir);
 
             for (String pythonName : pythonNames) {
@@ -1386,21 +1458,35 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 if (pythonFile.exists()) {
                     log.info("找到Python文件: {}", pythonPath);
 
+                    // 检查文件大小（避免空文件或损坏的符号链接）
+                    if (pythonFile.length() == 0) {
+                        log.warn("Python文件大小为0（可能是损坏的符号链接）: {}", pythonPath);
+                        continue;
+                    }
+
                     // 如果文件存在但没有执行权限，尝试设置执行权限
                     if (!pythonFile.canExecute()) {
                         log.warn("Python文件没有执行权限，尝试设置: {}", pythonPath);
-                        boolean setResult = pythonFile.setExecutable(true);
+                        boolean setResult = pythonFile.setExecutable(true, false);  // false = 所有用户
                         if (setResult) {
-                            log.info("成功设置执行权限: {}", pythonPath);
+                            log.info("✓ 成功设置执行权限: {}", pythonPath);
                         } else {
-                            log.error("设置执行权限失败: {}", pythonPath);
+                            log.error("✗ 设置执行权限失败: {}", pythonPath);
                         }
                     }
 
                     // 再次检查是否可执行（Windows下.exe文件总是可执行）
                     if (pythonFile.canExecute() || pythonName.endsWith(".exe")) {
-                        log.info("✓ 检测到Python可执行文件: {}", pythonPath);
-                        return pythonPath;
+                        log.info("✓ 检测到可用的Python可执行文件: {}", pythonPath);
+
+                        // 尝试执行 python --version 验证是否可以运行
+                        if (verifyPythonExecutable(pythonPath)) {
+                            log.info("✓ Python可执行文件验证成功: {}", pythonPath);
+                            return pythonPath;
+                        } else {
+                            log.warn("⚠ Python可执行文件验证失败（可能是架构不匹配）: {}", pythonPath);
+                            // 继续尝试其他文件
+                        }
                     } else {
                         log.warn("文件存在但无法设置为可执行: {}", pythonPath);
                     }
@@ -1413,13 +1499,61 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             String found = findPythonExecutableRecursively(dir, 0, 3);
             if (found != null) {
                 log.info("通过递归搜索检测到Python可执行文件: {}", found);
-                return found;
+
+                // 验证可执行文件
+                if (verifyPythonExecutable(found)) {
+                    return found;
+                } else {
+                    log.warn("递归找到的Python文件验证失败: {}", found);
+                }
             }
         } catch (Exception e) {
             log.warn("递归搜索Python可执行文件时出错", e);
         }
 
+        log.error("❌ 未能找到可用的Python可执行文件");
         return null;
+    }
+
+    /**
+     * 验证Python可执行文件是否可以正常运行
+     */
+    private boolean verifyPythonExecutable(String pythonPath) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(pythonPath, "--version");
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            boolean completed = process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (!completed) {
+                process.destroyForcibly();
+                log.warn("Python验证超时: {}", pythonPath);
+                return false;
+            }
+
+            int exitCode = process.exitValue();
+            if (exitCode == 0) {
+                return true;
+            } else {
+                log.warn("Python执行失败，退出码: {}", exitCode);
+                return false;
+            }
+        } catch (IOException e) {
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("Exec format error") || errorMsg.contains("error=8"))) {
+                log.error("❌ 架构不匹配：Python可执行文件无法在当前系统运行 - {}", errorMsg);
+            } else {
+                log.warn("验证Python可执行文件时IO错误: {}", errorMsg);
+            }
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (Exception e) {
+            log.warn("验证Python可执行文件失败", e);
+            return false;
+        }
     }
 
     /**

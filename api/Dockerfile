@@ -16,12 +16,16 @@
 # 或使用构建脚本（推荐）:
 #   Linux/Mac: ./docker-build.sh
 #   Windows:   docker-build.bat
+#
+# 【镜像选择】
+# - Alpine版本（轻量）: eclipse-temurin:17-jre-alpine
+# - Debian版本（兼容）: eclipse-temurin:17-jre-jammy
 # ============================================
 
 # ============================================
-# 运行时镜像
+# 运行时镜像 - Debian版本（推荐，兼容性更好）
 # ============================================
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 
 # 添加维护者信息
 LABEL maintainer="tannnn"
@@ -37,39 +41,52 @@ COPY api/target/block-flow-*.jar /app/block-flow.jar
 
 # 【可选】配置国内镜像源加速（中国区用户取消注释）
 # 阿里云镜像源
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+ RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list && \
+     sed -i 's@http://.*security.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list
 # 或使用腾讯云镜像源
-#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories
+# RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.tencent.com@g' /etc/apt/sources.list && \
+#     sed -i 's@http://.*security.ubuntu.com@http://mirrors.tencent.com@g' /etc/apt/sources.list
 # 或使用中科大镜像源
-#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
+# RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list && \
+#     sed -i 's@http://.*security.ubuntu.com@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list
 
-# 【可选】安装 Python 编译依赖（支持从源代码编译Python）
-# 注意：仅在需要上传Python源代码包(.tar.gz)进行编译时启用
-# 预编译的Python运行时(如embed版本)无需此依赖
-RUN apk add --no-cache \
-    build-base \
+# 安装 Python 源代码编译所需的依赖（完整版）
+# 注意：
+# 1. 如果只使用预编译Python运行时（python-build-standalone），可以注释掉这些依赖
+# 2. 如果需要从源代码编译Python，必须保留这些依赖
+# 3. 这些依赖会增加约300MB的镜像大小
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    # 基础编译工具
+    build-essential \
     gcc \
     g++ \
     make \
-    zlib-dev \
-    openssl-dev \
+    # Python编译必需的库
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
     libffi-dev \
-    readline-dev \
-    sqlite-dev \
-    bzip2-dev \
-    xz-dev \
-    ncurses-dev \
-    gdbm-dev \
+    liblzma-dev \
+    # 可选但推荐的库
+    libncurses5-dev \
+    libgdbm-dev \
+    libgdbm-compat-dev \
     tk-dev \
-    libuuid \
-    bash
+    uuid-dev \
+    # 工具
+    wget \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # 创建必要的目录
 RUN mkdir -p /app/data \
              /app/logs \
              /app/python-envs && \
-    addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
+    useradd -m -u 1000 -s /bin/bash appuser && \
     chown -R appuser:appuser /app
 
 # 暴露端口
