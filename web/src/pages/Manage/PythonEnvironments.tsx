@@ -199,86 +199,179 @@ const PythonEnvironments: React.FC = () => {
       } else {
         // 创建模式
         const createData: PythonEnvironmentCreateDTO = values;
-        const createResponse = await pythonEnvApi.create(createData);
 
-        if (createResponse.code === 200 && createResponse.data) {
-          const newEnvId = createResponse.data.id;
+        // 如果是上传模式，需要事务性处理
+        if (configMode === 'upload' && runtimeFile) {
+          let newEnvId: number | null = null;
+          setUploadingRuntime(true);
 
-          // 初始化环境目录
-          await pythonEnvApi.initializeEnvironment(newEnvId);
-
-          // 根据配置模式进行后续操作
-          if (configMode === 'upload' && runtimeFile) {
-            // 上传Python运行时
-            setUploadingRuntime(true);
-            try {
-              const uploadResponse = await pythonEnvApi.uploadPythonRuntime(newEnvId, runtimeFile);
-              if (uploadResponse.code === 200 && uploadResponse.data) {
-                message.success('环境创建并配置成功');
-
-                // 构建提示内容
-                const content = (
-                  <div>
-                    <p><strong>Python路径:</strong> {uploadResponse.data.pythonExecutable || '未检测到'}</p>
-                    <p><strong>Python版本:</strong> {uploadResponse.data.pythonVersion || '未检测到'}</p>
-                    <p><strong>site-packages:</strong> {uploadResponse.data.sitePackagesPath || '未检测到'}</p>
-                    <p><strong>pip状态:</strong> {uploadResponse.data.hasPip ? <Tag color="green">已安装</Tag> : <Tag color="orange">未安装</Tag>}</p>
-                    {uploadResponse.data.message && (
-                      <Alert
-                        message={uploadResponse.data.message}
-                        type={uploadResponse.data.hasPip ? "info" : "warning"}
-                        showIcon
-                        style={{ marginTop: 12 }}
-                      />
-                    )}
-                  </div>
-                );
-
-                // 根据pip状态显示不同类型的弹窗
-                if (uploadResponse.data.hasPip) {
-                  modal.success({
-                    title: 'Python运行时配置成功',
-                    width: 700,
-                    content: content,
-                  });
-                } else {
-                  // 没有pip，刷新环境列表并打开离线包上传弹窗
-                  await fetchEnvironments();
-
-                  // 获取新创建的环境
-                  const newEnvResponse = await pythonEnvApi.getById(newEnvId);
-                  if (newEnvResponse.code === 200 && newEnvResponse.data) {
-                    setSelectedEnv(newEnvResponse.data);
-
-                    // 获取已上传的包列表
-                    const listResponse = await pythonEnvApi.listUploadedPackageFiles(newEnvId);
-                    if (listResponse.code === 200 && listResponse.data) {
-                      setUploadedFiles(listResponse.data);
-                    }
-
-                    // 关闭创建弹窗，打开离线包上传弹窗
-                    setModalVisible(false);
-                    setUploadedFilesModalVisible(true);
-
-                    // 显示提示
-                    message.warning('Python运行时缺少pip，请上传pip包以启用在线安装功能');
-                  }
-                  return; // 提前返回，避免后面的setModalVisible和fetchEnvironments
-                }
-              }
-            } catch (error: any) {
-              message.warning('环境创建成功，但运行时上传失败: ' + (error.message || '未知错误'));
-            } finally {
-              setUploadingRuntime(false);
+          try {
+            // 步骤1：创建环境
+            const createResponse = await pythonEnvApi.create(createData);
+            if (createResponse.code !== 200 || !createResponse.data) {
+              throw new Error('创建环境失败');
             }
-          } else if (configMode === 'manual' && values.pythonExecutable) {
-            message.success('环境创建成功，已配置Python路径');
-          } else {
-            message.success('环境创建成功，请稍后配置Python运行时');
+            newEnvId = createResponse.data.id;
+
+            // 步骤2：初始化环境目录
+            await pythonEnvApi.initializeEnvironment(newEnvId);
+
+            // 步骤3：上传Python运行时（关键步骤）
+            const uploadResponse = await pythonEnvApi.uploadPythonRuntime(newEnvId, runtimeFile);
+
+            if (uploadResponse.code !== 200 || !uploadResponse.data) {
+              throw new Error(uploadResponse.msg || '上传Python运行时失败');
+            }
+
+            // 成功：显示成功信息
+            message.success('环境创建并配置成功');
+
+            // 构建提示内容
+            const content = (
+              <div>
+                <p><strong>Python路径:</strong> {uploadResponse.data.pythonExecutable || '未检测到'}</p>
+                <p><strong>Python版本:</strong> {uploadResponse.data.pythonVersion || '未检测到'}</p>
+                <p><strong>site-packages:</strong> {uploadResponse.data.sitePackagesPath || '未检测到'}</p>
+                <p><strong>pip状态:</strong> {uploadResponse.data.hasPip ? <Tag color="green">已安装</Tag> : <Tag color="orange">未安装</Tag>}</p>
+                {uploadResponse.data.message && (
+                  <Alert
+                    message={uploadResponse.data.message}
+                    type={uploadResponse.data.hasPip ? "info" : "warning"}
+                    showIcon
+                    style={{ marginTop: 12 }}
+                  />
+                )}
+              </div>
+            );
+
+            // 根据pip状态显示不同类型的弹窗
+            if (uploadResponse.data.hasPip) {
+              modal.success({
+                title: 'Python运行时配置成功',
+                width: 700,
+                content: content,
+              });
+            } else {
+              // 没有pip，刷新环境列表并打开离线包上传弹窗
+              await fetchEnvironments();
+
+              // 获取新创建的环境
+              const newEnvResponse = await pythonEnvApi.getById(newEnvId);
+              if (newEnvResponse.code === 200 && newEnvResponse.data) {
+                setSelectedEnv(newEnvResponse.data);
+
+                // 获取已上传的包列表
+                const listResponse = await pythonEnvApi.listUploadedPackageFiles(newEnvId);
+                if (listResponse.code === 200 && listResponse.data) {
+                  setUploadedFiles(listResponse.data);
+                }
+
+                // 关闭创建弹窗，打开离线包上传弹窗
+                setModalVisible(false);
+                setUploadedFilesModalVisible(true);
+
+                // 显示提示
+                message.warning('Python运行时缺少pip，请上传pip包以启用在线安装功能');
+              }
+              return; // 提前返回，避免后面的setModalVisible和fetchEnvironments
+            }
+
+            setModalVisible(false);
+            fetchEnvironments();
+
+          } catch (error: any) {
+            console.error('创建环境或上传Python运行时失败:', error);
+
+            // 失败：回滚 - 删除已创建的环境
+            if (newEnvId !== null) {
+              try {
+                message.loading({ content: '正在回滚，删除已创建的环境...', key: 'rollback', duration: 0 });
+                await pythonEnvApi.delete(newEnvId);
+                message.success({ content: '已回滚，环境创建失败', key: 'rollback' });
+              } catch (deleteError: any) {
+                console.error('回滚删除环境失败:', deleteError);
+                message.error({
+                  content: `回滚失败，请手动删除环境ID: ${newEnvId}`,
+                  key: 'rollback',
+                  duration: 10
+                });
+              }
+            }
+
+            // 使用Modal显示详细错误信息
+            modal.error({
+              title: '❌ 创建环境失败',
+              width: 800,
+              content: (
+                <div>
+                  <Alert
+                    type="error"
+                    message="环境创建失败"
+                    description="Python运行时上传失败，已回滚所有操作，未创建任何环境数据"
+                    style={{ marginBottom: 16 }}
+                  />
+                  <div style={{
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    lineHeight: '1.6',
+                    maxHeight: '400px',
+                    overflow: 'auto',
+                    padding: '12px',
+                    background: '#f5f5f5',
+                    borderRadius: '4px',
+                    border: '1px solid #d9d9d9'
+                  }}>
+                    {error.message || error.msg || '创建失败，请稍后重试'}
+                  </div>
+                  <Alert
+                    type="info"
+                    message="下载正确版本"
+                    description={
+                      <div>
+                        请访问：<br/>
+                        <a
+                          href="https://github.com/astral-sh/python-build-standalone/releases"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          https://github.com/astral-sh/python-build-standalone/releases
+                        </a>
+                      </div>
+                    }
+                    style={{ marginTop: 16 }}
+                  />
+                </div>
+              ),
+              okText: '我知道了',
+            });
+
+            // 不关闭弹窗，让用户可以修改后重试
+            throw error;
+
+          } finally {
+            setUploadingRuntime(false);
           }
 
-          setModalVisible(false);
-          fetchEnvironments();
+        } else {
+          // 手动配置或稍后配置模式 - 正常创建
+          const createResponse = await pythonEnvApi.create(createData);
+
+          if (createResponse.code === 200 && createResponse.data) {
+            const newEnvId = createResponse.data.id;
+
+            // 初始化环境目录
+            await pythonEnvApi.initializeEnvironment(newEnvId);
+
+            if (configMode === 'manual' && values.pythonExecutable) {
+              message.success('环境创建成功，已配置Python路径');
+            } else {
+              message.success('环境创建成功，请稍后配置Python运行时');
+            }
+
+            setModalVisible(false);
+            fetchEnvironments();
+          }
         }
       }
     } catch (error) {
@@ -689,7 +782,49 @@ const PythonEnvironments: React.FC = () => {
         fetchEnvironments();
       }
     } catch (error: any) {
-      message.error(error.message || '上传失败');
+      console.error('上传Python运行时失败:', error);
+
+      // 使用Modal显示详细错误信息（保留格式）
+      modal.error({
+        title: '❌ 上传失败',
+        width: 800,
+        content: (
+          <div>
+            <div style={{
+              whiteSpace: 'pre-wrap',
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              lineHeight: '1.6',
+              maxHeight: '400px',
+              overflow: 'auto',
+              padding: '12px',
+              background: '#f5f5f5',
+              borderRadius: '4px',
+              border: '1px solid #d9d9d9'
+            }}>
+              {error.message || error.msg || '上传失败，请稍后重试'}
+            </div>
+            <Alert
+              type="info"
+              message="提示"
+              description={
+                <div>
+                  如需下载正确版本的Python，请访问：<br/>
+                  <a
+                    href="https://github.com/astral-sh/python-build-standalone/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    https://github.com/astral-sh/python-build-standalone/releases
+                  </a>
+                </div>
+              }
+              style={{ marginTop: 16 }}
+            />
+          </div>
+        ),
+        okText: '我知道了',
+      });
     } finally {
       setUploadingRuntime(false);
     }
@@ -977,54 +1112,91 @@ const PythonEnvironments: React.FC = () => {
               )}
 
               {configMode === 'upload' && (
-                <Form.Item label="Python运行时压缩包">
-                  <Upload
-                    beforeUpload={(file) => {
-                      // 验证文件类型
-                      const fileName = file.name.toLowerCase();
-                      if (!fileName.endsWith('.zip') && !fileName.endsWith('.tar.gz') && !fileName.endsWith('.tgz')) {
-                        message.error('仅支持 .zip、.tar.gz 和 .tgz 格式');
-                        return false;
-                      }
-                      // 验证文件大小
-                      const maxSize = 2 * 1024 * 1024 * 1024;
-                      if (file.size > maxSize) {
-                        message.error('文件大小不能超过 2GB');
-                        return false;
-                      }
-                      setRuntimeFile(file);
-                      message.success(`已选择文件: ${file.name}`);
-                      return false; // 阻止自动上传
-                    }}
-                    onRemove={() => {
-                      setRuntimeFile(null);
-                    }}
-                    maxCount={1}
-                    accept=".zip,.tar.gz,.tgz"
-                  >
-                    <Button icon={<RocketOutlined />}>选择Python运行时文件</Button>
-                  </Upload>
-                  <div style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
-                    • 支持 .zip、.tar.gz 和 .tgz 格式
-                    <br />
-                    • 文件大小限制 2GB
-                    <br />
-                    • 系统将自动解压并检测Python路径、版本和site-packages
-                    <br />
-                    • <strong>Python下载：</strong>
-                    <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>官方FTP</a> |
-                    <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>淘宝镜像</a>
-                  </div>
-                  {runtimeFile && (
-                    <Alert
-                      message={`已选择: ${runtimeFile.name} (${(runtimeFile.size / 1024 / 1024).toFixed(2)} MB)`}
-                      type="success"
-                      style={{ marginTop: 8 }}
-                      closable
-                      onClose={() => setRuntimeFile(null)}
-                    />
-                  )}
-                </Form.Item>
+                <>
+                  <Form.Item label="Python运行时压缩包">
+                    <Upload
+                      beforeUpload={(file) => {
+                        // 验证文件类型
+                        const fileName = file.name.toLowerCase();
+                        if (!fileName.endsWith('.zip') && !fileName.endsWith('.tar.gz') && !fileName.endsWith('.tgz')) {
+                          message.error('仅支持 .zip、.tar.gz 和 .tgz 格式');
+                          return false;
+                        }
+                        // 验证文件大小
+                        const maxSize = 2 * 1024 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                          message.error('文件大小不能超过 2GB');
+                          return false;
+                        }
+                        setRuntimeFile(file);
+                        message.success(`已选择文件: ${file.name}`);
+                        return false; // 阻止自动上传
+                      }}
+                      onRemove={() => {
+                        setRuntimeFile(null);
+                      }}
+                      maxCount={1}
+                      accept=".zip,.tar.gz,.tgz"
+                    >
+                      <Button icon={<RocketOutlined />}>选择Python运行时文件</Button>
+                    </Upload>
+                    {runtimeFile && (
+                      <Alert
+                        message={`已选择: ${runtimeFile.name} (${(runtimeFile.size / 1024 / 1024).toFixed(2)} MB)`}
+                        type="success"
+                        style={{ marginTop: 8 }}
+                        closable
+                        onClose={() => setRuntimeFile(null)}
+                      />
+                    )}
+                  </Form.Item>
+
+                  {/* 推荐的python-build-standalone包 */}
+                  <Alert
+                    message="📦 推荐下载：python-build-standalone（预编译Python）"
+                    description={
+                      <div style={{ fontSize: 12 }}>
+                        <div style={{ marginBottom: 8 }}>
+                          <strong>下载地址：</strong>
+                          <a href="https://github.com/astral-sh/python-build-standalone/releases" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}>
+                            https://github.com/astral-sh/python-build-standalone/releases
+                          </a>
+                        </div>
+
+                        <div style={{ marginBottom: 6 }}>
+                          <strong>🐳 当前Docker环境（推荐）：</strong>
+                          <div style={{ marginLeft: 16, marginTop: 4 }}>
+                            <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
+                              cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
+                            </code>
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: 6 }}>
+                          <strong>🐧 Linux：</strong>
+                          <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
+                            x86_64 / aarch64
+                          </code>
+                        </div>
+
+                        <div style={{ marginBottom: 6 }}>
+                          <strong>🪟 Windows：</strong>
+                          <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
+                            x86_64-pc-windows-msvc-shared
+                          </code>
+                        </div>
+
+                        <div style={{ marginTop: 8, padding: '6px', background: '#fff7e6', borderRadius: 4, fontSize: 11 }}>
+                          💡 选择 <code>install_only</code> 版本，包含完整Python环境和pip
+                        </div>
+                      </div>
+                    }
+                    type="info"
+                    showIcon
+                    style={{ marginTop: 8 }}
+                    closable
+                  />
+                </>
               )}
 
               {configMode === 'later' && (
@@ -1084,13 +1256,81 @@ const PythonEnvironments: React.FC = () => {
               {selectedEnv?.pythonExecutable
                 ? "当前环境已配置Python运行时，您可以重新上传或检测以更新配置"
                 : "当前环境尚未配置Python运行时，请先上传Python环境或自动检测"}
-              <div style={{ marginTop: 8, fontSize: 12 }}>
-                <strong>Python下载地址：</strong>
+            </div>
+          }
+          type={selectedEnv?.pythonExecutable ? "success" : "warning"}
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+
+        {/* 推荐的python-build-standalone包 */}
+        <Alert
+          message="📦 推荐下载：python-build-standalone（预编译Python）"
+          description={
+            <div style={{ fontSize: 12 }}>
+              <div style={{ marginBottom: 12 }}>
+                <strong>下载地址：</strong>
+                <a href="https://github.com/astral-sh/python-build-standalone/releases" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}>
+                  https://github.com/astral-sh/python-build-standalone/releases
+                </a>
+              </div>
+
+              <div style={{ marginBottom: 8 }}>
+                <strong>🐳 当前Docker环境（推荐）：</strong>
+                <div style={{ marginLeft: 16, marginTop: 4 }}>
+                  • <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
+                    cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
+                  </code>
+                  <br />
+                  <span style={{ color: '#666', fontSize: 11 }}>
+                    （适用于x86_64 Linux Docker环境，如果您的Docker运行在ARM架构上，请选择aarch64版本）
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 8 }}>
+                <strong>🐧 Linux系统支持的包：</strong>
+                <div style={{ marginLeft: 16, marginTop: 4 }}>
+                  • x86_64架构: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
+                    cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
+                  </code>
+                  <br />
+                  • ARM架构: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
+                    cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz
+                  </code>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 8 }}>
+                <strong>🪟 Windows系统支持的包：</strong>
+                <div style={{ marginLeft: 16, marginTop: 4 }}>
+                  • x86_64架构: <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
+                    cpython-3.11.9+20240726-x86_64-pc-windows-msvc-shared-install_only.tar.gz
+                  </code>
+                  <br />
+                  <span style={{ color: '#666', fontSize: 11 }}>
+                    （或使用官方安装包：
+                    <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
+                      Python官方FTP
+                    </a> |
+                    <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
+                      淘宝镜像
+                    </a>）
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12, padding: '8px', background: '#fff7e6', borderRadius: 4, border: '1px solid #ffd591' }}>
+                <strong>💡 提示：</strong>
                 <br />
-                • Windows: <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer">Python官方FTP</a> 或 <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer">淘宝镜像</a>
+                • 文件名中的版本号（如3.11.9）可以根据需要选择其他版本
                 <br />
-                • Linux: <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer">Python官方FTP</a> 或使用系统包管理器
+                • <code>install_only</code> 版本包含完整的Python环境和pip，推荐使用
                 <br />
+                • 如果架构不匹配会导致 "Exec format error" 错误
+              </div>
+
+              <div style={{ marginTop: 8 }}>
                 <strong>pip离线包下载：</strong>
                 <br />
                 • PyPI官方: <a href="https://pypi.org/project/pip/#files" target="_blank" rel="noopener noreferrer">https://pypi.org/project/pip/#files</a>
@@ -1101,9 +1341,10 @@ const PythonEnvironments: React.FC = () => {
               </div>
             </div>
           }
-          type={selectedEnv?.pythonExecutable ? "success" : "warning"}
+          type="info"
           showIcon
           style={{ marginBottom: 16 }}
+          closable
         />
 
         <Card

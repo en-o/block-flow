@@ -911,6 +911,15 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.warn("pip不可用，退出代码: {}, 输出: {}", exitCode, output);
             return false;
 
+        } catch (IOException e) {
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("Exec format error") ||
+                                     errorMsg.contains("error=8"))) {
+                log.error("❌ 架构不匹配：无法执行Python检查pip - {}", errorMsg);
+            } else {
+                log.warn("检查pip可用性时IO错误: {}", errorMsg);
+            }
+            return false;
         } catch (Exception e) {
             log.warn("检查pip可用性时出错", e);
             return false;
@@ -957,6 +966,15 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.warn("包 {} 验证失败，pip show 退出代码: {}", packageName, exitCode);
             return null;
 
+        } catch (IOException e) {
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("Exec format error") ||
+                                     errorMsg.contains("error=8"))) {
+                log.error("❌ 架构不匹配：无法执行Python验证包 - {}", errorMsg);
+            } else {
+                log.warn("验证包 {} 时IO错误: {}", packageName, errorMsg);
+            }
+            return null;
         } catch (Exception e) {
             log.warn("验证包 {} 是否安装时出错", packageName, e);
             return null;
@@ -1141,8 +1159,47 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 自动检测Python可执行文件
         String pythonExecutable = detectPythonExecutableInDirectory(finalExtractPath);
         if (pythonExecutable == null) {
-            log.error("未能检测到Python可执行文件，解压目录: {}", finalExtractPath);
-            throw new ServiceException(500, "未能在解压目录中检测到Python可执行文件。请确保上传的是完整的Python运行时压缩包（包含python.exe或python可执行文件）");
+            log.error("========================================");
+            log.error("未能检测到Python可执行文件！");
+            log.error("========================================");
+            log.error("解压目录: {}", finalExtractPath);
+            log.error("目录结构:");
+            logDirectoryStructure(new File(finalExtractPath), 0, 3);
+
+            // 检查是否存在架构不匹配问题
+            String archMismatchHint = detectArchitectureMismatch(finalExtractPath);
+
+            // 获取当前系统架构
+            String osArch = System.getProperty("os.arch").toLowerCase();
+            String recommendedArch = getRecommendedArchitecture(osArch);
+            String downloadUrl = "https://github.com/astral-sh/python-build-standalone/releases";
+
+            StringBuilder errorMsg = new StringBuilder();
+            errorMsg.append("❌ 未能检测到可用的Python可执行文件\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("📋 系统信息\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("当前系统架构: ").append(osArch).append("\n");
+            errorMsg.append("需要下载架构: ").append(recommendedArch).append("\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("🔍 问题诊断\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append(archMismatchHint).append("\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("✅ 解决方案\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("1. 访问下载页面:\n");
+            errorMsg.append("   ").append(downloadUrl).append("\n\n");
+            errorMsg.append("2. 选择文件名包含以下关键字的版本:\n");
+            errorMsg.append("   📦 ").append(recommendedArch).append("-unknown-linux-gnu-install_only.tar.gz\n\n");
+            errorMsg.append("3. 下载示例（选择最新版本）:\n");
+            errorMsg.append("   cpython-3.11.9+20240726-").append(recommendedArch).append("-unknown-linux-gnu-install_only.tar.gz\n\n");
+            errorMsg.append("4. 重新上传下载的文件\n");
+
+            throw new ServiceException(500, errorMsg.toString());
         }
 
         // 检测Python版本
@@ -1308,6 +1365,144 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
+     * 检测Python可执行文件架构是否与系统匹配
+     */
+    private String detectArchitectureMismatch(String directory) {
+        try {
+            // 获取系统架构
+            String osArch = System.getProperty("os.arch").toLowerCase();
+            log.info("系统架构: {}", osArch);
+
+            // 查找bin目录
+            File dir = new File(directory);
+            File binDir = findBinDirectory(dir, 0, 3);
+
+            if (binDir != null) {
+                // 查找python可执行文件
+                File[] pythonFiles = binDir.listFiles((d, name) -> {
+                    String n = name.toLowerCase();
+                    return n.equals("python3.10") || n.equals("python3.11") ||
+                           n.equals("python3.12") || n.equals("python3.13");
+                });
+
+                if (pythonFiles != null && pythonFiles.length > 0) {
+                    File pythonExe = pythonFiles[0];
+
+                    // 检查文件大小（空文件说明是损坏的符号链接）
+                    if (pythonExe.length() == 0) {
+                        return "⚠️  上传的Python文件损坏\n" +
+                               "   - 发现Python可执行文件但大小为0\n" +
+                               "   - 可能原因：符号链接在Windows/跨平台传输时损坏\n" +
+                               "   - 建议：重新下载完整的tar.gz包";
+                    }
+
+                    // 尝试使用file命令检测架构
+                    ProcessBuilder pb = new ProcessBuilder("file", pythonExe.getAbsolutePath());
+                    Process process = pb.start();
+                    StringBuilder output = new StringBuilder();
+
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(process.getInputStream()))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            output.append(line);
+                        }
+                    }
+
+                    process.waitFor();
+                    String fileInfo = output.toString().toLowerCase();
+                    log.info("Python可执行文件信息: {}", fileInfo);
+
+                    // 检测架构不匹配
+                    if (fileInfo.contains("aarch64") || fileInfo.contains("arm64")) {
+                        if (osArch.contains("x86") || osArch.contains("amd64")) {
+                            return "❌ 架构不匹配错误\n" +
+                                   "   - 上传的Python: ARM aarch64 架构\n" +
+                                   "   - 当前系统: x86_64 (Intel/AMD) 架构\n" +
+                                   "   - 无法执行：ARM程序无法在x86_64系统上运行";
+                        }
+                    } else if (fileInfo.contains("x86-64") || fileInfo.contains("x86_64")) {
+                        if (osArch.contains("aarch") || osArch.contains("arm")) {
+                            return "❌ 架构不匹配错误\n" +
+                                   "   - 上传的Python: x86_64 (Intel/AMD) 架构\n" +
+                                   "   - 当前系统: ARM aarch64 架构\n" +
+                                   "   - 无法执行：x86_64程序无法在ARM系统上运行";
+                        }
+                    }
+
+                    if (fileInfo.contains("cannot execute")) {
+                        return "❌ 可执行文件格式错误\n" +
+                               "   - 文件无法执行\n" +
+                               "   - 可能原因：文件损坏或架构不匹配";
+                    }
+
+                    // 找到了文件但架构匹配，可能是权限问题
+                    return "⚠️  权限或其他问题\n" +
+                           "   - 找到Python可执行文件\n" +
+                           "   - 架构匹配但无法执行\n" +
+                           "   - 可能原因：文件权限不足";
+                }
+
+                return "⚠️  未找到Python可执行文件\n" +
+                       "   - 在bin目录中未找到python3.x文件\n" +
+                       "   - 可能原因：不完整的Python包或目录结构异常";
+            }
+
+            return "⚠️  目录结构异常\n" +
+                   "   - 未找到bin目录\n" +
+                   "   - 可能原因：不完整的Python包或解压失败";
+        } catch (Exception e) {
+            log.warn("检测架构时出错: {}", e.getMessage());
+            return "⚠️  无法检测架构信息\n" +
+                   "   - 检测过程出错: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 根据系统架构推荐下载版本
+     */
+    private String getRecommendedArchitecture(String osArch) {
+        if (osArch.contains("aarch") || osArch.contains("arm")) {
+            return "aarch64";
+        } else if (osArch.contains("x86") || osArch.contains("amd64")) {
+            return "x86_64";
+        } else {
+            return "unknown (请根据系统选择)";
+        }
+    }
+
+    /**
+     * 查找bin目录
+     */
+    private File findBinDirectory(File dir, int depth, int maxDepth) {
+        if (depth > maxDepth || !dir.isDirectory()) {
+            return null;
+        }
+
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return null;
+        }
+
+        for (File file : files) {
+            if (file.isDirectory() && file.getName().equals("bin")) {
+                return file;
+            }
+        }
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                File found = findBinDirectory(file, depth + 1, maxDepth);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * 递归搜索Python可执行文件
      */
     private String findPythonExecutableRecursively(File dir, int depth, int maxDepth) {
@@ -1398,6 +1593,24 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 return version;
             }
 
+        } catch (IOException e) {
+            // 捕获架构不匹配错误
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("Exec format error") ||
+                                     errorMsg.contains("error=8"))) {
+                log.error("❌ 架构不匹配：无法执行Python - {}", errorMsg);
+                log.error("   请确认上传的Python架构与系统架构一致");
+                throw new ServiceException(500,
+                    "❌ Python可执行文件架构不匹配\n\n" +
+                    "错误详情: " + errorMsg + "\n\n" +
+                    "这通常表示：\n" +
+                    "  - 上传了ARM架构的Python但系统是x86_64架构\n" +
+                    "  - 或者上传了x86_64架构的Python但系统是ARM架构\n\n" +
+                    "系统架构: " + System.getProperty("os.arch") + "\n" +
+                    "需要下载: " + getRecommendedArchitecture(System.getProperty("os.arch").toLowerCase()) + " 架构的Python\n\n" +
+                    "下载地址: https://github.com/astral-sh/python-build-standalone/releases");
+            }
+            log.warn("检测Python版本时IO错误: {}", errorMsg, e);
         } catch (Exception e) {
             log.warn("检测Python版本失败", e);
         }
@@ -1645,10 +1858,14 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         String installDir = sourceDir + "_compiled";
 
-        log.info("开始编译Python源代码:");
+        log.info("========================================");
+        log.info("开始编译Python源代码");
+        log.info("========================================");
         log.info("  操作系统: {}", osName);
         log.info("  源代码目录: {}", sourceDir);
         log.info("  安装目录: {}", installDir);
+        log.warn("  ⚠️  注意：编译Python需要较长时间（10-30分钟）和大量CPU/内存资源");
+        log.warn("  ⚠️  推荐使用预编译版本：https://github.com/astral-sh/python-build-standalone/releases");
 
         // 创建安装目录
         Files.createDirectories(Paths.get(installDir));
@@ -1657,16 +1874,17 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         int processors = Runtime.getRuntime().availableProcessors();
         log.info("  CPU核心数: {}", processors);
 
-        // 构建编译命令
+        // 构建编译命令（不使用 --enable-optimizations 加快编译）
         String compileCommand = String.format(
             "cd '%s' && " +
-            "./configure --prefix='%s' --enable-optimizations --with-ensurepip=install && " +
-            "make -j%d && " +
-            "make install",
+            "./configure --prefix='%s' --with-ensurepip=install 2>&1 && " +
+            "make -j%d 2>&1 && " +
+            "make install 2>&1",
             sourceDir, installDir, processors
         );
 
         log.info("执行编译命令: {}", compileCommand);
+        log.info("----------------------------------------");
 
         // 根据系统选择 shell
         String shell = osName.contains("mac") || osName.contains("darwin") ? "bash" : "sh";
@@ -1675,48 +1893,113 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         Process process = pb.start();
 
-        // 读取编译输出（用于日志）
+        // 读取并输出所有编译信息
+        StringBuilder fullOutput = new StringBuilder();
+        StringBuilder errorOutput = new StringBuilder();
+
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream()))) {
             String line;
             int lineCount = 0;
             while ((line = reader.readLine()) != null) {
-                // 只记录关键信息，避免日志过多
-                if (line.contains("error:") || line.contains("Error") ||
-                    line.contains("configure:") || line.contains("checking") ||
-                    line.contains("creating") || line.contains("Installing")) {
-                    log.info("编译输出: {}", line);
-                }
+                fullOutput.append(line).append("\n");
                 lineCount++;
-                if (lineCount % 100 == 0) {
+
+                // 输出关键信息到日志（修复：不把gcc命令当作错误）
+                String lowerLine = line.toLowerCase();
+
+                // 真正的错误：包含error但不是gcc命令行
+                boolean isRealError = (lowerLine.contains("error") &&
+                                      !lowerLine.trim().startsWith("gcc ") &&
+                                      !lowerLine.contains("werror="));
+
+                if (isRealError) {
+                    log.error("[编译错误] {}", line);
+                    errorOutput.append(line).append("\n");
+                } else if (lowerLine.contains("warning") && !lowerLine.contains("-w")) {
+                    log.warn("[编译警告] {}", line);
+                } else if (lowerLine.contains("configure:") || lowerLine.contains("checking") ||
+                          lowerLine.contains("creating") || lowerLine.contains("installing") ||
+                          lowerLine.contains("successfully") || lowerLine.contains("done")) {
+                    log.info("[编译进度] {}", line);
+                } else if (lineCount % 200 == 0) {
+                    // 每200行输出一次进度
                     log.debug("已处理 {} 行编译输出", lineCount);
                 }
             }
         }
 
         int exitCode = process.waitFor();
+        log.info("----------------------------------------");
+        log.info("编译命令执行完成，退出码: {}", exitCode);
+
         if (exitCode != 0) {
-            throw new IOException("Python源代码编译失败，退出码: " + exitCode);
+            log.error("========================================");
+            log.error("Python源代码编译失败！");
+            log.error("========================================");
+            log.error("退出码: {}", exitCode);
+
+            // 输出最后50行日志
+            String[] lines = fullOutput.toString().split("\n");
+            int startLine = Math.max(0, lines.length - 50);
+            log.error("最后50行编译输出:");
+            for (int i = startLine; i < lines.length; i++) {
+                log.error("  {}", lines[i]);
+            }
+
+            // 构建错误消息
+            StringBuilder errorMsg = new StringBuilder();
+            errorMsg.append("Python源代码编译失败（退出码: ").append(exitCode).append("）\n\n");
+
+            if (errorOutput.length() > 0) {
+                errorMsg.append("错误信息:\n").append(errorOutput.toString()).append("\n");
+            }
+
+            errorMsg.append("\n【推荐解决方案】\n");
+            errorMsg.append("1. 使用预编译Python运行时（推荐）:\n");
+            errorMsg.append("   下载地址: https://github.com/astral-sh/python-build-standalone/releases\n");
+            errorMsg.append("   示例: cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz\n\n");
+            errorMsg.append("2. 如果必须编译，请确保:\n");
+            errorMsg.append("   - Docker镜像包含所有编译依赖（取消Dockerfile中的注释）\n");
+            errorMsg.append("   - 容器有足够的内存和CPU资源\n");
+            errorMsg.append("   - 编译时间可能需要10-30分钟，请耐心等待\n");
+
+            throw new IOException(errorMsg.toString());
         }
 
-        log.info("Python源代码编译成功");
+        log.info("编译命令执行成功");
 
         // 验证编译结果
         File pythonBin = new File(installDir, "bin/python3");
         if (!pythonBin.exists()) {
-            throw new IOException("编译完成但未找到python3可执行文件: " + pythonBin.getAbsolutePath());
+            log.error("编译完成但未找到python3可执行文件");
+            log.error("预期位置: {}", pythonBin.getAbsolutePath());
+            log.error("安装目录内容:");
+            logDirectoryStructure(new File(installDir), 0, 3);
+
+            throw new IOException(
+                "编译完成但未找到python3可执行文件。\n" +
+                "这通常表示编译过程未正确完成。\n\n" +
+                "【推荐】使用预编译Python运行时:\n" +
+                "  https://github.com/astral-sh/python-build-standalone/releases"
+            );
         }
 
         // 设置可执行权限
         pythonBin.setExecutable(true);
+        log.info("✓ 找到Python可执行文件: {}", pythonBin.getAbsolutePath());
 
         // 删除源代码目录以节省空间
         try {
             deleteDirectory(new File(sourceDir));
-            log.info("已清理源代码目录");
+            log.info("✓ 已清理源代码目录");
         } catch (Exception e) {
             log.warn("清理源代码目录失败: {}", e.getMessage());
         }
+
+        log.info("========================================");
+        log.info("Python源代码编译成功！");
+        log.info("========================================");
 
         return installDir;
     }

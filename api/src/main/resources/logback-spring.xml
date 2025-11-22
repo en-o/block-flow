@@ -21,12 +21,16 @@
 
     <!-- 控制台打印 -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- 立即刷新到控制台，避免Docker日志延迟 -->
+        <immediateFlush>true</immediateFlush>
         <encoder charset="utf-8">
             <!-- 格式化日志输出：
              %-5level表示级别从左显示5个字符宽度，%d表示日期，%thread表示线程名，%m表示日志消息，%n是换行符
              %logger{36}表示logger是class的全名，36表示限制最长字符
             -->
             <pattern>%yellow(%date{yyyy-MM-dd HH:mm:ss}) |%highlight(%-5level)  |%green(%logger:%line) |%white(%msg%n)</pattern>
+            <!-- 立即刷新编码器缓冲区 -->
+            <immediateFlush>true</immediateFlush>
         </encoder>
     </appender>
 
@@ -158,11 +162,13 @@
             <appender-ref ref="STDOUT"/>
         </root>
     </springProfile>
-    <!--    非dev环境下-->
+    <!--    非dev环境下（Docker生产环境）-->
     <springProfile name="!dev">
-        <!-- logger设置输出到文件，输出级别为info -->
+        <!-- logger设置输出到文件和控制台，输出级别为info -->
         <root level="INFO">
+            <!-- 控制台输出（Docker日志） -->
             <appender-ref ref="STDOUT" />
+            <!-- 文件输出 -->
             <appender-ref ref="DEBUG" />
             <appender-ref ref="ERROR" />
             <appender-ref ref="WARN" />
