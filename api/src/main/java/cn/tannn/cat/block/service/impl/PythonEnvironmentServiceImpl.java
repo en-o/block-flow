@@ -1902,6 +1902,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 读取并输出所有编译信息
         StringBuilder fullOutput = new StringBuilder();
         StringBuilder errorOutput = new StringBuilder();
+        boolean hasFatalError = false; // 标记是否有致命错误
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream()))) {
@@ -1911,9 +1912,17 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 fullOutput.append(line).append("\n");
                 lineCount++;
 
-                // 输出关键信息到日志（修复：不把gcc命令当作错误）
+                // 检测致命错误（configure失败等）
                 String lowerLine = line.toLowerCase();
+                if (lowerLine.contains("configure: error:") ||
+                    lowerLine.contains("cannot find sources") ||
+                    lowerLine.contains("fatal error")) {
+                    hasFatalError = true;
+                    log.error("[致命错误] {}", line);
+                    errorOutput.append(line).append("\n");
+                }
 
+                // 输出关键信息到日志（修复：不把gcc命令当作错误）
                 // 真正的错误：包含error但不是gcc命令行
                 boolean isRealError = (lowerLine.contains("error") &&
                                       !lowerLine.trim().startsWith("gcc ") &&
@@ -1932,6 +1941,23 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     // 每200行输出一次进度
                     log.debug("已处理 {} 行编译输出", lineCount);
                 }
+
+                // 如果检测到致命错误，提前中断读取
+                if (hasFatalError && lineCount > 10) {
+                    log.error("检测到致命错误，停止读取编译输出");
+                    break;
+                }
+            }
+        }
+
+        // 如果检测到致命错误，立即终止进程
+        if (hasFatalError) {
+            log.error("检测到致命错误，终止编译进程");
+            process.destroy();
+            try {
+                process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception e) {
+                process.destroyForcibly();
             }
         }
 
@@ -2146,9 +2172,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
-     * 递归删除目录
+     * 递归删除目录（增强版，支持重试和强制删除，兼容Windows Docker）
      */
     private void deleteDirectory(File directory) throws IOException {
+        if (!directory.exists()) {
+            return;
+        }
+
         if (directory.isDirectory()) {
             File[] files = directory.listFiles();
             if (files != null) {
@@ -2157,8 +2187,56 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 }
             }
         }
-        if (!directory.delete()) {
-            throw new IOException("无法删除: " + directory.getAbsolutePath());
+
+        // 尝试删除文件/目录，失败时重试
+        int maxRetries = 5;  // 增加重试次数
+        boolean deleted = false;
+
+        for (int i = 0; i < maxRetries; i++) {
+            // 先尝试使用Java API删除
+            if (directory.delete()) {
+                deleted = true;
+                break;
+            }
+
+            // Java删除失败，尝试使用系统命令强制删除
+            if (i < maxRetries - 1) {
+                try {
+                    // 设置可写权限
+                    directory.setWritable(true, false);  // false = 所有用户
+                    directory.setReadable(true, false);
+                    directory.setExecutable(true, false);
+
+                    // 尝试使用系统命令删除（兼容Linux/Windows）
+                    String osName = System.getProperty("os.name").toLowerCase();
+                    if (osName.contains("win")) {
+                        // Windows命令
+                        Runtime.getRuntime().exec(new String[]{"cmd", "/c", "del", "/F", "/Q", directory.getAbsolutePath()});
+                    } else {
+                        // Linux命令
+                        Runtime.getRuntime().exec(new String[]{"rm", "-rf", directory.getAbsolutePath()});
+                    }
+
+                    // 等待命令执行
+                    Thread.sleep(200);
+
+                    // 检查是否删除成功
+                    if (!directory.exists()) {
+                        deleted = true;
+                        log.info("使用系统命令成功删除: {}", directory.getAbsolutePath());
+                        break;
+                    }
+
+                } catch (Exception e) {
+                    log.warn("重试删除时出错 (第{}次): {}", i + 1, e.getMessage());
+                }
+            }
+        }
+
+        if (!deleted && directory.exists()) {
+            log.error("⚠️  无法删除: {} (已重试{}次)", directory.getAbsolutePath(), maxRetries);
+            log.error("   文件系统可能被占用，建议手动清理或重启容器后删除");
+            // 不抛出异常，只记录错误，避免影响整体流程
         }
     }
 
