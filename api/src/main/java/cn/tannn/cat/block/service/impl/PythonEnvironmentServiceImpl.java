@@ -1071,6 +1071,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 解压到runtime目录
         String extractPath = runtimeDir + File.separator + "python";
+        String finalExtractPath = extractPath;
         try {
             // 如果已存在解压目录，先删除
             Path extractPathObj = Paths.get(extractPath);
@@ -1087,20 +1088,44 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
             log.info("Python运行时解压成功: {}", extractPath);
 
-            // 确保Python可执行文件有执行权限
-            ensurePythonExecutablePermissions(new File(extractPath));
+            // 检测是否为Python源代码包
+            File configureFile = new File(extractPath, "configure");
+            File[] subDirs = new File(extractPath).listFiles(File::isDirectory);
+            if (subDirs != null && subDirs.length == 1) {
+                // 检查子目录中是否有 configure 文件（tar.gz 解压可能多一层目录）
+                File subConfigure = new File(subDirs[0], "configure");
+                if (subConfigure.exists()) {
+                    configureFile = subConfigure;
+                    extractPath = subDirs[0].getAbsolutePath();
+                }
+            }
+
+            if (configureFile.exists()) {
+                log.info("检测到Python源代码包，开始自动编译...");
+                try {
+                    finalExtractPath = compilePythonSource(extractPath);
+                    log.info("Python源代码编译完成: {}", finalExtractPath);
+                } catch (Exception e) {
+                    log.error("编译Python源代码失败", e);
+                    throw new ServiceException(500, "编译Python源代码失败: " + e.getMessage());
+                }
+            } else {
+                finalExtractPath = extractPath;
+                // 确保Python可执行文件有执行权限
+                ensurePythonExecutablePermissions(new File(extractPath));
+            }
 
             // 输出解压后的文件结构（用于调试）
-            logDirectoryStructure(new File(extractPath), 0, 3);
+            logDirectoryStructure(new File(finalExtractPath), 0, 3);
         } catch (Exception e) {
             log.error("解压运行时文件失败", e);
             throw new ServiceException(500, "解压运行时文件失败: " + e.getMessage());
         }
 
         // 自动检测Python可执行文件
-        String pythonExecutable = detectPythonExecutableInDirectory(extractPath);
+        String pythonExecutable = detectPythonExecutableInDirectory(finalExtractPath);
         if (pythonExecutable == null) {
-            log.error("未能检测到Python可执行文件，解压目录: {}", extractPath);
+            log.error("未能检测到Python可执行文件，解压目录: {}", finalExtractPath);
             throw new ServiceException(500, "未能在解压目录中检测到Python可执行文件。请确保上传的是完整的Python运行时压缩包（包含python.exe或python可执行文件）");
         }
 
@@ -1516,6 +1541,102 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
      */
     private void ensurePythonExecutablePermissions(File directory) {
         ensurePythonExecutablePermissionsRecursively(directory, 0, 3);
+    }
+
+    /**
+     * 编译Python源代码
+     * @param sourceDir 源代码目录
+     * @return 编译后的安装目录
+     */
+    private String compilePythonSource(String sourceDir) throws IOException, InterruptedException {
+        // 检测操作系统
+        String osName = System.getProperty("os.name").toLowerCase();
+        boolean isWindows = osName.contains("win");
+
+        // Windows 不支持从源代码编译 Python
+        if (isWindows) {
+            throw new ServiceException(500,
+                "Windows系统不支持从源代码编译Python。" +
+                "请下载Windows预编译版本（如python-3.x.x-embed-amd64.zip）或完整安装版。" +
+                "下载地址: https://www.python.org/downloads/windows/");
+        }
+
+        String installDir = sourceDir + "_compiled";
+
+        log.info("开始编译Python源代码:");
+        log.info("  操作系统: {}", osName);
+        log.info("  源代码目录: {}", sourceDir);
+        log.info("  安装目录: {}", installDir);
+
+        // 创建安装目录
+        Files.createDirectories(Paths.get(installDir));
+
+        // 检测CPU核心数
+        int processors = Runtime.getRuntime().availableProcessors();
+        log.info("  CPU核心数: {}", processors);
+
+        // 构建编译命令
+        String compileCommand = String.format(
+            "cd '%s' && " +
+            "./configure --prefix='%s' --enable-optimizations --with-ensurepip=install && " +
+            "make -j%d && " +
+            "make install",
+            sourceDir, installDir, processors
+        );
+
+        log.info("执行编译命令: {}", compileCommand);
+
+        // 根据系统选择 shell
+        String shell = osName.contains("mac") || osName.contains("darwin") ? "bash" : "sh";
+        ProcessBuilder pb = new ProcessBuilder(shell, "-c", compileCommand);
+        pb.redirectErrorStream(true);
+
+        Process process = pb.start();
+
+        // 读取编译输出（用于日志）
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream()))) {
+            String line;
+            int lineCount = 0;
+            while ((line = reader.readLine()) != null) {
+                // 只记录关键信息，避免日志过多
+                if (line.contains("error:") || line.contains("Error") ||
+                    line.contains("configure:") || line.contains("checking") ||
+                    line.contains("creating") || line.contains("Installing")) {
+                    log.info("编译输出: {}", line);
+                }
+                lineCount++;
+                if (lineCount % 100 == 0) {
+                    log.debug("已处理 {} 行编译输出", lineCount);
+                }
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("Python源代码编译失败，退出码: " + exitCode);
+        }
+
+        log.info("Python源代码编译成功");
+
+        // 验证编译结果
+        File pythonBin = new File(installDir, "bin/python3");
+        if (!pythonBin.exists()) {
+            throw new IOException("编译完成但未找到python3可执行文件: " + pythonBin.getAbsolutePath());
+        }
+
+        // 设置可执行权限
+        pythonBin.setExecutable(true);
+
+        // 删除源代码目录以节省空间
+        try {
+            deleteDirectory(new File(sourceDir));
+            log.info("已清理源代码目录");
+        } catch (Exception e) {
+            log.warn("清理源代码目录失败: {}", e.getMessage());
+        }
+
+        return installDir;
     }
 
     /**

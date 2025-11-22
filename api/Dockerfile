@@ -35,7 +35,17 @@ WORKDIR /app
 # 从本地构建产物复制完整 JAR（使用通配符匹配版本号）
 COPY api/target/block-flow-*.jar /app/block-flow.jar
 
-# 安装 Python 编译依赖（支持从源代码编译Python）
+# 【可选】配置国内镜像源加速（中国区用户取消注释）
+# 阿里云镜像源
+#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+# 或使用腾讯云镜像源
+#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories
+# 或使用中科大镜像源
+#RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
+
+# 【可选】安装 Python 编译依赖（支持从源代码编译Python）
+# 注意：仅在需要上传Python源代码包(.tar.gz)进行编译时启用
+# 预编译的Python运行时(如embed版本)无需此依赖
 #RUN apk add --no-cache \
 #    build-base \
 #    gcc \
