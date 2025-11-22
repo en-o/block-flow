@@ -121,9 +121,15 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     public void delete(Integer id) {
         PythonEnvironment environment = getById(id);
 
-        // 不允许删除默认环境
+        // 不允许删除默认环境（但如果环境刚创建还没有保存isDefault，允许删除）
         if (Boolean.TRUE.equals(environment.getIsDefault())) {
-            throw new ServiceException(500, "不能删除默认环境");
+            // 检查是否是刚创建的环境（没有Python配置的视为刚创建）
+            boolean isNewlyCreated = (environment.getPythonExecutable() == null ||
+                                      environment.getPythonExecutable().isEmpty());
+            if (!isNewlyCreated) {
+                throw new ServiceException(500, "不能删除默认环境");
+            }
+            log.warn("删除刚创建的默认环境（回滚操作）: {}", id);
         }
 
         // 删除数据库记录

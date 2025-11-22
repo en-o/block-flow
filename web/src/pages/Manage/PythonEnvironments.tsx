@@ -209,19 +209,32 @@ const PythonEnvironments: React.FC = () => {
             // 步骤1：创建环境
             const createResponse = await pythonEnvApi.create(createData);
             if (createResponse.code !== 200 || !createResponse.data) {
-              throw new Error('创建环境失败');
+              throw new Error(createResponse.msg || '创建环境失败');
             }
             newEnvId = createResponse.data.id;
+            console.log('环境创建成功，ID:', newEnvId);
 
             // 步骤2：初始化环境目录
             await pythonEnvApi.initializeEnvironment(newEnvId);
+            console.log('环境目录初始化成功');
 
             // 步骤3：上传Python运行时（关键步骤）
+            console.log('开始上传Python运行时...');
             const uploadResponse = await pythonEnvApi.uploadPythonRuntime(newEnvId, runtimeFile);
+            console.log('上传响应:', uploadResponse);
 
-            if (uploadResponse.code !== 200 || !uploadResponse.data) {
-              throw new Error(uploadResponse.msg || '上传Python运行时失败');
+            // 严格检查响应
+            if (!uploadResponse || uploadResponse.code !== 200) {
+              const errorMsg = uploadResponse?.msg || uploadResponse?.message || '上传Python运行时失败';
+              console.error('上传失败，错误信息:', errorMsg);
+              throw new Error(errorMsg);
             }
+
+            if (!uploadResponse.data) {
+              throw new Error('上传响应数据为空');
+            }
+
+            console.log('Python运行时上传成功');
 
             // 成功：显示成功信息
             message.success('环境创建并配置成功');
@@ -281,21 +294,37 @@ const PythonEnvironments: React.FC = () => {
 
           } catch (error: any) {
             console.error('创建环境或上传Python运行时失败:', error);
+            console.error('错误详情:', {
+              message: error.message,
+              msg: error.msg,
+              code: error.code,
+              response: error.response
+            });
 
             // 失败：回滚 - 删除已创建的环境
             if (newEnvId !== null) {
+              console.log('开始回滚，删除环境ID:', newEnvId);
               try {
                 message.loading({ content: '正在回滚，删除已创建的环境...', key: 'rollback', duration: 0 });
-                await pythonEnvApi.delete(newEnvId);
+                const deleteResponse = await pythonEnvApi.delete(newEnvId);
+                console.log('删除响应:', deleteResponse);
                 message.success({ content: '已回滚，环境创建失败', key: 'rollback' });
+                console.log('回滚成功，环境已删除');
               } catch (deleteError: any) {
                 console.error('回滚删除环境失败:', deleteError);
+                console.error('删除错误详情:', {
+                  message: deleteError.message,
+                  msg: deleteError.msg,
+                  code: deleteError.code
+                });
                 message.error({
                   content: `回滚失败，请手动删除环境ID: ${newEnvId}`,
                   key: 'rollback',
                   duration: 10
                 });
               }
+            } else {
+              console.log('环境未创建，无需回滚');
             }
 
             // 使用Modal显示详细错误信息
@@ -550,19 +579,38 @@ const PythonEnvironments: React.FC = () => {
 
   const handleExportRequirements = async (env: PythonEnvironment) => {
     try {
+      console.log('导出requirements.txt，环境ID:', env.id);
       const response = await pythonEnvApi.exportRequirements(env.id);
-      if (response.code === 200 && response.data) {
-        const blob = new Blob([response.data], { type: 'text/plain' });
+      console.log('导出响应:', response);
+
+      if (response.code === 200 && response.data !== undefined) {
+        // 检查是否有包
+        if (!response.data || response.data.trim() === '') {
+          message.warning('该环境没有已安装的包，无法导出');
+          return;
+        }
+
+        console.log('requirements内容:', response.data);
+
+        // 创建Blob并下载
+        const blob = new Blob([response.data], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `requirements-${env.name}.txt`;
+        document.body.appendChild(a); // 添加到DOM（某些浏览器需要）
         a.click();
+        document.body.removeChild(a); // 移除
         URL.revokeObjectURL(url);
+
         message.success('导出成功');
+      } else {
+        console.error('导出失败，响应码:', response.code, '错误信息:', response.msg);
+        message.error(response.msg || '导出失败');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('导出失败', error);
+      message.error(error.message || '导出失败');
     }
   };
 
