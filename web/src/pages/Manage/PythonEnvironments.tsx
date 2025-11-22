@@ -1188,6 +1188,17 @@ const PythonEnvironments: React.FC = () => {
                     >
                       <Button icon={<RocketOutlined />}>选择Python运行时文件</Button>
                     </Upload>
+                    <div style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
+                      • 支持 .zip、.tar.gz 和 .tgz 格式
+                      <br />
+                      • 文件大小限制 2GB
+                      <br />
+                      • 系统将自动解压并检测Python路径、版本和site-packages
+                      <br />
+                      • <strong>Python下载：</strong>
+                      <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>官方FTP</a> |
+                      <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>淘宝镜像</a>
+                    </div>
                     {runtimeFile && (
                       <Alert
                         message={`已选择: ${runtimeFile.name} (${(runtimeFile.size / 1024 / 1024).toFixed(2)} MB)`}
@@ -1212,11 +1223,14 @@ const PythonEnvironments: React.FC = () => {
                         </div>
 
                         <div style={{ marginBottom: 6 }}>
-                          <strong>🐳 当前Docker环境（推荐）：</strong>
+                          <strong>🐳 Docker环境：</strong>
                           <div style={{ marginLeft: 16, marginTop: 4 }}>
                             <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
                               cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
                             </code>
+                            <div style={{ marginTop: 8, padding: '6px', background: '#fff7e6', borderRadius: 4, fontSize: 11 }}>
+                              💡 选择 <code>install_only</code> 版本，包含完整Python环境和pip
+                            </div>
                           </div>
                         </div>
 
@@ -1230,12 +1244,8 @@ const PythonEnvironments: React.FC = () => {
                         <div style={{ marginBottom: 6 }}>
                           <strong>🪟 Windows：</strong>
                           <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
-                            x86_64-pc-windows-msvc-shared
+                            python-3.12.5-embed-amd64
                           </code>
-                        </div>
-
-                        <div style={{ marginTop: 8, padding: '6px', background: '#fff7e6', borderRadius: 4, fontSize: 11 }}>
-                          💡 选择 <code>install_only</code> 版本，包含完整Python环境和pip
                         </div>
                       </div>
                     }
@@ -1324,7 +1334,7 @@ const PythonEnvironments: React.FC = () => {
               </div>
 
               <div style={{ marginBottom: 8 }}>
-                <strong>🐳 当前Docker环境（推荐）：</strong>
+                <strong>🐳 Docker环境：</strong>
                 <div style={{ marginLeft: 16, marginTop: 4 }}>
                   • <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
                     cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
@@ -1352,8 +1362,8 @@ const PythonEnvironments: React.FC = () => {
               <div style={{ marginBottom: 8 }}>
                 <strong>🪟 Windows系统支持的包：</strong>
                 <div style={{ marginLeft: 16, marginTop: 4 }}>
-                  • x86_64架构: <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
-                    cpython-3.11.9+20240726-x86_64-pc-windows-msvc-shared-install_only.tar.gz
+                  • <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
+                  python-3.12.5-embed-amd64
                   </code>
                   <br />
                   <span style={{ color: '#666', fontSize: 11 }}>
