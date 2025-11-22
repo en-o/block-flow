@@ -2085,16 +2085,20 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         int processors = Runtime.getRuntime().availableProcessors();
         log.info("  CPU核心数: {}", processors);
 
-        // 构建编译命令（不使用 --enable-optimizations 加快编译）
+        // 构建编译命令（不使用 --enable-optimizations 加快编译，不安装pip避免ensurepip失败）
+        // 注意：使用 --without-ensurepip 避免因缺少某些标准库模块（如html.parser）导致make install失败
+        // 用户可以稍后通过"离线包"功能手动上传pip.whl
         String compileCommand = String.format(
             "cd '%s' && " +
-            "./configure --prefix='%s' --with-ensurepip=install 2>&1 && " +
+            "./configure --prefix='%s' --without-ensurepip 2>&1 && " +
             "make -j%d 2>&1 && " +
             "make install 2>&1",
             sourceDir, installDir, processors
         );
 
         log.info("执行编译命令: {}", compileCommand);
+        log.info("  注意：使用 --without-ensurepip 避免ensurepip失败");
+        log.info("  提示：编译后可通过‘配置/离线包’上传pip.whl手动安装pip");
         log.info("----------------------------------------");
         progressLogService.sendLog(taskId, "开始执行configure配置...");
 
@@ -2258,6 +2262,8 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         log.info("编译命令执行成功");
         progressLogService.sendLog(taskId, "✓ Python源代码编译成功");
+        progressLogService.sendLog(taskId, "ℹ️  注意：编译时未安装pip（避免ensurepip失败）");
+        progressLogService.sendLog(taskId, "ℹ️  稍后可通过‘配置/离线包’上传pip.whl手动安装pip");
 
         // 验证编译结果
         File pythonBin = new File(installDir, "bin/python3");
@@ -2290,6 +2296,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         log.info("========================================");
         log.info("Python源代码编译成功！");
         log.info("========================================");
+        log.info("ℹ️  提示：编译时使用了 --without-ensurepip");
+        log.info("ℹ️  如需使用pip，请通过‘配置/离线包’上传 pip.whl");
+        log.info("ℹ️  pip下载地址: https://pypi.org/project/pip/#files");
 
         return installDir;
     }

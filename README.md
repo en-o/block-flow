@@ -14,15 +14,15 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
 ## docker运行
     
 **📚 Dockerfile详细说明：** [查看Dockerfile使用指南](api/DOCKERFILE-GUIDE.md)
-
+> 不建议映射`-v $(pwd)/python-envs:/app/python-envs \` 会导致很多问题
 ```shell
 # 运行容器
 docker run -d -p 1250:1250 \
   --name block-flow \
   -e MYSQL_URL=192.168.0.162:3306 \
   -e MYSQL_DB=db_block_flow \
-  -e PYTHON_ENV_ROOT_PATH=/app/python-envs \
-  -v $(pwd)/python-envs:/app/python-envs \
+  -e PYTHON_ENV_ROOT_PATH=/app/python-envs \ 
+#  -v $(pwd)/python-envs:/app/python-envs \
   -v $(pwd)/logs:/app/logs \
   -v $(pwd)/data:/app/data \
   tannnn/block-flow:latest
@@ -68,6 +68,9 @@ docker run -d -p 1250:1250 \
 - 💾 需要足够的磁盘空间和内存
 - ⚠️ 可能因缺少系统依赖而失败
 - ❌ Alpine镜像无法编译源代码
+- ⚠️ **编译时不会安装pip**（避免ensurepip失败）
+  - 编译完成后需要手动上传 `pip.whl` 文件
+  - pip下载地址: https://pypi.org/project/pip/#files
 
 ---
 
