@@ -35,6 +35,25 @@ WORKDIR /app
 # 从本地构建产物复制完整 JAR（使用通配符匹配版本号）
 COPY api/target/block-flow-*.jar /app/block-flow.jar
 
+# 安装 Python 编译依赖（支持从源代码编译Python）
+#RUN apk add --no-cache \
+#    build-base \
+#    gcc \
+#    g++ \
+#    make \
+#    zlib-dev \
+#    openssl-dev \
+#    libffi-dev \
+#    readline-dev \
+#    sqlite-dev \
+#    bzip2-dev \
+#    xz-dev \
+#    ncurses-dev \
+#    gdbm-dev \
+#    tk-dev \
+#    libuuid \
+#    bash
+
 # 创建必要的目录
 RUN mkdir -p /app/data \
              /app/logs \
