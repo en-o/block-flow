@@ -66,6 +66,7 @@ const PythonEnvironments: React.FC = () => {
   const [installLogVisible, setInstallLogVisible] = useState(false); // 安装日志弹窗
   const [installLogs, setInstallLogs] = useState<string[]>([]); // 安装日志
   const [isInstalling, setIsInstalling] = useState(false); // 是否正在安装
+  const [uploadProgress, setUploadProgress] = useState(0); // 上传进度
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -204,24 +205,71 @@ const PythonEnvironments: React.FC = () => {
         if (configMode === 'upload' && runtimeFile) {
           let newEnvId: number | null = null;
           setUploadingRuntime(true);
+          setInstallLogVisible(true);
+          setInstallLogs(['开始创建环境并上传Python运行时...']);
+          setUploadProgress(0);
+          setIsInstalling(true);
 
           try {
             // 步骤1：创建环境
+            setInstallLogs(prev => [...prev, '正在创建环境...']);
             const createResponse = await pythonEnvApi.create(createData);
             if (createResponse.code !== 200 || !createResponse.data) {
               throw new Error(createResponse.message || '创建环境失败');
             }
             newEnvId = createResponse.data.id;
-            console.log('环境创建成功，ID:', newEnvId);
+            setInstallLogs(prev => [...prev, `✓ 环境创建成功，ID: ${newEnvId}`]);
 
             // 步骤2：初始化环境目录
+            setInstallLogs(prev => [...prev, '正在初始化环境目录...']);
             await pythonEnvApi.initializeEnvironment(newEnvId);
-            console.log('环境目录初始化成功');
+            setInstallLogs(prev => [...prev, '✓ 环境目录初始化成功']);
+
+            // 订阅SSE进度事件
+            const taskId = `upload-python-${newEnvId}`;
+            const eventSource = new EventSource(`/api/python-envs/${newEnvId}/progress/${taskId}`);
+
+            eventSource.addEventListener('log', (e: MessageEvent) => {
+              const message = e.data;
+              setInstallLogs(prev => [...prev, message]);
+            });
+
+            eventSource.addEventListener('progress', (e: MessageEvent) => {
+              const data = JSON.parse(e.data);
+              setUploadProgress(data.progress);
+              setInstallLogs(prev => [...prev, `[${data.progress}%] ${data.message}`]);
+            });
+
+            const handleComplete = (data: any) => {
+              setInstallLogs(prev => [...prev, data.success ? '✓ 完成！' : '✗ 失败']);
+              setIsInstalling(false);
+              setUploadProgress(100);
+              eventSource.close();
+
+              setTimeout(() => {
+                setInstallLogVisible(false);
+              }, 2000);
+            };
+
+            eventSource.addEventListener('complete', (e: MessageEvent) => {
+              const data = JSON.parse(e.data);
+              handleComplete(data);
+            });
+
+            eventSource.addEventListener('error', (e: MessageEvent) => {
+              const error = e.data;
+              setInstallLogs(prev => [...prev, `✗ 错误: ${error}`]);
+              setIsInstalling(false);
+              eventSource.close();
+            });
+
+            eventSource.onerror = () => {
+              eventSource.close();
+            };
 
             // 步骤3：上传Python运行时（关键步骤）
-            console.log('开始上传Python运行时...');
+            setInstallLogs(prev => [...prev, '开始上传Python运行时...']);
             const uploadResponse = await pythonEnvApi.uploadPythonRuntime(newEnvId, runtimeFile);
-            console.log('上传响应:', uploadResponse);
 
             // 严格检查响应
             if (!uploadResponse || uploadResponse.code !== 200) {
@@ -783,6 +831,49 @@ const PythonEnvironments: React.FC = () => {
     }
 
     setUploadingRuntime(true);
+    setInstallLogVisible(true);
+    setInstallLogs(['开始上传Python运行时...']);
+    setUploadProgress(0);
+    setIsInstalling(true);
+
+    // 订阅SSE进度事件
+    const taskId = `upload-python-${selectedEnv.id}`;
+    const eventSource = new EventSource(`/api/python-envs/${selectedEnv.id}/progress/${taskId}`);
+
+    eventSource.addEventListener('log', (e: MessageEvent) => {
+      const message = e.data;
+      setInstallLogs(prev => [...prev, message]);
+    });
+
+    eventSource.addEventListener('progress', (e: MessageEvent) => {
+      const data = JSON.parse(e.data);
+      setUploadProgress(data.progress);
+      setInstallLogs(prev => [...prev, `[${data.progress}%] ${data.message}`]);
+    });
+
+    eventSource.addEventListener('complete', (e: MessageEvent) => {
+      const data = JSON.parse(e.data);
+      setInstallLogs(prev => [...prev, data.success ? '✓ 完成！' : '✗ 失败']);
+      setIsInstalling(false);
+      setUploadProgress(100);
+      eventSource.close();
+
+      setTimeout(() => {
+        setInstallLogVisible(false);
+      }, 2000);
+    });
+
+    eventSource.addEventListener('error', (e: MessageEvent) => {
+      const error = e.data;
+      setInstallLogs(prev => [...prev, `✗ 错误: ${error}`]);
+      setIsInstalling(false);
+      eventSource.close();
+    });
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
     try {
       const response = await pythonEnvApi.uploadPythonRuntime(selectedEnv.id, file);
       if (response.code === 200 && response.data) {
@@ -1744,7 +1835,7 @@ const PythonEnvironments: React.FC = () => {
       <Modal
         title={
           <Space>
-            {isInstalling && <Progress type="circle" percent={100} size={20} status="active" />}
+            {isInstalling && <Progress type="circle" percent={uploadProgress} size={20} status="active" />}
             <span>安装过程日志</span>
           </Space>
         }
@@ -1765,6 +1856,14 @@ const PythonEnvironments: React.FC = () => {
         zIndex={2000}
         style={{ top: 20 }}
       >
+        {/* 进度条 */}
+        {uploadProgress > 0 && (
+          <Progress
+            percent={uploadProgress}
+            status={isInstalling ? 'active' : uploadProgress === 100 ? 'success' : 'exception'}
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <div style={{
           background: '#000',
           color: '#0f0',

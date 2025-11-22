@@ -9,6 +9,7 @@ import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonRuntimeUploadRe
 import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDTO;
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.repository.PythonEnvironmentRepository;
+import cn.tannn.cat.block.service.ProgressLogService;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
 import cn.tannn.jdevelops.result.exception.ServiceException;
 import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
@@ -59,6 +60,7 @@ import java.util.stream.Stream;
 public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
     private final PythonEnvironmentRepository pythonEnvironmentRepository;
+    private final ProgressLogService progressLogService;
 
     @Value("${python.env.root-path:${user.dir}/python-envs}")
     private String pythonEnvRootPath;
@@ -1049,6 +1051,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PythonRuntimeUploadResultDTO uploadPythonRuntime(Integer id, MultipartFile file) {
+        // 生成任务ID
+        String taskId = "upload-python-" + id;
+
         PythonEnvironment environment = getById(id);
 
         if (environment.getEnvRootPath() == null) {
@@ -1074,12 +1079,17 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(400, "文件大小不能超过2GB");
         }
 
+        progressLogService.sendLog(taskId, "开始上传Python运行时...");
+        progressLogService.sendProgress(taskId, 5, "验证文件格式和大小");
+
         // 创建runtime目录
         String runtimeDir = environment.getEnvRootPath() + File.separator + "runtime";
         try {
             Files.createDirectories(Paths.get(runtimeDir));
+            progressLogService.sendLog(taskId, "创建runtime目录成功");
         } catch (IOException e) {
             log.error("创建runtime目录失败", e);
+            progressLogService.sendError(taskId, "创建runtime目录失败: " + e.getMessage());
             throw new ServiceException(500, "创建runtime目录失败: " + e.getMessage());
         }
 
@@ -1088,8 +1098,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         try {
             Files.copy(file.getInputStream(), uploadPath, StandardCopyOption.REPLACE_EXISTING);
             log.info("Python运行时上传成功: {}", uploadPath);
+            progressLogService.sendProgress(taskId, 15, "文件上传成功 (" + (file.getSize() / 1024 / 1024) + " MB)");
         } catch (IOException e) {
             log.error("保存运行时文件失败", e);
+            progressLogService.sendError(taskId, "保存运行时文件失败: " + e.getMessage());
             throw new ServiceException(500, "保存运行时文件失败: " + e.getMessage());
         }
 
@@ -1097,6 +1109,8 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         String extractPath = runtimeDir + File.separator + "python";
         String finalExtractPath = extractPath;
         try {
+            progressLogService.sendProgress(taskId, 20, "开始解压压缩包...");
+
             // 如果已存在解压目录，先删除
             Path extractPathObj = Paths.get(extractPath);
             if (Files.exists(extractPathObj)) {
@@ -1105,12 +1119,15 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             Files.createDirectories(extractPathObj);
 
             if (isZip) {
+                progressLogService.sendLog(taskId, "正在解压 ZIP 文件...");
                 extractZip(uploadPath.toString(), extractPath);
             } else {
+                progressLogService.sendLog(taskId, "正在解压 TAR.GZ 文件...");
                 extractTarGz(uploadPath.toString(), extractPath);
             }
 
             log.info("Python运行时解压成功: {}", extractPath);
+            progressLogService.sendProgress(taskId, 40, "解压完成");
 
             // 检查是否需要进入子目录（tar.gz 解压可能多一层目录）
             File extractDir = new File(extractPath);
@@ -1133,16 +1150,20 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
             if (isSourcePackage) {
                 log.info("检测到Python源代码包（包含configure文件），开始自动编译...");
+                progressLogService.sendProgress(taskId, 45, "检测到源代码包，开始编译（可能需要10-30分钟）");
                 try {
-                    finalExtractPath = compilePythonSource(extractPath);
+                    finalExtractPath = compilePythonSource(extractPath, taskId);
                     log.info("Python源代码编译完成: {}", finalExtractPath);
+                    progressLogService.sendProgress(taskId, 70, "编译完成");
                 } catch (Exception e) {
                     log.error("编译Python源代码失败", e);
+                    progressLogService.sendError(taskId, "编译Python源代码失败: " + e.getMessage());
                     throw new ServiceException(500, "编译Python源代码失败: " + e.getMessage());
                 }
             } else {
                 log.info("检测到预编译Python包（如python-build-standalone），开始设置执行权限...");
                 log.info("  Python根目录: {}", extractPath);
+                progressLogService.sendProgress(taskId, 50, "检测到预编译包，设置执行权限");
 
                 finalExtractPath = extractPath;
 
@@ -1152,6 +1173,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 setBinAndLibPermissions(extractDir);
 
                 log.info("预编译Python包权限设置完成");
+                progressLogService.sendLog(taskId, "权限设置完成");
             }
 
             // 输出解压后的文件结构（用于调试）
@@ -1159,10 +1181,12 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             logDirectoryStructure(new File(finalExtractPath), 0, 3);
         } catch (Exception e) {
             log.error("解压运行时文件失败", e);
+            progressLogService.sendError(taskId, "解压失败: " + e.getMessage());
             throw new ServiceException(500, "解压运行时文件失败: " + e.getMessage());
         }
 
         // 自动检测Python可执行文件
+        progressLogService.sendProgress(taskId, 75, "正在检测Python可执行文件...");
         String pythonExecutable = detectPythonExecutableInDirectory(finalExtractPath);
         if (pythonExecutable == null) {
             log.error("========================================");
@@ -1205,20 +1229,34 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             errorMsg.append("   cpython-3.11.9+20240726-").append(recommendedArch).append("-unknown-linux-gnu-install_only.tar.gz\n\n");
             errorMsg.append("4. 重新上传下载的文件\n");
 
+            progressLogService.sendError(taskId, errorMsg.toString());
             throw new ServiceException(500, errorMsg.toString());
         }
 
+        progressLogService.sendLog(taskId, "检测到Python: " + pythonExecutable);
+
         // 检测Python版本
+        progressLogService.sendProgress(taskId, 85, "检测Python版本...");
         String pythonVersion = detectPythonVersion(pythonExecutable);
+        if (pythonVersion != null && !pythonVersion.isEmpty()) {
+            progressLogService.sendLog(taskId, "Python版本: " + pythonVersion);
+        }
 
         // 检测site-packages路径（使用最终的Python目录）
+        progressLogService.sendProgress(taskId, 90, "检测site-packages路径...");
         String sitePackagesPath = detectSitePackagesPath(finalExtractPath);
 
         // 处理Python embed版本的._pth文件（修复pip无法使用的问题）
         configurePythonPath(pythonExecutable, sitePackagesPath);
 
         // 在配置._pth文件后重新检测pip（可能已经可用了）
+        progressLogService.sendProgress(taskId, 95, "检测pip可用性...");
         boolean hasPip = checkPipAvailable(pythonExecutable);
+        if (hasPip) {
+            progressLogService.sendLog(taskId, "✓ pip可用");
+        } else {
+            progressLogService.sendLog(taskId, "⚠ pip不可用，需要手动安装");
+        }
 
         // 更新环境配置
         environment.setPythonExecutable(pythonExecutable);
@@ -1246,6 +1284,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         message.append("Python运行时上传成功！");
 
         // 推荐使用python-build-standalone
+        progressLogService.sendComplete(taskId, true, "Python运行时配置成功！");
         message.append("\n\n【推荐】使用预编译Python运行时（python-build-standalone）:");
         message.append("\n  下载地址: https://github.com/astral-sh/python-build-standalone/releases");
         message.append("\n  选择对应平台的cpython版本（如: cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz）");
@@ -1847,9 +1886,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     /**
      * 编译Python源代码
      * @param sourceDir 源代码目录
+     * @param taskId 任务ID（用于进度推送）
      * @return 编译后的安装目录
      */
-    private String compilePythonSource(String sourceDir) throws IOException, InterruptedException {
+    private String compilePythonSource(String sourceDir, String taskId) throws IOException, InterruptedException {
         // 检测操作系统
         String osName = System.getProperty("os.name").toLowerCase();
         boolean isWindows = osName.contains("win");
@@ -1891,6 +1931,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         log.info("执行编译命令: {}", compileCommand);
         log.info("----------------------------------------");
+        progressLogService.sendLog(taskId, "开始执行configure配置...");
 
         // 根据系统选择 shell
         String shell = osName.contains("mac") || osName.contains("darwin") ? "bash" : "sh";
@@ -1898,6 +1939,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         pb.redirectErrorStream(true);
 
         Process process = pb.start();
+        progressLogService.sendLog(taskId, "configure执行中，这可能需要几分钟...");
 
         // 读取并输出所有编译信息
         StringBuilder fullOutput = new StringBuilder();
@@ -1970,6 +2012,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.error("Python源代码编译失败！");
             log.error("========================================");
             log.error("退出码: {}", exitCode);
+            progressLogService.sendError(taskId, "编译失败，退出码: " + exitCode);
 
             // 输出最后50行日志
             String[] lines = fullOutput.toString().split("\n");
@@ -2000,6 +2043,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
 
         log.info("编译命令执行成功");
+        progressLogService.sendLog(taskId, "✓ Python源代码编译成功");
 
         // 验证编译结果
         File pythonBin = new File(installDir, "bin/python3");

@@ -9,6 +9,7 @@ import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonEnvironmentUpda
 import cn.tannn.cat.block.controller.dto.pythonenvironment.PythonRuntimeUploadResultDTO;
 import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDTO;
 import cn.tannn.cat.block.entity.PythonEnvironment;
+import cn.tannn.cat.block.service.ProgressLogService;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
 import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -35,6 +37,7 @@ import java.util.List;
 public class PythonEnvironmentController {
 
     private final PythonEnvironmentService pythonEnvironmentService;
+    private final ProgressLogService progressLogService;
 
     @PostMapping
     @Operation(summary = "创建环境", description = "创建新的Python环境")
@@ -181,5 +184,13 @@ public class PythonEnvironmentController {
     public ResultVO<PythonEnvironment> detectPythonExecutable(
             @Parameter(description = "环境ID") @PathVariable Integer id) {
         return ResultVO.success(pythonEnvironmentService.detectPythonExecutable(id));
+    }
+
+    @GetMapping("/{id}/progress/{taskId}")
+    @Operation(summary = "订阅进度日志", description = "实时订阅Python运行时上传/安装进度日志（SSE）")
+    public SseEmitter subscribeProgress(
+            @Parameter(description = "环境ID") @PathVariable Integer id,
+            @Parameter(description = "任务ID") @PathVariable String taskId) {
+        return progressLogService.createEmitter(taskId);
     }
 }
