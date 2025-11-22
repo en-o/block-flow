@@ -209,7 +209,7 @@ const PythonEnvironments: React.FC = () => {
             // 步骤1：创建环境
             const createResponse = await pythonEnvApi.create(createData);
             if (createResponse.code !== 200 || !createResponse.data) {
-              throw new Error(createResponse.msg || '创建环境失败');
+              throw new Error(createResponse.message || '创建环境失败');
             }
             newEnvId = createResponse.data.id;
             console.log('环境创建成功，ID:', newEnvId);
@@ -225,7 +225,7 @@ const PythonEnvironments: React.FC = () => {
 
             // 严格检查响应
             if (!uploadResponse || uploadResponse.code !== 200) {
-              const errorMsg = uploadResponse?.msg || uploadResponse?.message || '上传Python运行时失败';
+              const errorMsg = uploadResponse?.message || '上传Python运行时失败';
               console.error('上传失败，错误信息:', errorMsg);
               throw new Error(errorMsg);
             }
@@ -296,7 +296,6 @@ const PythonEnvironments: React.FC = () => {
             console.error('创建环境或上传Python运行时失败:', error);
             console.error('错误详情:', {
               message: error.message,
-              msg: error.msg,
               code: error.code,
               response: error.response
             });
@@ -314,7 +313,6 @@ const PythonEnvironments: React.FC = () => {
                 console.error('回滚删除环境失败:', deleteError);
                 console.error('删除错误详情:', {
                   message: deleteError.message,
-                  msg: deleteError.msg,
                   code: deleteError.code
                 });
                 message.error({
@@ -351,7 +349,7 @@ const PythonEnvironments: React.FC = () => {
                     borderRadius: '4px',
                     border: '1px solid #d9d9d9'
                   }}>
-                    {error.message || error.msg || '创建失败，请稍后重试'}
+                    {error.message || '创建失败，请稍后重试'}
                   </div>
                   <Alert
                     type="info"
@@ -605,8 +603,8 @@ const PythonEnvironments: React.FC = () => {
 
         message.success('导出成功');
       } else {
-        console.error('导出失败，响应码:', response.code, '错误信息:', response.msg);
-        message.error(response.msg || '导出失败');
+        console.error('导出失败，响应码:', response.code, '错误信息:', response.message);
+        message.error(response.message || '导出失败');
       }
     } catch (error: any) {
       console.error('导出失败', error);
@@ -850,7 +848,7 @@ const PythonEnvironments: React.FC = () => {
               borderRadius: '4px',
               border: '1px solid #d9d9d9'
             }}>
-              {error.message || error.msg || '上传失败，请稍后重试'}
+              {error.message || '上传失败，请稍后重试'}
             </div>
             <Alert
               type="info"
