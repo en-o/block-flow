@@ -50,8 +50,8 @@ services:
       - ${DATA_PATH:-./data}:/app/data
       # 日志持久化
       - ${LOGS_PATH:-./logs}:/app/logs
-      # Python 环境持久化
-      - ${PYTHON_ENVS_PATH:-./python-envs}:/app/python-envs
+      # Python 环境持久化（展示不持久化，需要迁移的化自己重新上传后修改块的环境数据（或者创建一个一样id的环境
+#      - ${PYTHON_ENVS_PATH:-./python-envs}:/app/python-envs
     # 资源限制
     deploy:
       resources:
