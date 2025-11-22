@@ -1957,7 +1957,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 读取并输出所有编译信息
         StringBuilder fullOutput = new StringBuilder();
         StringBuilder errorOutput = new StringBuilder();
-        boolean hasFatalError = false; // 标记是否有致命错误
+        boolean hasCriticalError = false; // 标记是否有关键致命错误
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream()))) {
@@ -1967,47 +1967,57 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 fullOutput.append(line).append("\n");
                 lineCount++;
 
-                // 检测致命错误（configure失败等）
+                // 检测关键致命错误（只检测configure阶段的错误）
                 String lowerLine = line.toLowerCase();
+
+                // 只有configure阶段的错误才是真正致命的
                 if (lowerLine.contains("configure: error:") ||
-                    lowerLine.contains("cannot find sources") ||
-                    lowerLine.contains("fatal error")) {
-                    hasFatalError = true;
-                    log.error("[致命错误] {}", line);
+                    lowerLine.contains("cannot find sources")) {
+                    hasCriticalError = true;
+                    log.error("[关键错误] {}", line);
                     errorOutput.append(line).append("\n");
+                    progressLogService.sendLog(taskId, "✗ configure错误: " + line);
                 }
 
-                // 输出关键信息到日志（修复：不把gcc命令当作错误）
-                // 真正的错误：包含error但不是gcc命令行
-                boolean isRealError = (lowerLine.contains("error") &&
-                                      !lowerLine.trim().startsWith("gcc ") &&
-                                      !lowerLine.contains("werror="));
+                // 输出关键信息到日志（修复：不把gcc命令和make过程的错误当作致命错误）
+                // 真正的错误：configure阶段的错误
+                boolean isConfigureError = (lowerLine.contains("configure: error") ||
+                                           lowerLine.contains("cannot find sources"));
 
-                if (isRealError) {
-                    log.error("[编译错误] {}", line);
+                if (isConfigureError) {
+                    log.error("[配置错误] {}", line);
                     errorOutput.append(line).append("\n");
-                } else if (lowerLine.contains("warning") && !lowerLine.contains("-w")) {
-                    log.warn("[编译警告] {}", line);
-                } else if (lowerLine.contains("configure:") || lowerLine.contains("checking") ||
-                          lowerLine.contains("creating") || lowerLine.contains("installing") ||
+                } else if (lowerLine.contains("configure:") || lowerLine.contains("checking")) {
+                    log.info("[配置进度] {}", line);
+                    // 每隔50行configure检查输出一次进度
+                    if (lineCount % 50 == 0) {
+                        progressLogService.sendLog(taskId, "configure检查中...");
+                    }
+                } else if (lowerLine.contains("creating") || lowerLine.contains("installing") ||
                           lowerLine.contains("successfully") || lowerLine.contains("done")) {
                     log.info("[编译进度] {}", line);
-                } else if (lineCount % 200 == 0) {
-                    // 每200行输出一次进度
-                    log.debug("已处理 {} 行编译输出", lineCount);
+                } else if (lowerLine.startsWith("make[") || lowerLine.contains("gcc ") ||
+                          lowerLine.contains("ar rcs")) {
+                    // make过程的正常输出，降低日志级别
+                    log.debug("[Make] {}", line);
+                    // 每隔200行make输出一次进度
+                    if (lineCount % 200 == 0) {
+                        progressLogService.sendLog(taskId, "编译中... 已处理 " + lineCount + " 行");
+                    }
                 }
 
-                // 如果检测到致命错误，提前中断读取
-                if (hasFatalError && lineCount > 10) {
-                    log.error("检测到致命错误，停止读取编译输出");
+                // 如果检测到关键错误（仅configure阶段），提前中断读取
+                if (hasCriticalError && lineCount > 10) {
+                    log.error("检测到configure阶段的关键错误，停止读取编译输出");
+                    progressLogService.sendError(taskId, "configure配置失败");
                     break;
                 }
             }
         }
 
-        // 如果检测到致命错误，立即终止进程
-        if (hasFatalError) {
-            log.error("检测到致命错误，终止编译进程");
+        // 如果检测到关键错误，立即终止进程
+        if (hasCriticalError) {
+            log.error("检测到configure阶段的关键错误，终止编译进程");
             process.destroy();
             try {
                 process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
@@ -2039,18 +2049,57 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             StringBuilder errorMsg = new StringBuilder();
             errorMsg.append("Python源代码编译失败（退出码: ").append(exitCode).append("）\n\n");
 
+            // 分析退出码
+            if (exitCode == 143) {
+                errorMsg.append("⚠️  编译进程被意外终止 (SIGTERM)\n");
+                errorMsg.append("可能原因:\n");
+                errorMsg.append("  - Docker容器内存不足被OOM Killer终止\n");
+                errorMsg.append("  - 编译超时被系统终止\n");
+                errorMsg.append("  - 手动取消了编译操作\n\n");
+            }
+
             if (errorOutput.length() > 0) {
                 errorMsg.append("错误信息:\n").append(errorOutput.toString()).append("\n");
             }
 
-            errorMsg.append("\n【推荐解决方案】\n");
-            errorMsg.append("1. 使用预编译Python运行时（推荐）:\n");
-            errorMsg.append("   下载地址: https://github.com/astral-sh/python-build-standalone/releases\n");
-            errorMsg.append("   示例: cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz\n\n");
-            errorMsg.append("2. 如果必须编译，请确保:\n");
-            errorMsg.append("   - Docker镜像包含所有编译依赖（取消Dockerfile中的注释）\n");
-            errorMsg.append("   - 容器有足够的内存和CPU资源\n");
-            errorMsg.append("   - 编译时间可能需要10-30分钟，请耐心等待\n");
+            // 检查常见错误模式
+            String fullOutputStr = fullOutput.toString();
+            if (fullOutputStr.contains("can't create") || fullOutputStr.contains("No such file or directory")) {
+                errorMsg.append("\n⚠️  检测到文件创建错误\n");
+                errorMsg.append("可能原因:\n");
+                errorMsg.append("  - Docker容器磁盘空间不足\n");
+                errorMsg.append("  - 挂载的卷权限不足\n");
+                errorMsg.append("  - 临时目录空间不足\n\n");
+            }
+
+            if (fullOutputStr.contains("fatal error") && fullOutputStr.contains(".h:")) {
+                errorMsg.append("\n⚠️  检测到缺少头文件\n");
+                errorMsg.append("需要安装编译依赖:\n");
+                errorMsg.append("  - build-essential (gcc, make等)\n");
+                errorMsg.append("  - libssl-dev, zlib1g-dev, libbz2-dev\n");
+                errorMsg.append("  - libreadline-dev, libsqlite3-dev\n");
+                errorMsg.append("  - libffi-dev, liblzma-dev\n\n");
+            }
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("【强烈推荐】使用预编译Python运行时:\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("1. 下载地址: https://github.com/astral-sh/python-build-standalone/releases\n");
+            errorMsg.append("2. 选择对应平台:\n");
+            errorMsg.append("   • Linux x86_64: cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz\n");
+            errorMsg.append("   • Linux ARM64:  cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz\n");
+            errorMsg.append("3. 优点:\n");
+            errorMsg.append("   ✓ 无需编译，直接使用\n");
+            errorMsg.append("   ✓ 包含完整Python和pip\n");
+            errorMsg.append("   ✓ 无需系统依赖\n");
+            errorMsg.append("   ✓ 上传后1分钟内完成配置\n\n");
+
+            errorMsg.append("【如果必须编译源代码】\n");
+            errorMsg.append("需要在Dockerfile中添加编译依赖:\n");
+            errorMsg.append("RUN apt-get update && apt-get install -y \\\n");
+            errorMsg.append("    build-essential libssl-dev zlib1g-dev \\\n");
+            errorMsg.append("    libbz2-dev libreadline-dev libsqlite3-dev \\\n");
+            errorMsg.append("    libffi-dev liblzma-dev tk-dev\n");
 
             throw new IOException(errorMsg.toString());
         }
