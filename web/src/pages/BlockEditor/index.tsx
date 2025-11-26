@@ -15,7 +15,7 @@ import {
   Tag,
   Alert,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
 import { pythonGenerator } from 'blockly/python';
 import Editor from '@monaco-editor/react';
@@ -25,6 +25,8 @@ import { blockTypeApi } from '../../api/blockType';
 import { pythonEnvApi } from '../../api/pythonEnv';
 import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO, PythonEnvironment } from '../../types/api';
 import { initCustomBlocks } from '../../utils/blocklyCustomBlocks';
+import { getBlocklyToolbox } from '../../blockly';
+import { convertCodeToBlockly } from '../../utils/codeToBlocklyConverter';
 import './index.css';
 
 const BlockEditor: React.FC = () => {
@@ -152,6 +154,73 @@ outputs = {
 
   // 保存切换到可视化模式前的原始代码（用于恢复）
   const [originalScriptCode, setOriginalScriptCode] = useState<string>('');
+
+  // XML导出/导入功能
+  const handleExportXML = () => {
+    if (!workspaceRef.current) {
+      message.error('工作区未初始化');
+      return;
+    }
+
+    try {
+      const xml = Blockly.Xml.workspaceToDom(workspaceRef.current);
+      const xmlText = Blockly.Xml.domToPrettyText(xml);
+
+      // 创建Blob并下载
+      const blob = new Blob([xmlText], { type: 'text/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `blockly_${block?.name || 'workspace'}_${Date.now()}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      message.success('XML结构已导出');
+    } catch (error) {
+      console.error('导出XML失败', error);
+      message.error('导出XML失败');
+    }
+  };
+
+  const handleImportXML = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xml';
+
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const xmlText = event.target?.result as string;
+          if (!workspaceRef.current) {
+            message.error('工作区未初始化');
+            return;
+          }
+
+          // 清空当前工作区
+          workspaceRef.current.clear();
+
+          // 导入XML
+          const xml = Blockly.utils.xml.textToDom(xmlText);
+          Blockly.Xml.domToWorkspace(xml, workspaceRef.current);
+
+          message.success('XML结构已导入');
+        } catch (error) {
+          console.error('导入XML失败', error);
+          message.error('导入XML失败，请检查文件格式');
+        }
+      };
+
+      reader.readAsText(file);
+    };
+
+    input.click();
+  };
 
   // Monaco Editor 挂载时的处理函数
   const handleEditorDidMount = (editor: any, monaco: any) => {
@@ -349,7 +418,7 @@ outputs = {
           try {
             console.log('🔧 初始化Blockly workspace...');
             workspaceRef.current = Blockly.inject(blocklyDivRef.current, {
-              toolbox: getBlocklyToolbox(),
+              toolbox: getToolbox(),
               grid: {
                 spacing: 20,
                 length: 3,
@@ -365,7 +434,79 @@ outputs = {
                 scaleSpeed: 1.2,
               },
               trashcan: true,
+              // 启用变量独立实例，防止复制块时字段共享引用
+              move: {
+                scrollbars: true,
+                drag: true,
+                wheel: true,
+              },
             });
+
+            // 监听块复制事件，确保字段独立
+            workspaceRef.current.addChangeListener((event: any) => {
+              if (event.type === Blockly.Events.BLOCK_CREATE && event.recordUndo) {
+                // 当创建新块时（包括复制），确保所有字段都是独立的实例
+                const block = workspaceRef.current?.getBlockById(event.blockId);
+                if (block) {
+                  // 处理变量块的复制（variables_get, variables_set, variable_assign）
+                  if (block.type === 'variables_set' || block.type === 'variables_get' || block.type === 'variable_assign') {
+                    const varField = block.getField('VAR');
+                    if (varField) {
+                      try {
+                        const currentVarName = varField.getText();
+                        // 检查是否有同名变量正在使用
+                        const allBlocks = workspaceRef.current?.getAllBlocks(false) || [];
+                        const sameVarBlocks = allBlocks.filter((b: any) => {
+                          if (b.id === block.id) return false; // 排除自己
+                          const field = b.getField?.('VAR');
+                          return field && field.getText() === currentVarName;
+                        });
+
+                        // 如果有多个块使用同一个变量名，说明是复制操作，自动创建新变量
+                        if (sameVarBlocks.length > 0) {
+                          // 生成新变量名（避免冲突）
+                          let newVarName = currentVarName;
+                          let counter = 2;
+                          while (allBlocks.some((b: any) => {
+                            const field = b.getField?.('VAR');
+                            return field && field.getText() === newVarName && b.id !== block.id;
+                          })) {
+                            newVarName = `${currentVarName}_${counter}`;
+                            counter++;
+                          }
+
+                          // 设置新变量名
+                          if (newVarName !== currentVarName) {
+                            varField.setValue(newVarName);
+                            console.log(`🔄 自动重命名复制的变量: ${currentVarName} -> ${newVarName}`);
+                          }
+                        }
+                      } catch (error) {
+                        console.warn('处理变量块复制时出错:', error);
+                      }
+                    }
+                  }
+
+                  // 强制刷新所有输入字段的连接
+                  block.inputList.forEach((input: any) => {
+                    if (input.connection && input.connection.targetBlock()) {
+                      const targetBlock = input.connection.targetBlock();
+                      // 重新初始化目标块的字段
+                      targetBlock.inputList.forEach((targetInput: any) => {
+                        targetInput.fieldRow.forEach((field: any) => {
+                          if (field && field.setValue) {
+                            // 强制字段值重新设置，确保独立引用
+                            const currentValue = field.getValue();
+                            field.setValue(currentValue);
+                          }
+                        });
+                      });
+                    }
+                  });
+                }
+              }
+            });
+
             console.log('✅ Blockly workspace初始化成功');
 
             // 如果有已保存的Blockly定义，加载它
@@ -498,134 +639,19 @@ outputs = {
     }
   };
 
-  const getBlocklyToolbox = () => {
-    return {
-      kind: 'categoryToolbox',
-      contents: [
-        {
-          kind: 'category',
-          name: 'Python输入/输出',
-          colour: '#1890ff',
-          contents: [
-            { kind: 'block', type: 'python_input_get' },
-            { kind: 'block', type: 'python_output_set' },
-            { kind: 'block', type: 'python_print' },
-            { kind: 'block', type: 'safe_int' },
-            { kind: 'block', type: 'safe_float' },
-            { kind: 'block', type: 'safe_bool' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '字典操作',
-          colour: '#722ED1',
-          contents: [
-            { kind: 'block', type: 'dict_create' },
-            { kind: 'block', type: 'dict_set' },
-            { kind: 'block', type: 'dict_get' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '列表操作',
-          colour: '#52C41A',
-          contents: [
-            { kind: 'block', type: 'lists_create_with' },
-            { kind: 'block', type: 'lists_create_empty' },
-            { kind: 'block', type: 'list_append' },
-            { kind: 'block', type: 'lists_getIndex' },
-            { kind: 'block', type: 'lists_setIndex' },
-            { kind: 'block', type: 'lists_length' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '文件操作',
-          colour: '#13C2C2',
-          contents: [
-            { kind: 'block', type: 'file_read' },
-            { kind: 'block', type: 'file_write' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: 'HTTP请求',
-          colour: '#FA8C16',
-          contents: [
-            { kind: 'block', type: 'http_request' },
-            { kind: 'block', type: 'json_parse' },
-            { kind: 'block', type: 'json_stringify' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '逻辑',
-          colour: '#5C7CFA',
-          contents: [
-            { kind: 'block', type: 'controls_if' },
-            { kind: 'block', type: 'logic_compare' },
-            { kind: 'block', type: 'logic_operation' },
-            { kind: 'block', type: 'logic_negate' },
-            { kind: 'block', type: 'logic_boolean' },
-            { kind: 'block', type: 'logic_null' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '循环',
-          colour: '#52C41A',
-          contents: [
-            { kind: 'block', type: 'controls_repeat_ext' },
-            { kind: 'block', type: 'controls_whileUntil' },
-            { kind: 'block', type: 'controls_for' },
-            { kind: 'block', type: 'controls_forEach' },
-            { kind: 'block', type: 'controls_flow_statements' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '数学',
-          colour: '#FA8C16',
-          contents: [
-            { kind: 'block', type: 'math_number' },
-            { kind: 'block', type: 'math_arithmetic' },
-            { kind: 'block', type: 'math_single' },
-            { kind: 'block', type: 'math_trig' },
-            { kind: 'block', type: 'math_constant' },
-            { kind: 'block', type: 'math_round' },
-            { kind: 'block', type: 'math_modulo' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '文本',
-          colour: '#722ED1',
-          contents: [
-            { kind: 'block', type: 'text' },
-            { kind: 'block', type: 'text_join' },
-            { kind: 'block', type: 'text_append' },
-            { kind: 'block', type: 'text_length' },
-            { kind: 'block', type: 'text_isEmpty' },
-            { kind: 'block', type: 'text_indexOf' },
-            { kind: 'block', type: 'text_charAt' },
-            { kind: 'block', type: 'text_print' },
-          ],
-        },
-        {
-          kind: 'category',
-          name: '变量',
-          colour: '#A0522D',
-          custom: 'VARIABLE',
-        },
-        {
-          kind: 'category',
-          name: '函数',
-          colour: '#9966FF',
-          custom: 'PROCEDURE',
-        },
-      ],
-    };
-  };
+  const getToolbox = useCallback(() => {
+    // 使用新的ToolboxManager自动生成工具箱
+    try {
+      return getBlocklyToolbox();
+    } catch (error) {
+      console.error('获取工具箱配置失败', error);
+      // 返回一个最小的fallback配置
+      return {
+        kind: 'categoryToolbox',
+        contents: []
+      };
+    }
+  }, []);
 
   const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
     if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
@@ -661,9 +687,9 @@ outputs = {
     }
   };
 
-  // 尝试将Python代码转换为Blockly块（实验性功能）
+  // 尝试将Python代码转换为Blockly块（使用增强型转换器）
   const handleConvertCodeToBlockly = () => {
-    console.log('🧪 开始尝试转换Python代码到Blockly');
+    console.log('🧪 开始尝试转换Python代码到Blockly (使用增强型转换器)');
     console.log('当前代码:', scriptCode);
 
     try {
@@ -674,217 +700,35 @@ outputs = {
       }
 
       const workspace = workspaceRef.current;
-      workspace.clear(); // 清空工作区
 
-      // 解析代码并转换为块
-      const lines = scriptCode.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
-      let convertedCount = 0;
-      let skippedCount = 0;
-      let yPosition = 50; // 初始Y坐标
+      // 使用增强型转换器进行转换
+      const result = convertCodeToBlockly(workspace, scriptCode);
 
-      console.log('📝 准备转换', lines.length, '行代码');
+      console.log(`🎉 转换完成: ${result.convertedCount} 成功, ${result.skippedCount} 跳过`);
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        console.log(`处理第 ${i + 1} 行:`, line);
-
-        let block = null;
-
-        // 1. inputs.get() with safe_int/int conversion: a = safe_int(inputs.get('a'), 0)
-        const safeIntInputMatch = line.match(/^(\w+)\s*=\s*(?:safe_int|int)\s*\(\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*[^)]+)?\s*\)\s*(?:,\s*([^)]+))?\s*\)$/);
-        if (safeIntInputMatch) {
-          console.log('✅ 识别为 safe_int/int(inputs.get(...))');
-          block = workspace.newBlock('variables_set');
-          block.setFieldValue(safeIntInputMatch[1], 'VAR');
-
-          // Create safe_int block
-          const safeIntBlock = workspace.newBlock('safe_int');
-
-          // Create python_input_get block
-          const inputGetBlock = workspace.newBlock('python_input_get');
-          const paramNameBlock = workspace.newBlock('text');
-          paramNameBlock.setFieldValue(safeIntInputMatch[2], 'TEXT');
-          inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
-
-          // Connect input_get to safe_int
-          safeIntBlock.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
-
-          // Connect safe_int to variable
-          block.getInput('VALUE')?.connection?.connect(safeIntBlock.outputConnection!);
-
-          paramNameBlock.initSvg();
-          paramNameBlock.render();
-          inputGetBlock.initSvg();
-          inputGetBlock.render();
-          safeIntBlock.initSvg();
-          safeIntBlock.render();
-          convertedCount++;
+      if (result.convertedCount > 0) {
+        message.success(
+          `转换完成：成功 ${result.convertedCount} 条语句${
+            result.skippedCount > 0 ? `，跳过 ${result.skippedCount} 条` : ''
+          }`
+        );
+        if (result.skippedCount > 0) {
+          message.warning(
+            `部分语句无法转换，请手动添加或调整。${
+              result.skippedLines.length > 0
+                ? `\n跳过的语句:\n${result.skippedLines.slice(0, 3).join('\n')}${
+                    result.skippedLines.length > 3 ? '\n...' : ''
+                  }`
+                : ''
+            }`,
+            5
+          );
         }
-        // 2. Simple inputs.get(): variable = inputs.get('param', 'default')
-        else if (line.match(/^(\w+)\s*=\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)$/)) {
-          const match = line.match(/^(\w+)\s*=\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)$/);
-          if (match) {
-            console.log('✅ 识别为 inputs.get(...)');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-
-            const inputGetBlock = workspace.newBlock('python_input_get');
-            const paramNameBlock = workspace.newBlock('text');
-            paramNameBlock.setFieldValue(match[2], 'TEXT');
-            inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
-
-            block.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
-
-            paramNameBlock.initSvg();
-            paramNameBlock.render();
-            inputGetBlock.initSvg();
-            inputGetBlock.render();
-            convertedCount++;
-          }
-        }
-        // 3. Math operations: result = a + b, result = a * b, etc.
-        else if (line.match(/^(\w+)\s*=\s*(\w+)\s*([\+\-\*\/])\s*(\w+)$/)) {
-          const match = line.match(/^(\w+)\s*=\s*(\w+)\s*([\+\-\*\/])\s*(\w+)$/);
-          if (match) {
-            const opMap: Record<string, string> = { '+': 'ADD', '-': 'MINUS', '*': 'MULTIPLY', '/': 'DIVIDE' };
-            console.log(`✅ 识别为数学运算 (${match[3]})`);
-
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-
-            const mathBlock = workspace.newBlock('math_arithmetic');
-            mathBlock.setFieldValue(opMap[match[3]], 'OP');
-
-            // Create variable blocks for operands
-            const varA = workspace.newBlock('variables_get');
-            varA.setFieldValue(match[2], 'VAR');
-            const varB = workspace.newBlock('variables_get');
-            varB.setFieldValue(match[4], 'VAR');
-
-            mathBlock.getInput('A')?.connection?.connect(varA.outputConnection!);
-            mathBlock.getInput('B')?.connection?.connect(varB.outputConnection!);
-            block.getInput('VALUE')?.connection?.connect(mathBlock.outputConnection!);
-
-            varA.initSvg();
-            varA.render();
-            varB.initSvg();
-            varB.render();
-            mathBlock.initSvg();
-            mathBlock.render();
-            convertedCount++;
-          }
-        }
-        // 4. Dictionary creation: outputs = { "key": value, ... }
-        else if (line.match(/^(\w+)\s*=\s*\{[^}]*\}$/)) {
-          const match = line.match(/^(\w+)\s*=\s*\{/);
-          if (match) {
-            console.log('✅ 识别为字典创建');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-
-            const dictBlock = workspace.newBlock('dict_create');
-            block.getInput('VALUE')?.connection?.connect(dictBlock.outputConnection!);
-
-            dictBlock.initSvg();
-            dictBlock.render();
-            convertedCount++;
-          }
-        }
-        // 5. Multi-argument print with f-string or concatenation (simplified)
-        else if (line.match(/^print\s*\([^)]+\)$/)) {
-          console.log('✅ 识别为 print 语句（多参数或复杂）');
-          block = workspace.newBlock('python_print');
-
-          // Extract content between print( and )
-          const content = line.match(/^print\s*\((.+)\)$/)?.[1];
-          if (content) {
-            // Create a text block with the content (simplified)
-            const textBlock = workspace.newBlock('text');
-            // Remove quotes if it's a simple string
-            const cleanContent = content.replace(/^['"]|['"]$/g, '');
-            textBlock.setFieldValue(cleanContent, 'TEXT');
-            block.getInput('TEXT')?.connection?.connect(textBlock.outputConnection!);
-            textBlock.initSvg();
-            textBlock.render();
-          }
-          convertedCount++;
-        }
-        // 6. 匹配变量赋值（字符串）
-        else if (line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/)) {
-          const match = line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/);
-          if (match) {
-            console.log('✅ 识别为字符串变量赋值');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-            const valueBlock = workspace.newBlock('text');
-            valueBlock.setFieldValue(match[2], 'TEXT');
-            block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
-            valueBlock.initSvg();
-            valueBlock.render();
-            convertedCount++;
-          }
-        }
-        // 7. 匹配变量赋值（数字）
-        else if (line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/)) {
-          const match = line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/);
-          if (match) {
-            console.log('✅ 识别为数字变量赋值');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-            const valueBlock = workspace.newBlock('math_number');
-            valueBlock.setFieldValue(match[2], 'NUM');
-            block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
-            valueBlock.initSvg();
-            valueBlock.render();
-            convertedCount++;
-          }
-        }
-        // 8. 匹配简单的if语句（仅识别开始）
-        else if (line.match(/^if\s+.+:\s*$/)) {
-          console.log('⚠️ 识别为 if 语句（但转换有限）');
-          skippedCount++;
-          console.log('  提示：if语句转换功能有限，建议手动构建');
-        }
-        // 9. 匹配简单的for循环
-        else if (line.match(/^for\s+\w+\s+in\s+range\((\d+)\):\s*$/)) {
-          const match = line.match(/^for\s+(\w+)\s+in\s+range\((\d+)\):\s*$/);
-          if (match) {
-            console.log('✅ 识别为 for 循环');
-            block = workspace.newBlock('controls_repeat_ext');
-            const timesBlock = workspace.newBlock('math_number');
-            timesBlock.setFieldValue(match[2], 'NUM');
-            block.getInput('TIMES')?.connection?.connect(timesBlock.outputConnection!);
-            timesBlock.initSvg();
-            timesBlock.render();
-            convertedCount++;
-          }
-        }
-        // 无法识别的语句
-        else {
-          console.log('❌ 无法转换此行代码');
-          skippedCount++;
-        }
-
-        // 如果成功创建了块，初始化并放置
-        if (block) {
-          block.initSvg();
-          block.render();
-          block.moveBy(50, yPosition);
-          yPosition += 80; // 下一个块的Y坐标
-        }
-      }
-
-      console.log(`🎉 转换完成: ${convertedCount} 成功, ${skippedCount} 跳过`);
-
-      if (convertedCount > 0) {
-        message.success(`转换完成：成功 ${convertedCount} 条语句${skippedCount > 0 ? `，跳过 ${skippedCount} 条` : ''}`);
-        if (skippedCount > 0) {
-          message.warning('部分语句无法转换，请手动添加或调整', 5);
-        }
-      } else if (skippedCount > 0) {
+      } else if (result.skippedCount > 0) {
         message.warning('未能转换任何语句，代码可能过于复杂。你可以手动添加可视化块。', 6);
+      } else {
+        message.info('代码为空或没有可转换的语句');
       }
-
     } catch (error) {
       console.error('❌ 转换失败:', error);
       message.error('代码转换失败，但你可以手动添加可视化块');
@@ -954,16 +798,159 @@ outputs = {
     return outputs;
   }, [outputParams]);
 
-  // 打开测试弹窗
-  const handleOpenTest = () => {
-    // 初始化测试输入值
-    const initialInputs: Record<string, any> = {};
-    inputParams.forEach(param => {
-      if (param.name) {
-        initialInputs[param.name] = param.defaultValue || '';
+  // 从 Blockly 工作区解析输入输出参数
+  const parseBlocklyParameters = useCallback(() => {
+    if (!workspaceRef.current) {
+      return { inputParams: [], outputParams: [] };
+    }
+
+    const workspace = workspaceRef.current;
+    const inputMatches = new Set<string>();
+    const inputTypes: Record<string, string> = {};
+    const outputMatches = new Set<string>();
+
+    // 获取所有块
+    const allBlocks = workspace.getAllBlocks(false);
+
+    // 定义类型转换块与类型的映射关系
+    const typeConversionMap: Record<string, string> = {
+      'safe_int': 'number',
+      'int_conversion': 'number',
+      'safe_float': 'number',
+      'float_conversion': 'number',
+      'safe_bool': 'boolean',
+      'bool_conversion': 'boolean',
+      'str_conversion': 'string',
+    };
+
+    // 辅助函数：从块中提取参数名
+    const extractParamNameFromInputGet = (inputGetBlock: Blockly.Block): string | null => {
+      const paramNameInput = inputGetBlock.getInput('PARAM_NAME');
+      if (paramNameInput?.connection?.targetBlock()) {
+        const textBlock = paramNameInput.connection.targetBlock();
+        if (textBlock?.type === 'text') {
+          const paramName = textBlock.getFieldValue('TEXT');
+          if (paramName && !paramName.startsWith('ctx.')) {
+            return paramName;
+          }
+        }
+      }
+      return null;
+    };
+
+    allBlocks.forEach(block => {
+      const blockType = block.type;
+
+      // 1. 优先解析类型转换块包裹的 python_input_get（这样可以推断类型）
+      if (typeConversionMap[blockType]) {
+        const valueInput = block.getInput('VALUE');
+        if (valueInput?.connection?.targetBlock()) {
+          const targetBlock = valueInput.connection.targetBlock();
+          if (targetBlock?.type === 'python_input_get') {
+            const paramName = extractParamNameFromInputGet(targetBlock);
+            if (paramName) {
+              inputMatches.add(paramName);
+              inputTypes[paramName] = typeConversionMap[blockType];
+              console.log(`🔍 解析到类型转换: ${paramName} -> ${typeConversionMap[blockType]} (来自 ${blockType})`);
+            }
+          }
+        }
+      }
+
+      // 2. 解析没有被类型转换包裹的 python_input_get 块（默认为 string）
+      if (blockType === 'python_input_get') {
+        const paramName = extractParamNameFromInputGet(block);
+        if (paramName && !inputMatches.has(paramName)) {
+          // 只有在尚未记录的情况下才添加（避免覆盖已识别的类型）
+          inputMatches.add(paramName);
+          inputTypes[paramName] = 'string'; // 默认字符串
+          console.log(`🔍 解析到输入参数: ${paramName} -> string (默认)`);
+        }
+      }
+
+      // 3. 解析 python_output_item 块（输出参数）
+      if (blockType === 'python_output_item') {
+        const key = block.getFieldValue('KEY');
+        if (key && key !== '_console_output') {
+          outputMatches.add(key);
+          console.log(`🔍 解析到输出参数: ${key}`);
+        }
       }
     });
-    setTestInputs(initialInputs);
+
+    // 转换为参数数组
+    const newInputParams = Array.from(inputMatches).map(name => ({
+      name,
+      type: inputTypes[name] || 'string',
+      defaultValue: '',
+      description: ''
+    }));
+
+    const newOutputParams = Array.from(outputMatches).map(name => ({
+      name,
+      type: 'string',
+      description: ''
+    }));
+
+    console.log('✅ 参数解析完成:', { inputParams: newInputParams, outputParams: newOutputParams });
+
+    return { inputParams: newInputParams, outputParams: newOutputParams };
+  }, []);
+
+  // 打开测试弹窗
+  const handleOpenTest = () => {
+    // 如果是可视化模式，先从 Blockly 工作区解析参数（仅用于测试，不覆盖原配置）
+    if (definitionMode === 'BLOCKLY' && workspaceRef.current) {
+      console.log('🔍 可视化模式：从 Blockly 工作区解析输入输出参数（仅用于测试）...');
+      const { inputParams: parsedInputParams, outputParams: parsedOutputParams } = parseBlocklyParameters();
+
+      if (parsedInputParams.length > 0) {
+        console.log(`✅ 解析到 ${parsedInputParams.length} 个输入参数:`, parsedInputParams);
+        // ⚠️ 重要：不更新 inputParams 状态，只用于测试
+        // 使用解析后的参数初始化测试输入值
+        const initialInputs: Record<string, any> = {};
+        parsedInputParams.forEach(param => {
+          if (param.name) {
+            initialInputs[param.name] = param.defaultValue || '';
+          }
+        });
+        setTestInputs(initialInputs);
+
+        // 临时更新 inputParamsRef 用于测试弹窗显示（不影响左侧配置）
+        inputParamsRef.current = parsedInputParams;
+        message.info(`可视化模式测试：检测到 ${parsedInputParams.length} 个输入参数`);
+      } else {
+        // 如果没有解析到参数，使用现有配置
+        const initialInputs: Record<string, any> = {};
+        inputParams.forEach(param => {
+          if (param.name) {
+            initialInputs[param.name] = param.defaultValue || '';
+          }
+        });
+        setTestInputs(initialInputs);
+        inputParamsRef.current = inputParams;
+      }
+
+      if (parsedOutputParams.length > 0) {
+        console.log(`✅ 解析到 ${parsedOutputParams.length} 个输出参数:`, parsedOutputParams);
+        // 临时更新 outputParamsRef（不影响左侧配置）
+        outputParamsRef.current = parsedOutputParams;
+      } else {
+        outputParamsRef.current = outputParams;
+      }
+    } else {
+      // 代码模式：使用现有的 inputParams
+      const initialInputs: Record<string, any> = {};
+      inputParams.forEach(param => {
+        if (param.name) {
+          initialInputs[param.name] = param.defaultValue || '';
+        }
+      });
+      setTestInputs(initialInputs);
+      inputParamsRef.current = inputParams;
+      outputParamsRef.current = outputParams;
+    }
+
     setTestResult(null);
     setTestModalVisible(true);
   };
@@ -985,8 +972,65 @@ outputs = {
             message.warning('可视化工作区为空，请先添加块');
             return;
           }
-          codeToTest = pythonCode;
-          console.log('🧪 可视化模式测试，生成的代码:', pythonCode);
+
+          // 智能检测是否需要 safe_* 函数（只有代码中使用了才添加）
+          const needsSafeInt = pythonCode.includes('safe_int(');
+          const needsSafeFloat = pythonCode.includes('safe_float(');
+          const needsSafeBool = pythonCode.includes('safe_bool(');
+
+          let helperFunctions = '';
+
+          if (needsSafeInt || needsSafeFloat || needsSafeBool) {
+            helperFunctions = '# ========== 安全类型转换函数 ==========\n\n';
+
+            if (needsSafeInt) {
+              helperFunctions += `def safe_int(value, default=0):
+    """安全地转换为整数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+`;
+            }
+
+            if (needsSafeFloat) {
+              helperFunctions += `def safe_float(value, default=0.0):
+    """安全地转换为浮点数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+`;
+            }
+
+            if (needsSafeBool) {
+              helperFunctions += `def safe_bool(value, default=False):
+    """安全地转换为布尔值"""
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ['true', '1', 'yes', 'on']
+    return bool(value)
+
+`;
+            }
+
+            helperFunctions += '# ========== 可视化块生成的代码 ==========\n\n';
+          }
+
+          codeToTest = helperFunctions + pythonCode;
+          console.log('🧪 可视化模式测试，生成的代码:', codeToTest);
+          if (needsSafeInt || needsSafeFloat || needsSafeBool) {
+            console.log('✅ 已自动添加安全转换函数:', { needsSafeInt, needsSafeFloat, needsSafeBool });
+          }
           message.info('正在测试可视化模式构建的代码...', 2);
         } catch (error) {
           console.error('生成代码失败', error);
@@ -1532,12 +1576,36 @@ outputs = {
                   margin: '0 0 8px 0',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
                   gap: '8px'
                 }}>
-                  <WarningOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
-                  <span style={{ fontSize: '13px', color: '#595959' }}>
-                    <strong>预览模式：</strong>可视化编辑仅用于预览测试，不会保存。切换回代码模式时会自动恢复原始代码。
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <WarningOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+                    <span style={{ fontSize: '13px', color: '#595959' }}>
+                      <strong>预览模式：</strong>可视化编辑仅用于预览测试，不会保存。切换回代码模式时会自动恢复原始代码。
+                    </span>
+                  </div>
+                  <Space>
+                    <Tooltip title="导出当前可视化块的XML结构">
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        onClick={handleExportXML}
+                      >
+                        导出XML
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="从XML文件导入可视化块结构">
+                      <Button
+                        size="small"
+                        icon={<UploadOutlined />}
+                        onClick={handleImportXML}
+                      >
+                        导入XML
+                      </Button>
+                    </Tooltip>
+                  </Space>
                 </div>
                 <div ref={blocklyDivRef} className="blockly-editor" style={{ flex: 1 }} />
               </div>

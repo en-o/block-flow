@@ -1,0 +1,29 @@
+<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="rh3QaJBjcMO(I8nbyS`*">aa</variable>
+  </variables>
+  <block type="variable_assign" id="HF3]IcnVFvN`-Ll6hKak" x="150" y="90">
+    <field name="VAR" id="rh3QaJBjcMO(I8nbyS`*">aa</field>
+    <value name="VALUE">
+      <block type="python_input_get" id=")/pv)F]V6e+Bjm#:@3Tj">
+        <value name="PARAM_NAME">
+          <block type="text" id="Lv$cJ|hIHUzIZEXK0yD]">
+            <field name="TEXT">dd</field>
+          </block>
+        </value>
+        <value name="DEFAULT_VALUE">
+          <block type="math_number" id="IeKDJ!l;1cLKCU%-ea$Z">
+            <field name="NUM">12</field>
+          </block>
+        </value>
+      </block>
+    </value>
+  </block>
+  <block type="python_print" id="yT[]$f+Wm#MHU-.webxE" x="170" y="270">
+    <value name="TEXT">
+      <block type="variables_get" id="kGqQdf_6O9nLP[cu@}TA">
+        <field name="VAR" id="rh3QaJBjcMO(I8nbyS`*">aa</field>
+      </block>
+    </value>
+  </block>
+</xml>

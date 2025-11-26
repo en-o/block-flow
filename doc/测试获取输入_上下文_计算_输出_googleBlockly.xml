@@ -1,0 +1,105 @@
+<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="rh3QaJBjcMO(I8nbyS`*">aa</variable>
+    <variable id="c+F#yw-`J6[H+ZZK`ctT">dd</variable>
+    <variable id="04o~7Wvf_Hz0oDAfdi1=">name</variable>
+  </variables>
+  <block type="variable_assign" id="HF3]IcnVFvN`-Ll6hKak" x="150" y="90">
+    <field name="VAR" id="rh3QaJBjcMO(I8nbyS`*">aa</field>
+    <value name="VALUE">
+      <block type="python_input_get" id=")/pv)F]V6e+Bjm#:@3Tj">
+        <value name="PARAM_NAME">
+          <block type="text" id="Lv$cJ|hIHUzIZEXK0yD]">
+            <field name="TEXT">dd</field>
+          </block>
+        </value>
+        <value name="DEFAULT_VALUE">
+          <block type="math_number" id="IeKDJ!l;1cLKCU%-ea$Z">
+            <field name="NUM">12</field>
+          </block>
+        </value>
+      </block>
+    </value>
+    <next>
+      <block type="python_print" id="yT[]$f+Wm#MHU-.webxE">
+        <value name="TEXT">
+          <block type="variables_get" id="kGqQdf_6O9nLP[cu@}TA">
+            <field name="VAR" id="rh3QaJBjcMO(I8nbyS`*">aa</field>
+          </block>
+        </value>
+        <next>
+          <block type="variable_assign" id="n4)2XUiuJsD4(e0Q_Qb1">
+            <field name="VAR" id="c+F#yw-`J6[H+ZZK`ctT">dd</field>
+            <value name="VALUE">
+              <block type="math_binary_operation" id="QQU}K)z)=1z?hjA`rU40">
+                <field name="OP">ADD</field>
+                <value name="A">
+                  <block type="variables_get" id="DQfPm:(=s85B.Xs%W*S~">
+                    <field name="VAR" id="rh3QaJBjcMO(I8nbyS`*">aa</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="math_number" id=":[*(b7:!9mw`[H5s{U|/">
+                    <field name="NUM">22</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <next>
+              <block type="python_print" id="O!K$*GG1XZLBvC`B7115">
+                <value name="TEXT">
+                  <block type="variables_get" id="+Nv5wh@W@HNv{hgWHZyf">
+                    <field name="VAR" id="c+F#yw-`J6[H+ZZK`ctT">dd</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="variable_assign" id="e$MN31A}1ane1|)`+#j^">
+                    <field name="VAR" id="04o~7Wvf_Hz0oDAfdi1=">name</field>
+                    <value name="VALUE">
+                      <block type="context_variable" id="85`9h.F-UGQUeLzWi4}0">
+                        <field name="VAR_NAME">USER_NAME</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="python_print" id="o4^Eke:;RJbj:q*OR{:,">
+                        <value name="TEXT">
+                          <block type="variables_get" id="a;bo2Va:W7AH~~N?2^0k">
+                            <field name="VAR" id="04o~7Wvf_Hz0oDAfdi1=">name</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="python_output_set" id="8to^M/R^*+}o8NScV#lm">
+                            <statement name="OUTPUTS">
+                              <block type="python_output_item" id="#)${p#13sX?}$_MKRa+c">
+                                <field name="KEY">name</field>
+                                <value name="VALUE">
+                                  <block type="variables_get" id="mG6YPx%JnMV,Df4BXoG+">
+                                    <field name="VAR" id="04o~7Wvf_Hz0oDAfdi1=">name</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="python_output_item" id="7}FWAQlM*MQUppbh!5rA">
+                                    <field name="KEY">num</field>
+                                    <value name="VALUE">
+                                      <block type="variables_get" id="jGx[=da3J%{4K8?VQkeL">
+                                        <field name="VAR" id="c+F#yw-`J6[H+ZZK`ctT">dd</field>
+                                      </block>
+                                    </value>
+                                  </block>
+                                </next>
+                              </block>
+                            </statement>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </next>
+  </block>
+</xml>
