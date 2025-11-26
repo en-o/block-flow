@@ -271,6 +271,9 @@ public class ExecutionServiceImpl implements ExecutionService {
                 JSONObject inputsDefinition = null;
                 if (blockSnapshot != null) {
                     inputsDefinition = blockSnapshot.getJSONObject("inputs");
+                    // 调试：输出 blockSnapshot 的内容
+                    log.debug("块 {} 的 blockSnapshot: {}", blockName, blockSnapshot);
+                    log.debug("块 {} 的 inputsDefinition: {}", blockName, inputsDefinition);
                 }
 
                 // 如果有输入参数定义，按定义顺序输出
@@ -294,6 +297,7 @@ public class ExecutionServiceImpl implements ExecutionService {
                     }
                 } else {
                     // 没有输入参数定义，直接输出实际参数
+                    log.debug("块 {} 没有 inputsDefinition，使用实际参数", blockName);
                     if (blockInputs.isEmpty()) {
                         inputLogBuilder.append("    (无)\n");
                     } else {
