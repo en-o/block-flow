@@ -121,6 +121,9 @@
                     <nodeVersion>v20.19.2</nodeVersion>
                     <npmVersion>10.8.2</npmVersion>
                     <skip>${skip.frontend.build}</skip>
+                    <!-- 使用淘宝镜像 -->
+                    <nodeDownloadRoot>https://npmmirror.com/mirrors/node/</nodeDownloadRoot>
+                    <npmDownloadRoot>https://registry.npmmirror.com/npm/-/</npmDownloadRoot>
                 </configuration>
                 <executions>
                     <!-- 安装 Node 和 npm -->
@@ -137,7 +140,7 @@
                             <goal>npm</goal>
                         </goals>
                         <configuration>
-                            <arguments>install</arguments>
+                            <arguments>install --registry=https://registry.npmmirror.com</arguments>
                         </configuration>
                     </execution>
                     <!-- 构建前端项目（合并部署模式） -->
