@@ -1,3 +1,7 @@
+# 环境
+node 20以上
+> node v20.19.2
+
 ## run
 ```shell
 npm install
