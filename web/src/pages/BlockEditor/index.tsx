@@ -19,6 +19,7 @@ import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCirc
 import * as Blockly from 'blockly';
 import { pythonGenerator } from 'blockly/python';
 import Editor from '@monaco-editor/react';
+import '../../monaco-loader'; // Configure Monaco to use local resources
 import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
 import { pythonEnvApi } from '../../api/pythonEnv';
