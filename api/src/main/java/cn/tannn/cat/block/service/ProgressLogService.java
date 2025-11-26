@@ -1,5 +1,6 @@
 package cn.tannn.cat.block.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author tnnn
  */
+@Slf4j
 @Service
 public class ProgressLogService {
 
@@ -26,14 +28,51 @@ public class ProgressLogService {
      * 创建SSE连接
      */
     public SseEmitter createEmitter(String taskId) {
+        log.info("创建SSE连接，taskId: {}", taskId);
+
+        // 如果已存在连接，先关闭旧连接
+        SseEmitter oldEmitter = emitters.get(taskId);
+        if (oldEmitter != null) {
+            log.warn("taskId {} 已存在SSE连接，关闭旧连接", taskId);
+            try {
+                oldEmitter.complete();
+            } catch (Exception e) {
+                log.debug("关闭旧SSE连接时出错: {}", e.getMessage());
+            }
+            emitters.remove(taskId);
+        }
+
         // 超时时间设置为10分钟
         SseEmitter emitter = new SseEmitter(600000L);
 
-        emitter.onCompletion(() -> emitters.remove(taskId));
-        emitter.onTimeout(() -> emitters.remove(taskId));
-        emitter.onError((e) -> emitters.remove(taskId));
+        emitter.onCompletion(() -> {
+            log.info("SSE连接完成，taskId: {}", taskId);
+            emitters.remove(taskId);
+        });
+
+        emitter.onTimeout(() -> {
+            log.warn("SSE连接超时，taskId: {}", taskId);
+            emitters.remove(taskId);
+        });
+
+        emitter.onError((e) -> {
+            log.error("SSE连接错误，taskId: {}, error: {}", taskId, e.getMessage());
+            emitters.remove(taskId);
+        });
 
         emitters.put(taskId, emitter);
+
+        // 发送初始化消息，确认连接已建立
+        try {
+            emitter.send(SseEmitter.event()
+                    .name("connected")
+                    .data("SSE连接已建立"));
+            log.info("SSE连接建立成功，taskId: {}", taskId);
+        } catch (IOException e) {
+            log.error("发送SSE初始化消息失败，taskId: {}", taskId, e);
+            emitters.remove(taskId);
+        }
+
         return emitter;
     }
 
@@ -48,8 +87,11 @@ public class ProgressLogService {
                         .name("log")
                         .data(message));
             } catch (IOException e) {
+                log.error("发送SSE日志失败，taskId: {}, message: {}", taskId, message, e);
                 emitters.remove(taskId);
             }
+        } else {
+            log.warn("未找到SSE连接，taskId: {}, 无法发送日志: {}", taskId, message);
         }
     }
 
@@ -68,8 +110,11 @@ public class ProgressLogService {
                         .name("progress")
                         .data(data));
             } catch (IOException e) {
+                log.error("发送SSE进度失败，taskId: {}, progress: {}", taskId, progress, e);
                 emitters.remove(taskId);
             }
+        } else {
+            log.warn("未找到SSE连接，taskId: {}, 无法发送进度: {}%", taskId, progress);
         }
     }
 
@@ -89,10 +134,12 @@ public class ProgressLogService {
                         .data(data));
                 emitter.complete();
             } catch (IOException e) {
-                // ignore
+                log.error("发送SSE完成消息失败，taskId: {}", taskId, e);
             } finally {
                 emitters.remove(taskId);
             }
+        } else {
+            log.warn("未找到SSE连接，taskId: {}, 无法发送完成消息", taskId);
         }
     }
 
@@ -108,10 +155,12 @@ public class ProgressLogService {
                         .data(error));
                 emitter.completeWithError(new RuntimeException(error));
             } catch (IOException e) {
-                // ignore
+                log.error("发送SSE错误消息失败，taskId: {}", taskId, e);
             } finally {
                 emitters.remove(taskId);
             }
+        } else {
+            log.warn("未找到SSE连接，taskId: {}, 无法发送错误消息: {}", taskId, error);
         }
     }
 }

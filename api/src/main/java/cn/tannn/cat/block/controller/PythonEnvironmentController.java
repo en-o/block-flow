@@ -186,7 +186,7 @@ public class PythonEnvironmentController {
         return ResultVO.success(pythonEnvironmentService.detectPythonExecutable(id));
     }
 
-    @GetMapping("/{id}/progress/{taskId}")
+    @GetMapping(value = "/{id}/progress/{taskId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "订阅进度日志", description = "实时订阅Python运行时上传/安装进度日志（SSE）")
     public SseEmitter subscribeProgress(
             @Parameter(description = "环境ID") @PathVariable Integer id,

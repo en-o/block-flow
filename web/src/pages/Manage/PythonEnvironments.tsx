@@ -228,9 +228,14 @@ const PythonEnvironments: React.FC = () => {
             // 步骤3：上传Python运行时（关键步骤）
             setInstallLogs(prev => [...prev, '开始上传Python运行时...']);
 
-            // 订阅SSE进度事件（在API调用之后立即创建，让后端有时间准备）
+            // 订阅SSE进度事件
             const taskId = `upload-python-${newEnvId}`;
             const eventSource = new EventSource(`/api/python-envs/${newEnvId}/progress/${taskId}`);
+
+            eventSource.addEventListener('connected', (e: MessageEvent) => {
+              console.log('SSE连接已建立:', e.data);
+              setInstallLogs(prev => [...prev, '✓ 实时进度连接已建立']);
+            });
 
             eventSource.addEventListener('log', (e: MessageEvent) => {
               const message = e.data;
@@ -268,12 +273,13 @@ const PythonEnvironments: React.FC = () => {
 
             eventSource.onerror = (error) => {
               console.error('SSE连接错误:', error);
-              setInstallLogs(prev => [...prev, '⚠ SSE连接失败，但上传可能仍在进行...']);
+              console.error('EventSource readyState:', eventSource.readyState);
+              setInstallLogs(prev => [...prev, '⚠ 实时进度连接失败，上传继续进行（请查看后台日志）']);
               eventSource.close();
             };
 
             // 等待SSE连接建立
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const uploadResponse = await pythonEnvApi.uploadPythonRuntime(newEnvId, runtimeFile);
 
