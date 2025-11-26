@@ -73,8 +73,6 @@ export function convertCodeToBlockly(
       ctxBlock.setFieldValue(ctxVarMatch[2], 'VAR_NAME');
 
       block.getInput('VALUE')?.connection?.connect(ctxBlock.outputConnection!);
-      ctxBlock.initSvg();
-      ctxBlock.render();
       convertedCount++;
     }
     // 2. inputs.get() with int/float/bool/safe_int/safe_float/safe_bool
@@ -136,12 +134,6 @@ export function convertCodeToBlockly(
         // Connect safe conversion to variable
         block.getInput('VALUE')?.connection?.connect(safeBlock.outputConnection!);
 
-        paramNameBlock.initSvg();
-        paramNameBlock.render();
-        inputGetBlock.initSvg();
-        inputGetBlock.render();
-        safeBlock.initSvg();
-        safeBlock.render();
         convertedCount++;
       }
     }
@@ -171,16 +163,10 @@ export function convertCodeToBlockly(
             defaultBlock.setFieldValue(defaultVal, 'TEXT');
           }
           inputGetBlock.getInput('DEFAULT_VALUE')?.connection?.connect(defaultBlock.outputConnection!);
-          defaultBlock.initSvg();
-          defaultBlock.render();
         }
 
         block.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
 
-        paramNameBlock.initSvg();
-        paramNameBlock.render();
-        inputGetBlock.initSvg();
-        inputGetBlock.render();
         convertedCount++;
       }
     }
@@ -216,12 +202,6 @@ export function convertCodeToBlockly(
         mathBlock.getInput('B')?.connection?.connect(varB.outputConnection!);
         block.getInput('VALUE')?.connection?.connect(mathBlock.outputConnection!);
 
-        varA.initSvg();
-        varA.render();
-        varB.initSvg();
-        varB.render();
-        mathBlock.initSvg();
-        mathBlock.render();
         convertedCount++;
       }
     }
@@ -236,8 +216,6 @@ export function convertCodeToBlockly(
         varBlock.setFieldValue(match[1], 'VAR');
         block.getInput('TEXT')?.connection?.connect(varBlock.outputConnection!);
 
-        varBlock.initSvg();
-        varBlock.render();
         convertedCount++;
       }
     }
@@ -252,8 +230,6 @@ export function convertCodeToBlockly(
         textBlock.setFieldValue(match[1], 'TEXT');
         block.getInput('TEXT')?.connection?.connect(textBlock.outputConnection!);
 
-        textBlock.initSvg();
-        textBlock.render();
         convertedCount++;
       }
     }
@@ -305,8 +281,6 @@ export function convertCodeToBlockly(
           }
 
           itemBlock.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
-          valueBlock.initSvg();
-          valueBlock.render();
 
           if (idx === 0) {
             firstItemBlock = itemBlock;
@@ -314,13 +288,14 @@ export function convertCodeToBlockly(
             prevItemBlock.nextConnection?.connect(itemBlock.previousConnection!);
           }
 
-          itemBlock.initSvg();
-          itemBlock.render();
           prevItemBlock = itemBlock;
         });
 
         if (firstItemBlock) {
-          block.getInput('OUTPUTS')?.connection?.connect(firstItemBlock.previousConnection!);
+          const connection = firstItemBlock.previousConnection;
+          if (connection) {
+            block.getInput('OUTPUTS')?.connection?.connect(connection);
+          }
         }
 
         convertedCount++;
@@ -337,8 +312,6 @@ export function convertCodeToBlockly(
         const valueBlock = workspace.newBlock('text');
         valueBlock.setFieldValue(match[2], 'TEXT');
         block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
-        valueBlock.initSvg();
-        valueBlock.render();
         convertedCount++;
       }
     }
@@ -352,8 +325,6 @@ export function convertCodeToBlockly(
         const valueBlock = workspace.newBlock('math_number');
         valueBlock.setFieldValue(match[2], 'NUM');
         block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
-        valueBlock.initSvg();
-        valueBlock.render();
         convertedCount++;
       }
     }
@@ -400,10 +371,6 @@ export function convertCodeToBlockly(
 
         block.getInput('VALUE')?.connection?.connect(requestBlock.outputConnection!);
 
-        urlBlock.initSvg();
-        urlBlock.render();
-        requestBlock.initSvg();
-        requestBlock.render();
         convertedCount++;
       }
     }
@@ -446,10 +413,6 @@ export function convertCodeToBlockly(
             endBlock.setFieldValue(sliceMatch[2], 'NUM');
             valueBlock.getInput('END')?.connection?.connect(endBlock.outputConnection!);
 
-            sourceBlock.initSvg();
-            sourceBlock.render();
-            endBlock.initSvg();
-            endBlock.render();
           } else {
             valueBlock = workspace.newBlock('variables_get');
             valueBlock.setFieldValue(value, 'VAR');
@@ -467,8 +430,6 @@ export function convertCodeToBlockly(
 
         block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
 
-        valueBlock.initSvg();
-        valueBlock.render();
         convertedCount++;
       }
     }
@@ -481,8 +442,6 @@ export function convertCodeToBlockly(
         const timesBlock = workspace.newBlock('math_number');
         timesBlock.setFieldValue(match[2], 'NUM');
         block.getInput('TIMES')?.connection?.connect(timesBlock.outputConnection!);
-        timesBlock.initSvg();
-        timesBlock.render();
         convertedCount++;
       }
     }
@@ -495,9 +454,6 @@ export function convertCodeToBlockly(
 
     // 如果成功创建了块，初始化并放置
     if (block) {
-      block.initSvg();
-      block.render();
-
       // 连接到前一个块
       if (previousBlock && previousBlock.nextConnection && block.previousConnection) {
         previousBlock.nextConnection.connect(block.previousConnection);
@@ -557,13 +513,10 @@ function createPropertyAccessChain(workspace: Blockly.WorkspaceSvg, expression: 
         const argBlock = workspace.newBlock('text');
         argBlock.setFieldValue(argMatch[1], 'TEXT');
         methodBlock.getInput('ARGS')?.connection?.connect(argBlock.outputConnection!);
-        argBlock.initSvg();
-        argBlock.render();
       }
     }
 
-    objectBlock.initSvg();
-    objectBlock.render();
+    methodBlock.getInput('OBJECT')?.connection?.connect(objectBlock.outputConnection!);
 
     return methodBlock;
   }
@@ -578,9 +531,6 @@ function createPropertyAccessChain(workspace: Blockly.WorkspaceSvg, expression: 
     varBlock.setFieldValue(parts[0], 'VAR');
     propertyBlock.getInput('OBJECT')?.connection?.connect(varBlock.outputConnection!);
 
-    varBlock.initSvg();
-    varBlock.render();
-
     return propertyBlock;
   }
 
@@ -593,9 +543,6 @@ function createPropertyAccessChain(workspace: Blockly.WorkspaceSvg, expression: 
     const propertyBlock = workspace.newBlock('object_property');
     propertyBlock.setFieldValue(parts[i], 'PROPERTY');
     propertyBlock.getInput('OBJECT')?.connection?.connect(currentBlock.outputConnection!);
-
-    currentBlock.initSvg();
-    currentBlock.render();
 
     currentBlock = propertyBlock;
   }

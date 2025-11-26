@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import { pythonGenerator, Order } from 'blockly/python';
 
 /**
  * Blockly块定义接口
@@ -76,7 +76,7 @@ export class BlockHelper {
   /**
    * 获取输入值代码
    */
-  static getInputValue(block: Blockly.Block, inputName: string, order: number = pythonGenerator.ORDER_ATOMIC): string {
+  static getInputValue(block: Blockly.Block, inputName: string, order: number = Order.ATOMIC): string {
     return pythonGenerator.valueToCode(block, inputName, order) || '""';
   }
 

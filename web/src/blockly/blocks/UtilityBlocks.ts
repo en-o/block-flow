@@ -1,5 +1,4 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
 import { BlockDefinition, BlockHelper } from '../core/BlockDefinition';
 
 /**

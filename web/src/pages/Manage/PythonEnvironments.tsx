@@ -726,7 +726,7 @@ const PythonEnvironments: React.FC = () => {
       }
 
       // 解析包数量
-      const lines = requirementsText.split('\n').filter(line => {
+      const lines = requirementsText.split('\n').filter((line: string) => {
         const trimmed = line.trim();
         return trimmed && !trimmed.startsWith('#');
       });

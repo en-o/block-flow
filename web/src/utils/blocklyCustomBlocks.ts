@@ -120,7 +120,7 @@ function fixVariableBlockGenerators() {
       pythonGenerator.nameDB_.reset();
     }
 
-    pythonGenerator.nameDB_.setVariableMap(workspace.getVariableMap());
+    pythonGenerator.nameDB_?.setVariableMap(workspace.getVariableMap());
 
     // 重要：不生成变量初始化代码
     // 原始实现会在这里生成 "变量名 = None"，我们跳过这一步

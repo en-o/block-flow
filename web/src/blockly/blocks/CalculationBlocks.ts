@@ -54,7 +54,7 @@ export class VariableAssignBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): string => {
     // 获取变量对象，使用显示名称而不是内部ID
-    const field = block.getField('VAR');
+    const field = block.getField('VAR') as any;
     const variable = field?.getVariable?.();
     const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
     const cleanedName = sanitizeVariableName(varName);
@@ -89,7 +89,7 @@ export class VariableGetBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     // 获取变量对象，使用显示名称而不是内部ID
-    const field = block.getField('VAR');
+    const field = block.getField('VAR') as any;
     const variable = field?.getVariable?.();
     const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
     const cleanedName = sanitizeVariableName(varName);
@@ -449,7 +449,7 @@ export class IncrementBlock extends BlockDefinition {
     };
 
     // 获取变量对象，使用显示名称而不是内部ID
-    const field = block.getField('VAR');
+    const field = block.getField('VAR') as any;
     const variable = field?.getVariable?.();
     const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
     const cleanedName = sanitizeVariableName(varName);
