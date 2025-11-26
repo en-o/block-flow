@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import { Order } from 'blockly/python';
 import { BlockDefinition, BlockHelper } from '../core/BlockDefinition';
 
 /**
@@ -29,10 +29,10 @@ export class PythonInputGetBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const paramName = BlockHelper.getInputValue(block, 'PARAM_NAME', pythonGenerator.ORDER_NONE);
-    const defaultValue = BlockHelper.getInputValue(block, 'DEFAULT_VALUE', pythonGenerator.ORDER_NONE) || '\'\'';
+    const paramName = BlockHelper.getInputValue(block, 'PARAM_NAME', Order.NONE);
+    const defaultValue = BlockHelper.getInputValue(block, 'DEFAULT_VALUE', Order.NONE) || '\'\'';
     const code = `inputs.get(${paramName}, ${defaultValue})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -95,7 +95,7 @@ export class PythonOutputItemBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): string => {
     const key = BlockHelper.getFieldValue(block, 'KEY');
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE) || 'None';
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE) || 'None';
     const code = `  "${key}": ${value},\n`;
     return code;
   };
@@ -128,10 +128,10 @@ export class SafeIntBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const defaultValue = BlockHelper.getFieldValue(block, 'DEFAULT');
     const code = `safe_int(${value}, ${defaultValue})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -163,10 +163,10 @@ export class SafeFloatBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const defaultValue = BlockHelper.getFieldValue(block, 'DEFAULT');
     const code = `safe_float(${value}, ${defaultValue})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -200,10 +200,10 @@ export class SafeBoolBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const defaultValue = BlockHelper.getFieldValue(block, 'DEFAULT');
     const code = `safe_bool(${value}, ${defaultValue})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -230,7 +230,7 @@ export class PythonPrintBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): string => {
-    const text = BlockHelper.getInputValue(block, 'TEXT', pythonGenerator.ORDER_NONE) || '\'\'';
+    const text = BlockHelper.getInputValue(block, 'TEXT', Order.NONE) || '\'\'';
     const code = `print(${text})\n`;
     return code;
   };
@@ -264,8 +264,8 @@ export class ContextVariableBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     const varName = BlockHelper.getFieldValue(block, 'VAR_NAME');
-    const defaultValue = BlockHelper.getInputValue(block, 'DEFAULT_VALUE', pythonGenerator.ORDER_NONE) || '\'\'';
+    const defaultValue = BlockHelper.getInputValue(block, 'DEFAULT_VALUE', Order.NONE) || '\'\'';
     const code = `inputs.get('ctx.${varName}', ${defaultValue})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }

@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import { Order } from 'blockly/python';
 import { BlockDefinition, BlockHelper } from '../core/BlockDefinition';
 
 /**
@@ -60,7 +60,7 @@ export class DatetimeNowBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    return ['datetime.now()', pythonGenerator.ORDER_FUNCTION_CALL];
+    return ['datetime.now()', Order.FUNCTION_CALL];
   };
 }
 
@@ -87,8 +87,8 @@ export class ParserParseBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const dateString = BlockHelper.getInputValue(block, 'DATE_STRING', pythonGenerator.ORDER_NONE) || '\'\'';
-    return [`parser.parse(${dateString})`, pythonGenerator.ORDER_FUNCTION_CALL];
+    const dateString = BlockHelper.getInputValue(block, 'DATE_STRING', Order.NONE) || '\'\'';
+    return [`parser.parse(${dateString})`, Order.FUNCTION_CALL];
   };
 }
 
@@ -121,9 +121,9 @@ export class DatetimeStrptimeBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const dateString = BlockHelper.getInputValue(block, 'DATE_STRING', pythonGenerator.ORDER_NONE) || '\'\'';
-    const format = BlockHelper.getInputValue(block, 'FORMAT', pythonGenerator.ORDER_NONE) || '\'%Y-%m-%d\'';
-    return [`datetime.strptime(${dateString}, ${format})`, pythonGenerator.ORDER_FUNCTION_CALL];
+    const dateString = BlockHelper.getInputValue(block, 'DATE_STRING', Order.NONE) || '\'\'';
+    const format = BlockHelper.getInputValue(block, 'FORMAT', Order.NONE) || '\'%Y-%m-%d\'';
+    return [`datetime.strptime(${dateString}, ${format})`, Order.FUNCTION_CALL];
   };
 }
 
@@ -155,9 +155,9 @@ export class DatetimeStrftimeBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const datetime = BlockHelper.getInputValue(block, 'DATETIME', pythonGenerator.ORDER_MEMBER) || 'datetime.now()';
-    const format = BlockHelper.getInputValue(block, 'FORMAT', pythonGenerator.ORDER_NONE) || '\'%Y-%m-%d %H:%M:%S\'';
-    return [`${datetime}.strftime(${format})`, pythonGenerator.ORDER_FUNCTION_CALL];
+    const datetime = BlockHelper.getInputValue(block, 'DATETIME', Order.MEMBER) || 'datetime.now()';
+    const format = BlockHelper.getInputValue(block, 'FORMAT', Order.NONE) || '\'%Y-%m-%d %H:%M:%S\'';
+    return [`${datetime}.strftime(${format})`, Order.FUNCTION_CALL];
   };
 }
 
@@ -200,10 +200,10 @@ export class TimedeltaBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const days = BlockHelper.getInputValue(block, 'DAYS', pythonGenerator.ORDER_NONE);
-    const hours = BlockHelper.getInputValue(block, 'HOURS', pythonGenerator.ORDER_NONE);
-    const minutes = BlockHelper.getInputValue(block, 'MINUTES', pythonGenerator.ORDER_NONE);
-    const seconds = BlockHelper.getInputValue(block, 'SECONDS', pythonGenerator.ORDER_NONE);
+    const days = BlockHelper.getInputValue(block, 'DAYS', Order.NONE);
+    const hours = BlockHelper.getInputValue(block, 'HOURS', Order.NONE);
+    const minutes = BlockHelper.getInputValue(block, 'MINUTES', Order.NONE);
+    const seconds = BlockHelper.getInputValue(block, 'SECONDS', Order.NONE);
 
     const parts: string[] = [];
     if (days) parts.push(`days=${days}`);
@@ -212,7 +212,7 @@ export class TimedeltaBlock extends BlockDefinition {
     if (seconds) parts.push(`seconds=${seconds}`);
 
     const code = parts.length > 0 ? `timedelta(${parts.join(', ')})` : 'timedelta()';
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -275,9 +275,9 @@ export class DatetimeAttributeBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const datetime = BlockHelper.getInputValue(block, 'DATETIME', pythonGenerator.ORDER_MEMBER) || 'datetime.now()';
+    const datetime = BlockHelper.getInputValue(block, 'DATETIME', Order.MEMBER) || 'datetime.now()';
     const attribute = BlockHelper.getFieldValue(block, 'ATTRIBUTE');
-    return [`${datetime}.${attribute}`, pythonGenerator.ORDER_MEMBER];
+    return [`${datetime}.${attribute}`, Order.MEMBER];
   };
 }
 
@@ -317,6 +317,6 @@ export class DateFormatBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     const format = BlockHelper.getFieldValue(block, 'FORMAT');
-    return [`'${format}'`, pythonGenerator.ORDER_ATOMIC];
+    return [`'${format}'`, Order.ATOMIC];
   };
 }

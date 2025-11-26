@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import { Order } from 'blockly/python';
 import { BlockDefinition, BlockHelper } from '../core/BlockDefinition';
 
 /**
@@ -59,7 +59,7 @@ export class VariableAssignBlock extends BlockDefinition {
     const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
     const cleanedName = sanitizeVariableName(varName);
 
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE) || '0';
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE) || '0';
     const code = `${cleanedName} = ${value}\n`;
     return code;
   };
@@ -94,7 +94,7 @@ export class VariableGetBlock extends BlockDefinition {
     const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
     const cleanedName = sanitizeVariableName(varName);
 
-    return [cleanedName, pythonGenerator.ORDER_ATOMIC];
+    return [cleanedName, Order.ATOMIC];
   };
 }
 
@@ -141,13 +141,13 @@ export class MathBinaryOpBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     const OPERATORS: Record<string, [string, number]> = {
-      'ADD': [' + ', pythonGenerator.ORDER_ADDITIVE],
-      'MINUS': [' - ', pythonGenerator.ORDER_ADDITIVE],
-      'MULTIPLY': [' * ', pythonGenerator.ORDER_MULTIPLICATIVE],
-      'DIVIDE': [' / ', pythonGenerator.ORDER_MULTIPLICATIVE],
-      'POWER': [' ** ', pythonGenerator.ORDER_EXPONENTIATION],
-      'MODULO': [' % ', pythonGenerator.ORDER_MULTIPLICATIVE],
-      'FLOOR_DIVIDE': [' // ', pythonGenerator.ORDER_MULTIPLICATIVE],
+      'ADD': [' + ', Order.ADDITIVE],
+      'MINUS': [' - ', Order.ADDITIVE],
+      'MULTIPLY': [' * ', Order.MULTIPLICATIVE],
+      'DIVIDE': [' / ', Order.MULTIPLICATIVE],
+      'POWER': [' ** ', Order.EXPONENTIATION],
+      'MODULO': [' % ', Order.MULTIPLICATIVE],
+      'FLOOR_DIVIDE': [' // ', Order.MULTIPLICATIVE],
     };
 
     const opField = BlockHelper.getFieldValue(block, 'OP');
@@ -199,15 +199,15 @@ export class MathUnaryOpBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     const op = BlockHelper.getFieldValue(block, 'OP');
-    const num = BlockHelper.getInputValue(block, 'NUM', pythonGenerator.ORDER_NONE) || '0';
+    const num = BlockHelper.getInputValue(block, 'NUM', Order.NONE) || '0';
 
     let code = '';
-    let order = pythonGenerator.ORDER_FUNCTION_CALL;
+    let order = Order.FUNCTION_CALL;
 
     switch (op) {
       case 'NEG':
         code = `-${num}`;
-        order = pythonGenerator.ORDER_UNARY_SIGN;
+        order = Order.UNARY_SIGN;
         break;
       case 'ABS':
         code = `abs(${num})`;
@@ -267,12 +267,12 @@ export class ComparisonBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     const OPERATORS: Record<string, [string, number]> = {
-      'EQ': [' == ', pythonGenerator.ORDER_RELATIONAL],
-      'NEQ': [' != ', pythonGenerator.ORDER_RELATIONAL],
-      'LT': [' < ', pythonGenerator.ORDER_RELATIONAL],
-      'LTE': [' <= ', pythonGenerator.ORDER_RELATIONAL],
-      'GT': [' > ', pythonGenerator.ORDER_RELATIONAL],
-      'GTE': [' >= ', pythonGenerator.ORDER_RELATIONAL],
+      'EQ': [' == ', Order.RELATIONAL],
+      'NEQ': [' != ', Order.RELATIONAL],
+      'LT': [' < ', Order.RELATIONAL],
+      'LTE': [' <= ', Order.RELATIONAL],
+      'GT': [' > ', Order.RELATIONAL],
+      'GTE': [' >= ', Order.RELATIONAL],
     };
 
     const opField = BlockHelper.getFieldValue(block, 'OP');
@@ -326,8 +326,8 @@ export class LogicOperationBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     const OPERATORS: Record<string, [string, number]> = {
-      'AND': [' and ', pythonGenerator.ORDER_LOGICAL_AND],
-      'OR': [' or ', pythonGenerator.ORDER_LOGICAL_OR],
+      'AND': [' and ', Order.LOGICAL_AND],
+      'OR': [' or ', Order.LOGICAL_OR],
     };
 
     const opField = BlockHelper.getFieldValue(block, 'OP');
@@ -366,9 +366,9 @@ export class LogicNotBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const bool = BlockHelper.getInputValue(block, 'BOOL', pythonGenerator.ORDER_LOGICAL_NOT) || 'False';
+    const bool = BlockHelper.getInputValue(block, 'BOOL', Order.LOGICAL_NOT) || 'False';
     const code = `not ${bool}`;
-    return [code, pythonGenerator.ORDER_LOGICAL_NOT];
+    return [code, Order.LOGICAL_NOT];
   };
 }
 
@@ -397,7 +397,7 @@ export class NumberConstantBlock extends BlockDefinition {
   generator = (block: Blockly.Block): [string, number] => {
     const num = BlockHelper.getFieldValue(block, 'NUM');
     const code = String(num);
-    return [code, pythonGenerator.ORDER_ATOMIC];
+    return [code, Order.ATOMIC];
   };
 }
 
@@ -456,7 +456,7 @@ export class IncrementBlock extends BlockDefinition {
 
     const opField = BlockHelper.getFieldValue(block, 'OP');
     const operator = OPERATORS[opField];
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE) || '1';
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE) || '1';
 
     const code = `${cleanedName}${operator}${value}\n`;
     return code;

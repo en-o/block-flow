@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import { Order } from 'blockly/python';
 import { BlockDefinition, BlockHelper } from '../core/BlockDefinition';
 
 /**
@@ -24,9 +24,9 @@ export class IntConversionBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const code = `int(${value})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -52,9 +52,9 @@ export class FloatConversionBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const code = `float(${value})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -80,9 +80,9 @@ export class StrConversionBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const code = `str(${value})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -108,9 +108,9 @@ export class BoolConversionBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const code = `bool(${value})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -136,9 +136,9 @@ export class ListConversionBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const code = `list(${value})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -164,8 +164,8 @@ export class DictConversionBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE);
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE);
     const code = `dict(${value})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }

@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import {  Order } from 'blockly/python';
 import { BlockDefinition, BlockHelper } from '../core/BlockDefinition';
 
 /**
@@ -46,9 +46,9 @@ export class RequestsGetBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const url = BlockHelper.getInputValue(block, 'URL', pythonGenerator.ORDER_NONE) || '\'\'';
+    const url = BlockHelper.getInputValue(block, 'URL', Order.NONE) || '\'\'';
     const code = `requests.get(${url})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -80,10 +80,10 @@ export class RequestsPostBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const url = BlockHelper.getInputValue(block, 'URL', pythonGenerator.ORDER_NONE) || '\'\'';
-    const data = BlockHelper.getInputValue(block, 'DATA', pythonGenerator.ORDER_NONE);
+    const url = BlockHelper.getInputValue(block, 'URL', Order.NONE) || '\'\'';
+    const data = BlockHelper.getInputValue(block, 'DATA', Order.NONE);
     const code = data ? `requests.post(${url}, data=${data})` : `requests.post(${url})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -115,10 +115,10 @@ export class RequestsPutBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const url = BlockHelper.getInputValue(block, 'URL', pythonGenerator.ORDER_NONE) || '\'\'';
-    const data = BlockHelper.getInputValue(block, 'DATA', pythonGenerator.ORDER_NONE);
+    const url = BlockHelper.getInputValue(block, 'URL', Order.NONE) || '\'\'';
+    const data = BlockHelper.getInputValue(block, 'DATA', Order.NONE);
     const code = data ? `requests.put(${url}, data=${data})` : `requests.put(${url})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -145,9 +145,9 @@ export class RequestsDeleteBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const url = BlockHelper.getInputValue(block, 'URL', pythonGenerator.ORDER_NONE) || '\'\'';
+    const url = BlockHelper.getInputValue(block, 'URL', Order.NONE) || '\'\'';
     const code = `requests.delete(${url})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -179,10 +179,10 @@ export class ObjectPropertyBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const object = BlockHelper.getInputValue(block, 'OBJECT', pythonGenerator.ORDER_MEMBER) || 'obj';
+    const object = BlockHelper.getInputValue(block, 'OBJECT', Order.MEMBER) || 'obj';
     const property = BlockHelper.getFieldValue(block, 'PROPERTY');
     const code = `${object}.${property}`;
-    return [code, pythonGenerator.ORDER_MEMBER];
+    return [code, Order.MEMBER];
   };
 }
 
@@ -218,11 +218,11 @@ export class ObjectMethodCallBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const object = BlockHelper.getInputValue(block, 'OBJECT', pythonGenerator.ORDER_MEMBER) || 'obj';
+    const object = BlockHelper.getInputValue(block, 'OBJECT', Order.MEMBER) || 'obj';
     const method = BlockHelper.getFieldValue(block, 'METHOD');
-    const args = BlockHelper.getInputValue(block, 'ARGS', pythonGenerator.ORDER_NONE);
+    const args = BlockHelper.getInputValue(block, 'ARGS', Order.NONE);
     const code = args ? `${object}.${method}(${args})` : `${object}.${method}()`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -260,14 +260,14 @@ export class StringSliceBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const string = BlockHelper.getInputValue(block, 'STRING', pythonGenerator.ORDER_MEMBER) || '\'\'';
-    const start = BlockHelper.getInputValue(block, 'START', pythonGenerator.ORDER_NONE);
-    const end = BlockHelper.getInputValue(block, 'END', pythonGenerator.ORDER_NONE);
+    const string = BlockHelper.getInputValue(block, 'STRING', Order.MEMBER) || '\'\'';
+    const start = BlockHelper.getInputValue(block, 'START', Order.NONE);
+    const end = BlockHelper.getInputValue(block, 'END', Order.NONE);
 
     const startStr = start || '';
     const endStr = end || '';
     const code = `${string}[${startStr}:${endStr}]`;
-    return [code, pythonGenerator.ORDER_MEMBER];
+    return [code, Order.MEMBER];
   };
 }
 
@@ -301,7 +301,7 @@ export class PrintWithLabelBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): string => {
     const label = BlockHelper.getFieldValue(block, 'LABEL');
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE) || '\'\'';
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE) || '\'\'';
     const code = `print('${label}', ${value})\n`;
     return code;
   };

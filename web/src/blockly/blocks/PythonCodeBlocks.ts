@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import { Order } from 'blockly/python';
 import { BlockDefinition, BlockHelper } from '../core/BlockDefinition';
 
 /**
@@ -34,12 +34,12 @@ export class FileReadBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const path = BlockHelper.getInputValue(block, 'PATH', pythonGenerator.ORDER_NONE);
+    const path = BlockHelper.getInputValue(block, 'PATH', Order.NONE);
     const encoding = BlockHelper.getFieldValue(block, 'ENCODING');
 
     // 生成带错误处理的代码
     const code = `(lambda: open(${path}, 'r', encoding='${encoding}').read())()`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -79,8 +79,8 @@ export class FileWriteBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): string => {
-    const path = BlockHelper.getInputValue(block, 'PATH', pythonGenerator.ORDER_NONE);
-    const content = BlockHelper.getInputValue(block, 'CONTENT', pythonGenerator.ORDER_NONE);
+    const path = BlockHelper.getInputValue(block, 'PATH', Order.NONE);
+    const content = BlockHelper.getInputValue(block, 'CONTENT', Order.NONE);
     const encoding = BlockHelper.getFieldValue(block, 'ENCODING');
 
     const code = `with open(${path}, 'w', encoding='${encoding}') as f:\n  f.write(${content})\n`;
@@ -143,9 +143,9 @@ export class HttpRequestBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): [string, number] => {
     const method = BlockHelper.getFieldValue(block, 'METHOD');
-    const url = BlockHelper.getInputValue(block, 'URL', pythonGenerator.ORDER_NONE);
-    const body = BlockHelper.getInputValue(block, 'BODY', pythonGenerator.ORDER_NONE) || 'None';
-    const headers = BlockHelper.getInputValue(block, 'HEADERS', pythonGenerator.ORDER_NONE) || 'None';
+    const url = BlockHelper.getInputValue(block, 'URL', Order.NONE);
+    const body = BlockHelper.getInputValue(block, 'BODY', Order.NONE) || 'None';
+    const headers = BlockHelper.getInputValue(block, 'HEADERS', Order.NONE) || 'None';
 
     let code = '';
     if (method === 'GET') {
@@ -154,7 +154,7 @@ export class HttpRequestBlock extends BlockDefinition {
       code = `requests.${method.toLowerCase()}(${url}, json=${body}, headers=${headers})`;
     }
 
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -190,10 +190,10 @@ export class HttpResponseBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const response = BlockHelper.getInputValue(block, 'RESPONSE', pythonGenerator.ORDER_MEMBER);
+    const response = BlockHelper.getInputValue(block, 'RESPONSE', Order.MEMBER);
     const property = BlockHelper.getFieldValue(block, 'PROPERTY');
     const code = `${response}.${property}`;
-    return [code, pythonGenerator.ORDER_MEMBER];
+    return [code, Order.MEMBER];
   };
 }
 
@@ -220,9 +220,9 @@ export class JsonParseBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const jsonString = BlockHelper.getInputValue(block, 'JSON_STRING', pythonGenerator.ORDER_NONE);
+    const jsonString = BlockHelper.getInputValue(block, 'JSON_STRING', Order.NONE);
     const code = `json.loads(${jsonString})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -253,10 +253,10 @@ export class JsonStringifyBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const object = BlockHelper.getInputValue(block, 'OBJECT', pythonGenerator.ORDER_NONE);
+    const object = BlockHelper.getInputValue(block, 'OBJECT', Order.NONE);
     const indent = block.getFieldValue('INDENT') === 'TRUE' ? '2' : 'None';
     const code = `json.dumps(${object}, indent=${indent}, ensure_ascii=False)`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -285,7 +285,7 @@ export class DictCreateBlock extends BlockDefinition {
   generator = (block: Blockly.Block): [string, number] => {
     const items = BlockHelper.getStatements(block, 'ITEMS');
     const code = '{\n' + items + '}';
-    return [code, pythonGenerator.ORDER_ATOMIC];
+    return [code, Order.ATOMIC];
   };
 }
 
@@ -318,7 +318,7 @@ export class DictItemBlock extends BlockDefinition {
 
   generator = (block: Blockly.Block): string => {
     const key = BlockHelper.getFieldValue(block, 'KEY');
-    const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE) || 'None';
+    const value = BlockHelper.getInputValue(block, 'VALUE', Order.NONE) || 'None';
     const code = `  "${key}": ${value},\n`;
     return code;
   };
@@ -355,11 +355,11 @@ export class DictGetBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const dict = BlockHelper.getInputValue(block, 'DICT', pythonGenerator.ORDER_MEMBER);
-    const key = BlockHelper.getInputValue(block, 'KEY', pythonGenerator.ORDER_NONE);
-    const defaultValue = BlockHelper.getInputValue(block, 'DEFAULT', pythonGenerator.ORDER_NONE) || 'None';
+    const dict = BlockHelper.getInputValue(block, 'DICT', Order.MEMBER);
+    const key = BlockHelper.getInputValue(block, 'KEY', Order.NONE);
+    const defaultValue = BlockHelper.getInputValue(block, 'DEFAULT', Order.NONE) || 'None';
     const code = `${dict}.get(${key}, ${defaultValue})`;
-    return [code, pythonGenerator.ORDER_FUNCTION_CALL];
+    return [code, Order.FUNCTION_CALL];
   };
 }
 
@@ -390,8 +390,8 @@ export class ListAppendBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): string => {
-    const list = BlockHelper.getInputValue(block, 'LIST', pythonGenerator.ORDER_MEMBER);
-    const item = BlockHelper.getInputValue(block, 'ITEM', pythonGenerator.ORDER_NONE);
+    const list = BlockHelper.getInputValue(block, 'LIST', Order.MEMBER);
+    const item = BlockHelper.getInputValue(block, 'ITEM', Order.NONE);
     const code = `${list}.append(${item})\n`;
     return code;
   };
@@ -422,7 +422,7 @@ export class StringFormatBlock extends BlockDefinition {
   generator = (block: Blockly.Block): [string, number] => {
     const template = BlockHelper.getFieldValue(block, 'TEMPLATE');
     const code = `f"${template}"`;
-    return [code, pythonGenerator.ORDER_ATOMIC];
+    return [code, Order.ATOMIC];
   };
 }
 
