@@ -1073,14 +1073,26 @@ const PythonEnvironments: React.FC = () => {
 
     eventSource.addEventListener('error', (e: MessageEvent) => {
       const error = e.data;
-      setInstallLogs(prev => [...prev, `✗ 错误: ${error}`]);
-      setIsInstalling(false);
-      eventSource.close();
+      if (error) {  // 只有当有错误数据时才显示
+        setInstallLogs(prev => [...prev, `✗ 服务端错误: ${error}`]);
+        setIsInstalling(false);
+        eventSource.close();
+      }
     });
 
-    eventSource.onerror = () => {
-      console.error('SSE连接失败');
-      setInstallLogs(prev => [...prev, '⚠ 实时进度连接失败，上传继续进行（请查看后台日志）']);
+    eventSource.onerror = (error) => {
+      console.error('SSE连接错误:', error);
+      console.error('EventSource readyState:', eventSource.readyState);
+      // 只在首次连接失败时提示
+      if (eventSource.readyState === EventSource.CLOSED || eventSource.readyState === EventSource.CONNECTING) {
+        setInstallLogs(prev => {
+          const lastLog = prev[prev.length - 1];
+          if (!lastLog || !lastLog.includes('实时进度连接失败')) {
+            return [...prev, '⚠ 实时进度连接失败，上传继续进行（请查看后台日志）'];
+          }
+          return prev;
+        });
+      }
       eventSource.close();
     };
 
