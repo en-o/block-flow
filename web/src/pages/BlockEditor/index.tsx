@@ -228,6 +228,37 @@ outputs = {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
+    // 添加 Ctrl+D 快捷键：复制当前行到下一行
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
+      const selection = editor.getSelection();
+      const model = editor.getModel();
+      if (!model || !selection) return;
+
+      // 获取当前光标所在行号
+      const currentLineNumber = selection.startLineNumber;
+      const currentLine = model.getLineContent(currentLineNumber);
+
+      // 在当前行的末尾插入换行符和复制的内容
+      const endOfLineColumn = model.getLineMaxColumn(currentLineNumber);
+      const insertPosition = { lineNumber: currentLineNumber, column: endOfLineColumn };
+
+      editor.executeEdits('duplicate-line', [{
+        range: new monaco.Range(
+          insertPosition.lineNumber,
+          insertPosition.column,
+          insertPosition.lineNumber,
+          insertPosition.column
+        ),
+        text: '\n' + currentLine,
+        forceMoveMarkers: true
+      }]);
+
+      // 将光标移动到新复制的行
+      const newLineNumber = currentLineNumber + 1;
+      editor.setPosition({ lineNumber: newLineNumber, column: selection.startColumn });
+      editor.revealLineInCenter(newLineNumber);
+    });
+
     // 注册代码提示提供器
     monaco.languages.registerCompletionItemProvider('python', {
       triggerCharacters: ['(', '.', "'", '"', '_'],  // 触发字符
@@ -1747,7 +1778,10 @@ outputs = {
           >
             保存块
           </Button>
-          <Tag color="blue" style={{ fontSize: 12 }}>Ctrl+S 快捷保存</Tag>
+          <Space direction="vertical" size={0}>
+            <Tag color="blue" style={{ fontSize: 12 }}>Ctrl+S 快捷保存</Tag>
+            <Tag color="green" style={{ fontSize: 12 }}>Ctrl+D 复制当前行</Tag>
+          </Space>
           {block && (
             <Tooltip title="测试运行当前块">
               <Button
