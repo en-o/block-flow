@@ -140,7 +140,7 @@ outputs = {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   // 使用 ref 存储最新的参数，解决闭包问题
-  const inputParamsRef = useRef<Array<{ name: string; type: string; defaultValue: string; description: string }>>([]);
+  const inputParamsRef = useRef<Array<{ name: string; type: string; defaultValue: string; description: string; required?: boolean }>>([]);
   const outputParamsRef = useRef<Array<{ name: string; type: string; description: string }>>([]);
 
   // 同步 inputParams 到 ref
@@ -1378,7 +1378,7 @@ outputs = {
   }, [form, definitionMode, scriptCode, block, buildInputsObject, buildOutputsObject, loadBlock, navigate]);
 
   // 保存函数引用，用于快捷键调用
-  const handleSaveRef = useRef<() => void>();
+  const handleSaveRef = useRef<(() => void) | undefined>(undefined);
   useEffect(() => {
     handleSaveRef.current = handleSave;
   }, [handleSave]);

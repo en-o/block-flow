@@ -77,7 +77,7 @@ const Flow: React.FC = () => {
   }, []);
 
   // 保存流程引用，避免循环依赖
-  const handleSaveRef = useRef<() => void>();
+  const handleSaveRef = useRef<(() => void) | undefined>(undefined);
 
   // 监听 Ctrl+S 快捷键保存流程
   useEffect(() => {

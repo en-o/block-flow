@@ -14,8 +14,12 @@ export interface BlockNodeData {
   icon?: string;
   inputValues?: Record<string, any>; // 存储每个输入参数的配置值（用于未连接的输入）
   blockSnapshot?: {
+    id?: number;
+    name?: string;
     script: string;
     pythonEnvId?: number;
+    inputs?: Record<string, any>;
+    outputs?: Record<string, any>;
     definitionMode?: string;
     blocklyDefinition?: string;
   };
