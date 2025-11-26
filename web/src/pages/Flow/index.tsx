@@ -788,7 +788,12 @@ const Flow: React.FC = () => {
     }
 
     // 校验所有节点的必填参数
-    const missingParams: Array<{ nodeName: string; paramName: string }> = [];
+    const missingParams: Array<{
+      nodeName: string;
+      paramName: string;
+      paramDesc: string;
+      nodeId: string;
+    }> = [];
 
     nodes.forEach((node) => {
       if (node.data.inputs) {
@@ -799,8 +804,10 @@ const Flow: React.FC = () => {
             if ((value === undefined || value === null || value === '')
                 && (!paramDef.defaultValue || paramDef.defaultValue === '')) {
               missingParams.push({
-                nodeName: node.data.label || node.id,
+                nodeName: node.data.blockName || node.data.label || `节点${node.id}`,
                 paramName: paramName,
+                paramDesc: paramDef.description || '',
+                nodeId: node.id,
               });
             }
           }
@@ -810,28 +817,35 @@ const Flow: React.FC = () => {
 
     // 如果有缺失的必填参数，显示错误并阻止执行
     if (missingParams.length > 0) {
-      const errorMsg = missingParams
-        .map(item => `节点"${item.nodeName}"的参数"${item.paramName}"`)
-        .join('、');
-
       modal.error({
         title: '参数验证失败',
         content: (
           <div>
-            <p>以下必填参数未填写：</p>
-            <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+            <p style={{ marginBottom: 12, fontSize: 14 }}>
+              以下 <strong style={{ color: '#ff4d4f' }}>{missingParams.length}</strong> 个必填参数未填写：
+            </p>
+            <ul style={{ marginTop: 8, paddingLeft: 20, maxHeight: 300, overflowY: 'auto' }}>
               {missingParams.map((item, index) => (
-                <li key={index}>
-                  节点 <strong>{item.nodeName}</strong> 的参数 <strong>{item.paramName}</strong>
+                <li key={index} style={{ marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ color: '#1890ff' }}>{item.nodeName}</strong>
+                    <span style={{ margin: '0 4px', color: '#bfbfbf' }}>→</span>
+                    <strong>{item.paramName}</strong>
+                  </div>
+                  {item.paramDesc && (
+                    <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 2, marginLeft: 8 }}>
+                      {item.paramDesc}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
-            <p style={{ marginTop: 8, color: '#ff4d4f' }}>
-              请填写所有必填参数后再执行流程。
+            <p style={{ marginTop: 12, padding: 12, background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 4, fontSize: 13 }}>
+              💡 提示：请在流程画布中选择对应的节点，填写所有标记为"必填"的参数后再执行。
             </p>
           </div>
         ),
-        width: 500,
+        width: 600,
       });
       return;
     }
