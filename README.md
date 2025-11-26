@@ -22,6 +22,7 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
 > 不建议映射`-v $(pwd)/python-envs:/app/python-envs \` 会导致很多问题
 
 Docker参数说明：[README-build.md](README-build.md)
+当前docker python环境使用：cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
 ```shell
 # 运行容器
 docker run -d -p 1250:1250 \

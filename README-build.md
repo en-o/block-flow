@@ -58,6 +58,7 @@ vim .env
 
 ### 运行
 > dockerhub:  https://hub.docker.com/r/tannnn/block-flow
+> python环境使用：cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
 
 运行之后需要自己将数据初始化进去[doc](doc)
 ```shell

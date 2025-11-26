@@ -578,7 +578,7 @@ pandas
 python-3.9.7-embed-amd64.zip  # Windows
 # 或
 python-3.9.7-linux-x86_64.tar.gz  # Linux 需要编译
-cpython-3.10.19+20251120-aarch64-unknown-linux-gnu-install_only.tar.gz # Linux 不需要编译
+cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz # Linux 不需要编译
 # https://github.com/astral-sh/python-build-standalone/releases
 
 # 2. 下载 pip

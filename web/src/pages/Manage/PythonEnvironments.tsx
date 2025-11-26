@@ -1571,7 +1571,7 @@ const PythonEnvironments: React.FC = () => {
                           <strong>🐳 Docker环境：</strong>
                           <div style={{ marginLeft: 16, marginTop: 4 }}>
                             <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
-                              cpython-3.10.19+20251120-aarch64-unknown-linux-gnu-install_only.tar.gz
+                              cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
                             </code>
                             <div style={{ marginTop: 8, padding: '6px', background: '#fff7e6', borderRadius: 4, fontSize: 11 }}>
                               💡 选择 <code>install_only</code> 版本，包含完整Python环境和pip
@@ -1682,7 +1682,7 @@ const PythonEnvironments: React.FC = () => {
                 <strong>🐳 Docker环境：</strong>
                 <div style={{ marginLeft: 16, marginTop: 4 }}>
                   • <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
-                    cpython-3.10.19+20251120-aarch64-unknown-linux-gnu-install_only.tar.gz
+                    cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
                   </code>
                   <br />
                   <span style={{ color: '#666', fontSize: 11 }}>
@@ -1695,7 +1695,7 @@ const PythonEnvironments: React.FC = () => {
                 <strong>🐧 Linux系统支持的包：</strong>
                 <div style={{ marginLeft: 16, marginTop: 4 }}>
                   • x86_64架构: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
-                      cpython-3.10.19+20251120-aarch64-unknown-linux-gnu-install_only.tar.gz
+                      cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
                   </code>
                   <br />
                   • ARM架构: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
