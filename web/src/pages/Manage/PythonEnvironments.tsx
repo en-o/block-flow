@@ -625,38 +625,77 @@ const PythonEnvironments: React.FC = () => {
 
   const handleExportRequirements = async (env: PythonEnvironment) => {
     try {
-      console.log('导出requirements.txt，环境ID:', env.id);
+      console.log('===== 开始导出 requirements.txt =====');
+      console.log('环境信息:', env);
+
+      // 检查环境是否有已安装的包
+      const packages = env.packages || {};
+      const packageCount = Object.keys(packages).length;
+      console.log('包数量:', packageCount);
+      console.log('包列表:', packages);
+
+      if (packageCount === 0) {
+        message.warning('该环境没有已安装的包，无法导出');
+        return;
+      }
+
+      // 显示加载提示
+      const loadingKey = 'export-requirements';
+      message.loading({ content: '正在生成 requirements.txt...', key: loadingKey, duration: 0 });
+
+      console.log('调用 API: /python-envs/' + env.id + '/requirements/export');
       const response = await pythonEnvApi.exportRequirements(env.id);
-      console.log('导出响应:', response);
+      console.log('API 响应:', response);
+      console.log('响应 code:', response.code);
+      console.log('响应 data 类型:', typeof response.data);
+      console.log('响应 data 内容:', response.data);
+      console.log('响应 data 长度:', response.data?.length);
 
       if (response.code === 200 && response.data !== undefined) {
-        // 检查是否有包
+        // 再次检查响应内容
         if (!response.data || response.data.trim() === '') {
-          message.warning('该环境没有已安装的包，无法导出');
+          console.error('❌ 导出内容为空');
+          message.error({ content: '导出内容为空', key: loadingKey });
           return;
         }
 
-        console.log('requirements内容:', response.data);
+        console.log('✅ 开始创建下载');
 
         // 创建Blob并下载
         const blob = new Blob([response.data], { type: 'text/plain;charset=utf-8' });
+        console.log('Blob 创建成功:', blob);
+
         const url = URL.createObjectURL(blob);
+        console.log('Object URL:', url);
+
         const a = document.createElement('a');
         a.href = url;
-        a.download = `requirements-${env.name}.txt`;
-        document.body.appendChild(a); // 添加到DOM（某些浏览器需要）
-        a.click();
-        document.body.removeChild(a); // 移除
-        URL.revokeObjectURL(url);
 
-        message.success('导出成功');
+        // 使用环境名称和时间戳生成文件名
+        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        a.download = `requirements-${env.name}-${timestamp}.txt`;
+        console.log('文件名:', a.download);
+
+        document.body.appendChild(a);
+        console.log('触发点击下载');
+        a.click();
+
+        // 清理
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('清理完成');
+        }, 100);
+
+        message.success({ content: `已导出 ${packageCount} 个包的依赖信息`, key: loadingKey });
+        console.log('===== 导出完成 =====');
       } else {
-        console.error('导出失败，响应码:', response.code, '错误信息:', response.message);
-        message.error(response.message || '导出失败');
+        console.error('❌ 响应失败:', response);
+        message.error({ content: response.message || '导出失败', key: loadingKey });
       }
     } catch (error: any) {
-      console.error('导出失败', error);
-      message.error(error.message || '导出失败');
+      console.error('❌ 导出 requirements.txt 异常:', error);
+      message.error(error.message || '导出失败，请稍后重试');
     }
   };
 

@@ -401,14 +401,25 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         StringBuilder requirements = new StringBuilder();
         packages.forEach((packageName, packageInfo) -> {
-            if (packageInfo instanceof JSONObject) {
-                JSONObject info = (JSONObject) packageInfo;
-                String version = info.getString("version");
-                if (version != null && !version.isEmpty()) {
-                    requirements.append(packageName).append("==").append(version).append("\n");
-                } else {
-                    requirements.append(packageName).append("\n");
-                }
+            String version = null;
+
+            // packageInfo 可能是 JSONObject 或 Map
+            if (packageInfo instanceof JSONObject info) {
+                version = info.getString("version");
+            } else if (packageInfo instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> info = (java.util.Map<String, Object>) packageInfo;
+                Object versionObj = info.get("version");
+                version = versionObj != null ? versionObj.toString() : null;
+            } else if (packageInfo instanceof String) {
+                // 兼容旧格式：直接存储版本字符串
+                version = (String) packageInfo;
+            }
+
+            if (version != null && !version.isEmpty()) {
+                requirements.append(packageName).append("==").append(version).append("\n");
+            } else {
+                requirements.append(packageName).append("\n");
             }
         });
 
