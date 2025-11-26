@@ -29,3 +29,16 @@ export {
   StringFormatBlock,
   TryExceptBlock,
 } from './PythonCodeBlocks';
+
+// 计算和变量块
+export {
+  VariableAssignBlock,
+  VariableGetBlock,
+  MathBinaryOpBlock,
+  MathUnaryOpBlock,
+  ComparisonBlock,
+  LogicOperationBlock,
+  LogicNotBlock,
+  NumberConstantBlock,
+  IncrementBlock,
+} from './CalculationBlocks';

@@ -15,7 +15,7 @@ import {
   Tag,
   Alert,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
 import { pythonGenerator } from 'blockly/python';
 import Editor from '@monaco-editor/react';
@@ -153,6 +153,73 @@ outputs = {
 
   // 保存切换到可视化模式前的原始代码（用于恢复）
   const [originalScriptCode, setOriginalScriptCode] = useState<string>('');
+
+  // XML导出/导入功能
+  const handleExportXML = () => {
+    if (!workspaceRef.current) {
+      message.error('工作区未初始化');
+      return;
+    }
+
+    try {
+      const xml = Blockly.Xml.workspaceToDom(workspaceRef.current);
+      const xmlText = Blockly.Xml.domToPrettyText(xml);
+
+      // 创建Blob并下载
+      const blob = new Blob([xmlText], { type: 'text/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `blockly_${block?.name || 'workspace'}_${Date.now()}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      message.success('XML结构已导出');
+    } catch (error) {
+      console.error('导出XML失败', error);
+      message.error('导出XML失败');
+    }
+  };
+
+  const handleImportXML = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xml';
+
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const xmlText = event.target?.result as string;
+          if (!workspaceRef.current) {
+            message.error('工作区未初始化');
+            return;
+          }
+
+          // 清空当前工作区
+          workspaceRef.current.clear();
+
+          // 导入XML
+          const xml = Blockly.utils.xml.textToDom(xmlText);
+          Blockly.Xml.domToWorkspace(xml, workspaceRef.current);
+
+          message.success('XML结构已导入');
+        } catch (error) {
+          console.error('导入XML失败', error);
+          message.error('导入XML失败，请检查文件格式');
+        }
+      };
+
+      reader.readAsText(file);
+    };
+
+    input.click();
+  };
 
   // Monaco Editor 挂载时的处理函数
   const handleEditorDidMount = (editor: any, monaco: any) => {
@@ -1418,12 +1485,36 @@ outputs = {
                   margin: '0 0 8px 0',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
                   gap: '8px'
                 }}>
-                  <WarningOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
-                  <span style={{ fontSize: '13px', color: '#595959' }}>
-                    <strong>预览模式：</strong>可视化编辑仅用于预览测试，不会保存。切换回代码模式时会自动恢复原始代码。
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <WarningOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+                    <span style={{ fontSize: '13px', color: '#595959' }}>
+                      <strong>预览模式：</strong>可视化编辑仅用于预览测试，不会保存。切换回代码模式时会自动恢复原始代码。
+                    </span>
+                  </div>
+                  <Space>
+                    <Tooltip title="导出当前可视化块的XML结构">
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        onClick={handleExportXML}
+                      >
+                        导出XML
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="从XML文件导入可视化块结构">
+                      <Button
+                        size="small"
+                        icon={<UploadOutlined />}
+                        onClick={handleImportXML}
+                      >
+                        导入XML
+                      </Button>
+                    </Tooltip>
+                  </Space>
                 </div>
                 <div ref={blocklyDivRef} className="blockly-editor" style={{ flex: 1 }} />
               </div>

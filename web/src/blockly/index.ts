@@ -25,6 +25,16 @@ import {
   ListAppendBlock,
   StringFormatBlock,
   TryExceptBlock,
+  // 计算和变量块
+  VariableAssignBlock,
+  VariableGetBlock,
+  MathBinaryOpBlock,
+  MathUnaryOpBlock,
+  ComparisonBlock,
+  LogicOperationBlock,
+  LogicNotBlock,
+  NumberConstantBlock,
+  IncrementBlock,
 } from './blocks';
 
 /**
@@ -72,6 +82,19 @@ export class BlocklyInitializer {
       new ListAppendBlock(),
       new StringFormatBlock(),
       new TryExceptBlock(),
+    ]);
+
+    // 注册计算和变量块
+    BlockRegistry.registerBlocks([
+      new VariableAssignBlock(),
+      new VariableGetBlock(),
+      new MathBinaryOpBlock(),
+      new MathUnaryOpBlock(),
+      new ComparisonBlock(),
+      new LogicOperationBlock(),
+      new LogicNotBlock(),
+      new NumberConstantBlock(),
+      new IncrementBlock(),
     ]);
 
     // 注册额外的自定义块
