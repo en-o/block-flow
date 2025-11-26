@@ -129,19 +129,35 @@ public class ExecutionServiceImpl implements ExecutionService {
                 inDegree.put(nodeId, 0);
             }
 
-            // 构建依赖关系
+            // 构建依赖关系（添加详细日志）
             if (edges != null) {
+                logsBuilder.append("边详情:\n");
                 for (int i = 0; i < edges.size(); i++) {
                     JSONObject edge = edges.getJSONObject(i);
                     String source = edge.getString("source");
                     String target = edge.getString("target");
+                    String sourceHandle = edge.getString("sourceHandle");
+                    String targetHandle = edge.getString("targetHandle");
+
+                    logsBuilder.append(String.format("  边 %d: %s (%s) -> %s (%s)\n",
+                            i + 1, source, sourceHandle, target, targetHandle));
 
                     graph.get(target).add(source); // target依赖于source
                     inDegree.put(target, inDegree.get(target) + 1);
                 }
+                logsBuilder.append("\n");
             }
 
             // 拓扑排序
+            logsBuilder.append("节点入度信息:\n");
+            for (Map.Entry<String, Integer> entry : inDegree.entrySet()) {
+                JSONObject node = nodeMap.get(entry.getKey());
+                JSONObject nodeData = node.getJSONObject("data");
+                String blockName = nodeData.getString("blockName");
+                logsBuilder.append(String.format("  %s: 入度=%d\n", blockName, entry.getValue()));
+            }
+            logsBuilder.append("\n");
+
             List<String> executionOrder = topologicalSort(nodeMap.keySet(), graph, inDegree);
             if (executionOrder == null) {
                 throw new RuntimeException("流程中存在循环依赖，无法执行");
