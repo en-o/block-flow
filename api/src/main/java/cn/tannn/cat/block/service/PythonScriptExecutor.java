@@ -96,7 +96,14 @@ public class PythonScriptExecutor {
             tempScript.deleteOnExit();
             java.nio.file.Files.write(tempScript.toPath(), wrappedScript.getBytes(StandardCharsets.UTF_8));
 
-            log.info("临时脚本文件: {}", tempScript.getAbsolutePath());
+            log.info("临时脚本路径: {}", tempScript.getAbsolutePath());
+            if (log.isDebugEnabled()) {
+                log.debug("可使用以下命令手动测试脚本:");
+                log.debug("  {} {}", environment.getPythonExecutable(), tempScript.getAbsolutePath());
+                if (tempInputFile != null) {
+                    log.debug("  输入文件: {}", tempInputFile.getAbsolutePath());
+                }
+            }
 
             // 如果有输入参数，创建临时输入文件
             List<String> command = new ArrayList<>();
