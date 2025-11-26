@@ -2057,7 +2057,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
     /**
      * 从文件名提取Python版本
-     * 例如: cpython-3.10.19+20251120-aarch64-unknown-linux-gnu-install_only.tar.gz -> 3.10.19
+     * 例如: cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz -> 3.10.19
      */
     private String extractPythonVersionFromFilename(String filename) {
         if (filename == null || filename.isEmpty()) {
