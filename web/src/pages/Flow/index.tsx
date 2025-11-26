@@ -446,6 +446,12 @@ const Flow: React.FC = () => {
             data: {
               ...node.data,
               inputValues: filledInputValues, // 使用填充了默认值的 inputValues
+              // 保存所有可能被修改的块属性
+              blockSnapshot: node.data.blockSnapshot ? {
+                ...node.data.blockSnapshot,
+                // 确保保存修改后的Python环境ID
+                pythonEnvId: node.data.blockSnapshot.pythonEnvId,
+              } : undefined,
             },
           };
         }),
@@ -597,6 +603,12 @@ const Flow: React.FC = () => {
             data: {
               ...node.data,
               inputValues: filledInputValues,
+              // 保存所有可能被修改的块属性
+              blockSnapshot: node.data.blockSnapshot ? {
+                ...node.data.blockSnapshot,
+                // 确保保存修改后的Python环境ID
+                pythonEnvId: node.data.blockSnapshot.pythonEnvId,
+              } : undefined,
             },
           };
         }),
