@@ -3,6 +3,8 @@
 > - 版本根据[pom.xml](api/pom.xml)，每次发行版本之后都要用新的版本进行开发
 > - 当前最新：0.0.3.1
 ###  一键构建
+>  如果有问题先删除所有的node_modules目录再试一次
+
 ./docker-build.sh [版本号]        # Linux/Mac
 docker-build.bat  [版本号]        # Windows
 
