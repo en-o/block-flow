@@ -20,6 +20,8 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
     
 **📚 Dockerfile详细说明：** [查看Dockerfile使用指南](api/DOCKERFILE-GUIDE.md)
 > 不建议映射`-v $(pwd)/python-envs:/app/python-envs \` 会导致很多问题
+
+Docker参数说明：[README-build.md](README-build.md)
 ```shell
 # 运行容器
 docker run -d -p 1250:1250 \
@@ -31,6 +33,11 @@ docker run -d -p 1250:1250 \
   -v $(pwd)/logs:/app/logs \
   -v $(pwd)/data:/app/data \
   tannnn/block-flow:latest
+  
+# windows
+#  -v $(pwd)/python-envs:/app/python-envs
+docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306   -e MYSQL_DB=db_block_flow   tannnn/block-flow:0.0.1
+
 ```
 
 
@@ -117,6 +124,7 @@ docker run -d -p 1250:1250 \
 ---
 
 ## 5. 创建自定义代码块
+> 如果是用我的一些测试，那就要修改一下环境在运行
 
 在"代码块管理"中创建可复用的Python代码块。
 
