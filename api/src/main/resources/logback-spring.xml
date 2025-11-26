@@ -157,6 +157,19 @@
     <logger name="io.lettuce.core.AbstractRedisClient" level="INFO"/>
     <logger name="io.lettuce.core.RedisClient" level="INFO"/>
 
+    <!-- Python脚本执行器调试日志（可以单独调整级别） -->
+    <!-- 开发调试时可设置为 DEBUG 查看完整脚本，生产环境建议 INFO -->
+<!--    <logger name="cn.tannn.cat.block.service.PythonScriptExecutor" level="DEBUG" additivity="false">-->
+<!--        <appender-ref ref="STDOUT"/>-->
+<!--        <appender-ref ref="DEBUG"/>-->
+<!--    </logger>-->
+
+<!--    &lt;!&ndash; 块服务调试日志（测试脚本详情） &ndash;&gt;-->
+<!--    <logger name="cn.tannn.cat.block.service.impl.BlockServiceImpl" level="DEBUG" additivity="false">-->
+<!--        <appender-ref ref="STDOUT"/>-->
+<!--        <appender-ref ref="DEBUG"/>-->
+<!--    </logger>-->
+
     <springProfile name="dev">
         <root level="debug">
             <appender-ref ref="STDOUT"/>

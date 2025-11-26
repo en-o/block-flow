@@ -188,6 +188,16 @@ public class BlockServiceImpl implements BlockService {
 
         log.info("开始测试块: {}, 输入参数: {}", block.getName(), testDTO.getInputs());
 
+        // 打印脚本详情（方便调试）
+        log.info("========================================");
+        log.info("测试脚本详情:");
+        log.info("========================================");
+        log.info("块名称: {}", block.getName());
+        log.info("块ID: {}", block.getId());
+        log.info("Python环境ID: {}", block.getPythonEnvId());
+        log.info("脚本内容:\n{}", scriptToExecute);
+        log.info("========================================");
+
         try {
             // 合并上下文变量到 inputs
             Map<String, Object> mergedInputs = new HashMap<>();
