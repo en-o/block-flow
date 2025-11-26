@@ -1247,6 +1247,11 @@ const Flow: React.FC = () => {
                               <span style={{ fontSize: '11px', color: '#8c8c8c' }}>
                                 {param.type}
                               </span>
+                              {param.defaultValue !== undefined && param.defaultValue !== '' && (
+                                <span style={{ fontSize: '11px', color: '#1890ff', background: '#e6f7ff', padding: '0 6px', borderRadius: '2px' }}>
+                                  默认: {String(param.defaultValue)}
+                                </span>
+                              )}
                               {connected ? (
                                 <span style={{ fontSize: '11px', color: '#52c41a', background: '#f6ffed', padding: '0 6px', borderRadius: '2px' }}>
                                   已连接
@@ -1286,7 +1291,9 @@ const Flow: React.FC = () => {
                                     value={currentValue}
                                     onChange={(e) => updateInputCache(selectedNode.id, name, e.target.value ? Number(e.target.value) : '')}
                                     onBlur={() => commitInputValue(selectedNode.id, name)}
-                                    placeholder={`请输入${name}`}
+                                    placeholder={param.defaultValue !== undefined && param.defaultValue !== ''
+                                      ? `默认值: ${param.defaultValue}`
+                                      : `请输入${name}`}
                                     style={{ fontSize: '12px' }}
                                   />
                                 ) : param.type === 'object' || param.type === 'array' ? (
@@ -1315,7 +1322,9 @@ const Flow: React.FC = () => {
                                     value={currentValue}
                                     onChange={(e) => updateInputCache(selectedNode.id, name, e.target.value)}
                                     onBlur={() => commitInputValue(selectedNode.id, name)}
-                                    placeholder={`请输入${name}`}
+                                    placeholder={param.defaultValue !== undefined && param.defaultValue !== ''
+                                      ? `默认值: ${param.defaultValue}`
+                                      : `请输入${name}`}
                                     style={{ fontSize: '12px' }}
                                   />
                                 )}

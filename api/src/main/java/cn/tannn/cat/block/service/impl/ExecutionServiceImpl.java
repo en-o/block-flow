@@ -263,7 +263,46 @@ public class ExecutionServiceImpl implements ExecutionService {
                     }
                 }
 
-                logsBuilder.append(String.format("  输入参数: %s\n", blockInputs));
+                // 准备日志信息：显示所有输入参数（包括未提供但有默认值的）
+                StringBuilder inputLogBuilder = new StringBuilder();
+                inputLogBuilder.append("  输入参数:\n");
+
+                // 从快照中获取输入参数定义（包含默认值信息）
+                JSONObject inputsDefinition = null;
+                if (blockSnapshot != null) {
+                    inputsDefinition = blockSnapshot.getJSONObject("inputs");
+                }
+
+                // 如果有输入参数定义，按定义顺序输出
+                if (inputsDefinition != null && !inputsDefinition.isEmpty()) {
+                    for (String paramName : inputsDefinition.keySet()) {
+                        JSONObject paramDef = inputsDefinition.getJSONObject(paramName);
+                        Object actualValue = blockInputs.get(paramName);
+
+                        if (actualValue != null) {
+                            // 用户提供了值
+                            inputLogBuilder.append(String.format("    %s = %s\n", paramName, actualValue));
+                        } else if (paramDef != null && paramDef.containsKey("defaultValue")) {
+                            // 用户未提供值，但有默认值
+                            Object defaultValue = paramDef.get("defaultValue");
+                            inputLogBuilder.append(String.format("    %s = %s (使用默认值)\n",
+                                    paramName, defaultValue));
+                        } else {
+                            // 用户未提供值，且无默认值
+                            inputLogBuilder.append(String.format("    %s = (空)\n", paramName));
+                        }
+                    }
+                } else {
+                    // 没有输入参数定义，直接输出实际参数
+                    if (blockInputs.isEmpty()) {
+                        inputLogBuilder.append("    (无)\n");
+                    } else {
+                        blockInputs.forEach((key, value) ->
+                                inputLogBuilder.append(String.format("    %s = %s\n", key, value)));
+                    }
+                }
+
+                logsBuilder.append(inputLogBuilder.toString());
 
                 // 执行块
                 try {
