@@ -475,9 +475,16 @@ outputs = {
                             counter++;
                           }
 
-                          // 设置新变量名
-                          if (newVarName !== currentVarName) {
-                            varField.setValue(newVarName);
+                          // 设置新变量名（正确的方式：先创建变量，再设置ID）
+                          if (newVarName !== currentVarName && workspaceRef.current) {
+                            // 在workspace中创建或获取新变量
+                            let newVariable = workspaceRef.current.getVariable(newVarName, '');
+                            if (!newVariable) {
+                              newVariable = workspaceRef.current.createVariable(newVarName, '');
+                            }
+
+                            // 设置变量ID而不是直接设置变量名
+                            (varField as any).setValue(newVariable.getId());
                             console.log(`🔄 自动重命名复制的变量: ${currentVarName} -> ${newVarName}`);
                           }
                         }

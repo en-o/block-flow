@@ -11,6 +11,24 @@ export interface ConversionResult {
 }
 
 /**
+ * 为 field_variable 类型的字段设置变量
+ * 确保变量在workspace中正确创建和关联
+ */
+function setVariableField(workspace: Blockly.WorkspaceSvg, block: Blockly.Block, fieldName: string, variableName: string) {
+  // 在workspace中创建或获取变量
+  let variable = workspace.getVariable(variableName, '');
+  if (!variable) {
+    variable = workspace.createVariable(variableName, '');
+  }
+
+  // 获取字段并设置变量
+  const field = block.getField(fieldName) as any;
+  if (field && field.setValue) {
+    field.setValue(variable.getId());
+  }
+}
+
+/**
  * 将 Python 代码转换为 Blockly 块
  */
 export function convertCodeToBlockly(
@@ -67,7 +85,7 @@ export function convertCodeToBlockly(
     if (ctxVarMatch) {
       console.log('✅ 识别为上下文变量获取');
       block = workspace.newBlock('variable_assign');
-      block.setFieldValue(ctxVarMatch[1], 'VAR');
+      setVariableField(workspace, block, 'VAR', ctxVarMatch[1]);
 
       const ctxBlock = workspace.newBlock('context_variable');
       ctxBlock.setFieldValue(ctxVarMatch[2], 'VAR_NAME');
@@ -82,7 +100,7 @@ export function convertCodeToBlockly(
         const conversionType = match[2]; // int, float, bool, safe_int, safe_float, safe_bool
         console.log(`✅ 识别为 ${conversionType}(inputs.get(...))`);
         block = workspace.newBlock('variable_assign');
-        block.setFieldValue(match[1], 'VAR');
+        setVariableField(workspace, block, 'VAR', match[1]);
 
         // 区分 int/float/bool 和 safe_int/safe_float/safe_bool
         const isSafeConversion = conversionType.startsWith('safe_');
@@ -162,7 +180,7 @@ export function convertCodeToBlockly(
       if (match) {
         console.log('✅ 识别为 inputs.get(...)');
         block = workspace.newBlock('variable_assign');
-        block.setFieldValue(match[1], 'VAR');
+        setVariableField(workspace, block, 'VAR', match[1]);
 
         const inputGetBlock = workspace.newBlock('python_input_get');
         const paramNameBlock = workspace.newBlock('text');
@@ -197,14 +215,14 @@ export function convertCodeToBlockly(
         console.log(`✅ 识别为数学运算 (${match[3]})`);
 
         block = workspace.newBlock('variable_assign');
-        block.setFieldValue(match[1], 'VAR');
+        setVariableField(workspace, block, 'VAR', match[1]);
 
         const mathBlock = workspace.newBlock('math_arithmetic');
         mathBlock.setFieldValue(opMap[match[3]], 'OP');
 
         // Create left operand
         const varA = workspace.newBlock('variables_get');
-        varA.setFieldValue(match[2], 'VAR');
+        setVariableField(workspace, varA, 'VAR', match[2]);
 
         // Create right operand (variable or number)
         const varB = /^\d+$/.test(match[4])
@@ -214,7 +232,7 @@ export function convertCodeToBlockly(
         if (varB.type === 'math_number') {
           varB.setFieldValue(match[4], 'NUM');
         } else {
-          varB.setFieldValue(match[4], 'VAR');
+          setVariableField(workspace, varB, 'VAR', match[4]);
         }
 
         mathBlock.getInput('A')?.connection?.connect(varA.outputConnection!);
@@ -232,7 +250,7 @@ export function convertCodeToBlockly(
         block = workspace.newBlock('python_print');
 
         const varBlock = workspace.newBlock('variables_get');
-        varBlock.setFieldValue(match[1], 'VAR');
+        setVariableField(workspace, varBlock, 'VAR', match[1]);
         block.getInput('TEXT')?.connection?.connect(varBlock.outputConnection!);
 
         convertedCount++;
@@ -296,7 +314,7 @@ export function convertCodeToBlockly(
             valueBlock.setFieldValue(value.replace(/^['"]|['"]$/g, ''), 'TEXT');
           } else {
             valueBlock = workspace.newBlock('variables_get');
-            valueBlock.setFieldValue(value, 'VAR');
+            setVariableField(workspace, valueBlock, 'VAR', value);
           }
 
           itemBlock.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
@@ -327,7 +345,7 @@ export function convertCodeToBlockly(
       if (match) {
         console.log('✅ 识别为字符串变量赋值');
         block = workspace.newBlock('variable_assign');
-        block.setFieldValue(match[1], 'VAR');
+        setVariableField(workspace, block, 'VAR', match[1]);
         const valueBlock = workspace.newBlock('text');
         valueBlock.setFieldValue(match[2], 'TEXT');
         block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
@@ -340,7 +358,7 @@ export function convertCodeToBlockly(
       if (match) {
         console.log('✅ 识别为数字变量赋值');
         block = workspace.newBlock('variable_assign');
-        block.setFieldValue(match[1], 'VAR');
+        setVariableField(workspace, block, 'VAR', match[1]);
         const valueBlock = workspace.newBlock('math_number');
         valueBlock.setFieldValue(match[2], 'NUM');
         block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
@@ -381,7 +399,7 @@ export function convertCodeToBlockly(
       if (match) {
         console.log(`✅ 识别为 requests.${match[2]}(...)`);
         block = workspace.newBlock('variable_assign');
-        block.setFieldValue(match[1], 'VAR');
+        setVariableField(workspace, block, 'VAR', match[1]);
 
         const requestBlock = workspace.newBlock(`requests_${match[2]}`);
         const urlBlock = workspace.newBlock('text');
@@ -421,7 +439,7 @@ export function convertCodeToBlockly(
             } else {
               // 简单变量
               sourceBlock = workspace.newBlock('variables_get');
-              sourceBlock.setFieldValue(source, 'VAR');
+              setVariableField(workspace, sourceBlock, 'VAR', source);
             }
 
             // 连接源到切片块
@@ -434,7 +452,7 @@ export function convertCodeToBlockly(
 
           } else {
             valueBlock = workspace.newBlock('variables_get');
-            valueBlock.setFieldValue(value, 'VAR');
+            setVariableField(workspace, valueBlock, 'VAR', value);
           }
         }
         // 如果包含属性访问
@@ -444,7 +462,7 @@ export function convertCodeToBlockly(
         // 简单变量
         else {
           valueBlock = workspace.newBlock('variables_get');
-          valueBlock.setFieldValue(value, 'VAR');
+          setVariableField(workspace, valueBlock, 'VAR', value);
         }
 
         block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
@@ -535,7 +553,7 @@ function createPropertyAccessChain(workspace: Blockly.WorkspaceSvg, expression: 
     } else {
       // 简单变量
       objectBlock = workspace.newBlock('variables_get');
-      objectBlock.setFieldValue(objectPart, 'VAR');
+      setVariableField(workspace, objectBlock, 'VAR', objectPart);
     }
     methodBlock.getInput('OBJECT')?.connection?.connect(objectBlock.outputConnection!);
 
@@ -563,7 +581,7 @@ function createPropertyAccessChain(workspace: Blockly.WorkspaceSvg, expression: 
     propertyBlock.setFieldValue(parts[1], 'PROPERTY');
 
     const varBlock = workspace.newBlock('variables_get');
-    varBlock.setFieldValue(parts[0], 'VAR');
+    setVariableField(workspace, varBlock, 'VAR', parts[0]);
     propertyBlock.getInput('OBJECT')?.connection?.connect(varBlock.outputConnection!);
 
     return propertyBlock;
@@ -572,7 +590,7 @@ function createPropertyAccessChain(workspace: Blockly.WorkspaceSvg, expression: 
   // 嵌套属性访问（如 r.headers.xxx）
   const firstVar = parts[0];
   let currentBlock: Blockly.Block = workspace.newBlock('variables_get');
-  currentBlock.setFieldValue(firstVar, 'VAR');
+  setVariableField(workspace, currentBlock, 'VAR', firstVar);
 
   for (let i = 1; i < parts.length; i++) {
     const propertyBlock = workspace.newBlock('object_property');
