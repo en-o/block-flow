@@ -299,8 +299,12 @@ const Flow: React.FC = () => {
             inputValues: {}, // 初始化输入值对象
             // 流程快照：保存块的完整信息，执行时使用快照而非实时查询
             blockSnapshot: {
+              id: block.id,
+              name: block.name,
               script: block.script,
               pythonEnvId: block.pythonEnvId,
+              inputs: block.inputs,  // 包含完整的 inputs 定义（含 defaultValue）
+              outputs: block.outputs, // 包含完整的 outputs 定义
               definitionMode: block.definitionMode,
               blocklyDefinition: block.blocklyDefinition,
             },
