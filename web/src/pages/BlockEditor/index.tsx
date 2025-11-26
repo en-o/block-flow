@@ -14,6 +14,7 @@ import {
   Tooltip,
   Tag,
   Alert,
+  Checkbox,
 } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
@@ -619,6 +620,7 @@ outputs = {
             type: config.type || 'string',
             defaultValue: config.defaultValue || '',
             description: config.description || '',
+            required: config.required || false,
           }));
           setInputParams(params);
         }
@@ -937,7 +939,8 @@ outputs = {
       name,
       type: inputTypes[name] || 'string',
       defaultValue: '',
-      description: ''
+      description: '',
+      required: false,
     }));
 
     const newOutputParams = Array.from(outputMatches).map(name => ({
@@ -1016,9 +1019,10 @@ outputs = {
       return;
     }
 
-    // 校验非空参数
+    // 校验非空参数（使用 inputParamsRef，因为可视化模式下 inputParams 可能未更新）
+    const currentInputParams = inputParamsRef.current.length > 0 ? inputParamsRef.current : inputParams;
     const missingRequiredParams: string[] = [];
-    inputParams.forEach(param => {
+    currentInputParams.forEach(param => {
       if (param.required) {
         const value = testInputs[param.name];
         // 如果参数为空（undefined、null、空字符串）
@@ -1248,7 +1252,8 @@ outputs = {
       name,
       type: inputTypes[name] || 'string',
       defaultValue: '',
-      description: ''
+      description: '',
+      required: false,
     }));
 
     const newOutputParams = Array.from(outputMatches).map(name => ({
@@ -1789,14 +1794,17 @@ outputs = {
       >
         <div style={{ marginBottom: 16 }}>
           <h4>输入参数</h4>
-          {inputParams.length === 0 ? (
+          {inputParamsRef.current.length === 0 ? (
             <p style={{ color: '#999' }}>该块没有配置输入参数</p>
           ) : (
             <div>
-              {inputParams.map((param) => (
+              {inputParamsRef.current.map((param) => (
                 <div key={param.name} style={{ marginBottom: 12 }}>
                   <div style={{ marginBottom: 4 }}>
                     <strong>{param.name}</strong>
+                    {param.required && (
+                      <Tag color="red" style={{ marginLeft: 8, fontSize: 11 }}>必填</Tag>
+                    )}
                     <span style={{ marginLeft: 8, color: '#999', fontSize: 12 }}>
                       ({param.type})
                     </span>
@@ -1809,7 +1817,8 @@ outputs = {
                   <Input
                     value={testInputs[param.name] || ''}
                     onChange={(e) => setTestInputs({ ...testInputs, [param.name]: e.target.value })}
-                    placeholder={`请输入 ${param.name}`}
+                    placeholder={param.required && (!param.defaultValue || param.defaultValue === '') ? `必填，请输入 ${param.name}` : `请输入 ${param.name}${param.defaultValue ? ` (默认: ${param.defaultValue})` : ''}`}
+                    status={param.required && (!param.defaultValue || param.defaultValue === '') && (!testInputs[param.name] || testInputs[param.name] === '') ? 'error' : undefined}
                   />
                 </div>
               ))}
