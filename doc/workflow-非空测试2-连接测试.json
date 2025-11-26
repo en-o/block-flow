@@ -1,0 +1,446 @@
+{
+  "nodes": [
+    {
+      "id": "node-1764160499292-0.3148326863191321",
+      "type": "blockNode",
+      "position": {
+        "x": 348.5,
+        "y": 257.9375
+      },
+      "data": {
+        "blockId": 8,
+        "blockName": "非空测试-无默认值（流程测试",
+        "blockTypeCode": "tool",
+        "color": "#5C7CFA",
+        "description": "非空测试-无默认值（流程测试",
+        "inputs": {
+          "a": {
+            "type": "number",
+            "required": true,
+            "description": "计算a的倍数",
+            "defaultValue": ""
+          },
+          "b": {
+            "type": "string",
+            "required": false,
+            "description": "测试b",
+            "defaultValue": "b"
+          },
+          "c": {
+            "type": "string",
+            "required": false,
+            "description": "测试c",
+            "defaultValue": "c"
+          }
+        },
+        "outputs": {
+          "b": {
+            "type": "string",
+            "description": ""
+          },
+          "result": {
+            "type": "string",
+            "description": "结果"
+          },
+          "success": {
+            "type": "string",
+            "description": ""
+          }
+        },
+        "icon": "😎",
+        "inputValues": {},
+        "blockSnapshot": {
+          "id": 8,
+          "name": "非空测试-无默认值（流程测试",
+          "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\nb = inputs.get('b', 'b') \nc = inputs.get('c', 'c') \n # 数值乘默认\nres = a * 2 \n\noutputs = {\n    \"success\": True,\n    \"result\": res,\n    \"b\": b,\n    \"c\": c\n}",
+          "pythonEnvId": 1,
+          "inputs": {
+            "a": {
+              "type": "number",
+              "required": true,
+              "description": "计算a的倍数",
+              "defaultValue": ""
+            },
+            "b": {
+              "type": "string",
+              "required": false,
+              "description": "测试b",
+              "defaultValue": "b"
+            },
+            "c": {
+              "type": "string",
+              "required": false,
+              "description": "测试c",
+              "defaultValue": "c"
+            }
+          },
+          "outputs": {
+            "b": {
+              "type": "string",
+              "description": ""
+            },
+            "result": {
+              "type": "string",
+              "description": "结果"
+            },
+            "success": {
+              "type": "string",
+              "description": ""
+            }
+          },
+          "definitionMode": "CODE",
+          "blocklyDefinition": null
+        }
+      },
+      "measured": {
+        "width": 248,
+        "height": 289
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "node-1764160500203-0.05575413314552402",
+      "type": "blockNode",
+      "position": {
+        "x": 61.5,
+        "y": 223.4375
+      },
+      "data": {
+        "blockId": 7,
+        "blockName": "非空测试",
+        "blockTypeCode": "tool",
+        "color": "#5C7CFA",
+        "description": "计算a的倍数",
+        "inputs": {
+          "a": {
+            "type": "number",
+            "required": true,
+            "description": "计算a的倍数",
+            "defaultValue": "2"
+          },
+          "b": {
+            "type": "string",
+            "required": false,
+            "description": "测试b",
+            "defaultValue": "b"
+          },
+          "c": {
+            "type": "string",
+            "required": false,
+            "description": "测试c",
+            "defaultValue": "c"
+          }
+        },
+        "outputs": {
+          "b": {
+            "type": "string",
+            "description": ""
+          },
+          "result": {
+            "type": "string",
+            "description": "结果"
+          },
+          "success": {
+            "type": "string",
+            "description": ""
+          }
+        },
+        "icon": "😎",
+        "inputValues": {
+          "b": "你好",
+          "c": "测试",
+          "a": ""
+        },
+        "blockSnapshot": {
+          "id": 7,
+          "name": "非空测试",
+          "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\nb = inputs.get('b', 'b') \nb = inputs.get('c', 'c') \n # 数值乘默认\nres = a * 2 \n\noutputs = {\n    \"success\": True,\n    \"result\": res,\n    \"b\": b\n}",
+          "pythonEnvId": 1,
+          "inputs": {
+            "a": {
+              "type": "number",
+              "required": true,
+              "description": "计算a的倍数",
+              "defaultValue": "2"
+            },
+            "b": {
+              "type": "string",
+              "required": false,
+              "description": "测试b",
+              "defaultValue": "b"
+            },
+            "c": {
+              "type": "string",
+              "required": false,
+              "description": "测试c",
+              "defaultValue": "c"
+            }
+          },
+          "outputs": {
+            "b": {
+              "type": "string",
+              "description": ""
+            },
+            "result": {
+              "type": "string",
+              "description": "结果"
+            },
+            "success": {
+              "type": "string",
+              "description": ""
+            }
+          },
+          "definitionMode": "CODE",
+          "blocklyDefinition": null
+        }
+      },
+      "measured": {
+        "width": 200,
+        "height": 289
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "node-1764160500203-0.05575413314552402",
+      "sourceHandle": "output-result",
+      "target": "node-1764160499292-0.3148326863191321",
+      "targetHandle": "input-a",
+      "type": "smoothstep",
+      "animated": true,
+      "style": {
+        "stroke": "#1890ff",
+        "strokeWidth": 2
+      },
+      "id": "xy-edge__node-1764160500203-0.05575413314552402output-result-node-1764160499292-0.3148326863191321input-a"
+    },
+    {
+      "source": "node-1764160500203-0.05575413314552402",
+      "sourceHandle": "output-b",
+      "target": "node-1764160499292-0.3148326863191321",
+      "targetHandle": "input-b",
+      "type": "smoothstep",
+      "animated": true,
+      "style": {
+        "stroke": "#1890ff",
+        "strokeWidth": 2
+      },
+      "id": "xy-edge__node-1764160500203-0.05575413314552402output-b-node-1764160499292-0.3148326863191321input-b"
+    }
+  ],
+  "workflow": {
+    "id": 5,
+    "createTime": "2025-11-26 20:35:21",
+    "updateTime": "2025-11-26 20:35:21",
+    "name": "非空测试2-连接测试",
+    "description": "非空测试2-连接测试",
+    "flowDefinition": {
+      "nodes": [
+        {
+          "id": "node-1764160499292-0.3148326863191321",
+          "type": "blockNode",
+          "position": {
+            "x": 342,
+            "y": 262.9375
+          },
+          "data": {
+            "blockId": 8,
+            "blockName": "非空测试-无默认值（流程测试",
+            "blockTypeCode": "tool",
+            "color": "#5C7CFA",
+            "description": "非空测试-无默认值（流程测试",
+            "inputs": {
+              "a": {
+                "type": "number",
+                "required": true,
+                "description": "计算a的倍数",
+                "defaultValue": ""
+              },
+              "b": {
+                "type": "string",
+                "required": false,
+                "description": "测试b",
+                "defaultValue": "b"
+              },
+              "c": {
+                "type": "string",
+                "required": false,
+                "description": "测试c",
+                "defaultValue": "c"
+              }
+            },
+            "outputs": {
+              "b": {
+                "type": "string",
+                "description": ""
+              },
+              "result": {
+                "type": "string",
+                "description": "结果"
+              },
+              "success": {
+                "type": "string",
+                "description": ""
+              }
+            },
+            "icon": "😎",
+            "inputValues": {
+              "b": "b",
+              "c": "c"
+            },
+            "blockSnapshot": {
+              "id": 8,
+              "name": "非空测试-无默认值（流程测试",
+              "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\nb = inputs.get('b', 'b') \nc = inputs.get('c', 'c') \n # 数值乘默认\nres = a * 2 \n\noutputs = {\n    \"success\": True,\n    \"result\": res,\n    \"b\": b,\n    \"c\": c\n}",
+              "pythonEnvId": 1,
+              "inputs": {
+                "a": {
+                  "type": "number",
+                  "required": true,
+                  "description": "计算a的倍数",
+                  "defaultValue": ""
+                },
+                "b": {
+                  "type": "string",
+                  "required": false,
+                  "description": "测试b",
+                  "defaultValue": "b"
+                },
+                "c": {
+                  "type": "string",
+                  "required": false,
+                  "description": "测试c",
+                  "defaultValue": "c"
+                }
+              },
+              "outputs": {
+                "b": {
+                  "type": "string",
+                  "description": ""
+                },
+                "result": {
+                  "type": "string",
+                  "description": "结果"
+                },
+                "success": {
+                  "type": "string",
+                  "description": ""
+                }
+              },
+              "definitionMode": "CODE",
+              "blocklyDefinition": null
+            }
+          }
+        },
+        {
+          "id": "node-1764160500203-0.05575413314552402",
+          "type": "blockNode",
+          "position": {
+            "x": 122,
+            "y": 242.9375
+          },
+          "data": {
+            "blockId": 7,
+            "blockName": "非空测试",
+            "blockTypeCode": "tool",
+            "color": "#5C7CFA",
+            "description": "计算a的倍数",
+            "inputs": {
+              "a": {
+                "type": "number",
+                "required": true,
+                "description": "计算a的倍数",
+                "defaultValue": "2"
+              },
+              "b": {
+                "type": "string",
+                "required": false,
+                "description": "测试b",
+                "defaultValue": "b"
+              },
+              "c": {
+                "type": "string",
+                "required": false,
+                "description": "测试c",
+                "defaultValue": "c"
+              }
+            },
+            "outputs": {
+              "b": {
+                "type": "string",
+                "description": ""
+              },
+              "result": {
+                "type": "string",
+                "description": "结果"
+              },
+              "success": {
+                "type": "string",
+                "description": ""
+              }
+            },
+            "icon": "😎",
+            "inputValues": {
+              "a": "2",
+              "b": "b",
+              "c": "c"
+            },
+            "blockSnapshot": {
+              "id": 7,
+              "name": "非空测试",
+              "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\nb = inputs.get('b', 'b') \nb = inputs.get('c', 'c') \n # 数值乘默认\nres = a * 2 \n\noutputs = {\n    \"success\": True,\n    \"result\": res,\n    \"b\": b\n}",
+              "pythonEnvId": 1,
+              "inputs": {
+                "a": {
+                  "type": "number",
+                  "required": true,
+                  "description": "计算a的倍数",
+                  "defaultValue": "2"
+                },
+                "b": {
+                  "type": "string",
+                  "required": false,
+                  "description": "测试b",
+                  "defaultValue": "b"
+                },
+                "c": {
+                  "type": "string",
+                  "required": false,
+                  "description": "测试c",
+                  "defaultValue": "c"
+                }
+              },
+              "outputs": {
+                "b": {
+                  "type": "string",
+                  "description": ""
+                },
+                "result": {
+                  "type": "string",
+                  "description": "结果"
+                },
+                "success": {
+                  "type": "string",
+                  "description": ""
+                }
+              },
+              "definitionMode": "CODE",
+              "blocklyDefinition": null
+            }
+          }
+        }
+      ],
+      "edges": []
+    },
+    "authorUsername": "admin",
+    "isTemplate": null,
+    "category": "test",
+    "tags": null,
+    "version": "1.0.0",
+    "isActive": true,
+    "isPublic": false
+  }
+}

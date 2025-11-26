@@ -1,0 +1,232 @@
+{
+  "nodes": [
+    {
+      "id": "node-1763708710918-0.09328867524050644",
+      "data": {
+        "icon": "😎",
+        "color": "#5C7CFA",
+        "inputs": {
+          "a": {
+            "type": "number",
+            "description": "计算a的倍数",
+            "defaultValue": "11"
+          }
+        },
+        "blockId": 12,
+        "outputs": {
+          "result": {
+            "type": "string",
+            "description": "结果"
+          },
+          "success": {
+            "type": "string",
+            "description": ""
+          }
+        },
+        "blockName": "计算a的倍数",
+        "description": "计算a的倍数",
+        "inputValues": {
+          "a": "11"
+        },
+        "blockSnapshot": {
+          "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\n\n\n # 数值乘默认\nres = a * 2   \n\noutputs = {\n    \"success\": True,\n    \"result\": res\n}",
+          "pythonEnvId": 1,
+          "definitionMode": "CODE",
+          "blocklyDefinition": null
+        },
+        "blockTypeCode": "tool"
+      },
+      "type": "blockNode",
+      "position": {
+        "x": 346.5,
+        "y": 258.4375
+      },
+      "measured": {
+        "width": 200,
+        "height": 221
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node-1763708713133-0.8523084887779862",
+      "data": {
+        "icon": "😎",
+        "color": "#5C7CFA",
+        "inputs": {
+          "a": {
+            "type": "string",
+            "description": "参数a",
+            "defaultValue": "1"
+          },
+          "b": {
+            "type": "string",
+            "description": "参数b",
+            "defaultValue": "1"
+          }
+        },
+        "blockId": 11,
+        "outputs": {
+          "result": {
+            "type": "string",
+            "description": "计算结果"
+          },
+          "success": {
+            "type": "string",
+            "description": "默认字段"
+          }
+        },
+        "blockName": "计算a+b",
+        "description": "计算a+b",
+        "inputValues": {
+          "a": "4",
+          "b": "1"
+        },
+        "blockSnapshot": {
+          "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\nb = int(inputs.get('b', '1'))\n\nres = a + b                     # 数值相加\n\noutputs = {\n    \"success\": True,\n    \"result\": res\n}",
+          "pythonEnvId": 1,
+          "definitionMode": "CODE",
+          "blocklyDefinition": null
+        },
+        "blockTypeCode": "tool"
+      },
+      "type": "blockNode",
+      "position": {
+        "x": 107.25650822501484,
+        "y": 248.84270658001185
+      },
+      "measured": {
+        "width": 200,
+        "height": 244
+      },
+      "selected": true,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node-1763708713133-0.8523084887779862output-result-node-1763708710918-0.09328867524050644input-a",
+      "source": "node-1763708713133-0.8523084887779862",
+      "target": "node-1763708710918-0.09328867524050644",
+      "sourceHandle": "output-result",
+      "targetHandle": "input-a"
+    }
+  ],
+  "workflow": {
+    "id": 1,
+    "createTime": "2025-11-21 15:05:39",
+    "updateTime": "2025-11-26 19:49:43",
+    "name": "测试计算流程",
+    "description": "测试计算流程",
+    "flowDefinition": {
+      "edges": [
+        {
+          "id": "xy-edge__node-1763708713133-0.8523084887779862output-result-node-1763708710918-0.09328867524050644input-a",
+          "source": "node-1763708713133-0.8523084887779862",
+          "target": "node-1763708710918-0.09328867524050644",
+          "sourceHandle": "output-result",
+          "targetHandle": "input-a"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "node-1763708710918-0.09328867524050644",
+          "data": {
+            "icon": "😎",
+            "color": "#5C7CFA",
+            "inputs": {
+              "a": {
+                "type": "number",
+                "description": "计算a的倍数",
+                "defaultValue": "11"
+              }
+            },
+            "blockId": 12,
+            "outputs": {
+              "result": {
+                "type": "string",
+                "description": "结果"
+              },
+              "success": {
+                "type": "string",
+                "description": ""
+              }
+            },
+            "blockName": "计算a的倍数",
+            "description": "计算a的倍数",
+            "inputValues": {
+              "a": "11"
+            },
+            "blockSnapshot": {
+              "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\n\n\n # 数值乘默认\nres = a * 2   \n\noutputs = {\n    \"success\": True,\n    \"result\": res\n}",
+              "pythonEnvId": 1,
+              "definitionMode": "CODE",
+              "blocklyDefinition": null
+            },
+            "blockTypeCode": "tool"
+          },
+          "type": "blockNode",
+          "position": {
+            "x": 556.5,
+            "y": 201.9375
+          }
+        },
+        {
+          "id": "node-1763708713133-0.8523084887779862",
+          "data": {
+            "icon": "😎",
+            "color": "#5C7CFA",
+            "inputs": {
+              "a": {
+                "type": "string",
+                "description": "参数a",
+                "defaultValue": "1"
+              },
+              "b": {
+                "type": "string",
+                "description": "参数b",
+                "defaultValue": "1"
+              }
+            },
+            "blockId": 11,
+            "outputs": {
+              "result": {
+                "type": "string",
+                "description": "计算结果"
+              },
+              "success": {
+                "type": "string",
+                "description": "默认字段"
+              }
+            },
+            "blockName": "计算a+b",
+            "description": "计算a+b",
+            "inputValues": {
+              "a": "4",
+              "b": "1"
+            },
+            "blockSnapshot": {
+              "script": "# -*- coding: utf-8 -*-\n\n# 从 inputs 取参，默认 \"1\"\na = int(inputs.get('a', '1'))   # 转成 int\nb = int(inputs.get('b', '1'))\n\nres = a + b                     # 数值相加\n\noutputs = {\n    \"success\": True,\n    \"result\": res\n}",
+              "pythonEnvId": 1,
+              "definitionMode": "CODE",
+              "blocklyDefinition": null
+            },
+            "blockTypeCode": "tool"
+          },
+          "type": "blockNode",
+          "position": {
+            "x": 278.25650822501484,
+            "y": 149.34270658001185
+          }
+        }
+      ]
+    },
+    "authorUsername": "admin",
+    "isTemplate": null,
+    "category": "test",
+    "tags": null,
+    "version": "1.0.0",
+    "isActive": true,
+    "isPublic": true
+  }
+}
