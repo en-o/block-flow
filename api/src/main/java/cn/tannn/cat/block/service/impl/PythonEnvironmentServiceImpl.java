@@ -527,8 +527,22 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "环境未初始化，请先初始化环境");
         }
 
-        if (environment.getSitePackagesPath() == null || environment.getSitePackagesPath().isEmpty()) {
-            throw new ServiceException(500, "未配置site-packages路径，无法离线安装包");
+        // 如果site-packages路径为空，使用默认路径（initializeEnvironment设置的路径）
+        String sitePackagesPath = environment.getSitePackagesPath();
+        if (sitePackagesPath == null || sitePackagesPath.isEmpty()) {
+            sitePackagesPath = environment.getEnvRootPath() + File.separator + "lib" + File.separator + "site-packages";
+            log.info("site-packages路径未配置，使用默认路径: {}", sitePackagesPath);
+
+            // 确保目录存在
+            try {
+                Files.createDirectories(Paths.get(sitePackagesPath));
+                // 更新环境配置
+                environment.setSitePackagesPath(sitePackagesPath);
+                pythonEnvironmentRepository.save(environment);
+                log.info("已创建并保存site-packages路径: {}", sitePackagesPath);
+            } catch (IOException e) {
+                throw new ServiceException(500, "创建site-packages目录失败: " + e.getMessage());
+            }
         }
 
         String originalFilename = file.getOriginalFilename();
