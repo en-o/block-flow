@@ -434,7 +434,79 @@ outputs = {
                 scaleSpeed: 1.2,
               },
               trashcan: true,
+              // 启用变量独立实例，防止复制块时字段共享引用
+              move: {
+                scrollbars: true,
+                drag: true,
+                wheel: true,
+              },
             });
+
+            // 监听块复制事件，确保字段独立
+            workspaceRef.current.addChangeListener((event: any) => {
+              if (event.type === Blockly.Events.BLOCK_CREATE && event.recordUndo) {
+                // 当创建新块时（包括复制），确保所有字段都是独立的实例
+                const block = workspaceRef.current?.getBlockById(event.blockId);
+                if (block) {
+                  // 处理变量块的复制（variables_get, variables_set, variable_assign）
+                  if (block.type === 'variables_set' || block.type === 'variables_get' || block.type === 'variable_assign') {
+                    const varField = block.getField('VAR');
+                    if (varField) {
+                      try {
+                        const currentVarName = varField.getText();
+                        // 检查是否有同名变量正在使用
+                        const allBlocks = workspaceRef.current?.getAllBlocks(false) || [];
+                        const sameVarBlocks = allBlocks.filter((b: any) => {
+                          if (b.id === block.id) return false; // 排除自己
+                          const field = b.getField?.('VAR');
+                          return field && field.getText() === currentVarName;
+                        });
+
+                        // 如果有多个块使用同一个变量名，说明是复制操作，自动创建新变量
+                        if (sameVarBlocks.length > 0) {
+                          // 生成新变量名（避免冲突）
+                          let newVarName = currentVarName;
+                          let counter = 2;
+                          while (allBlocks.some((b: any) => {
+                            const field = b.getField?.('VAR');
+                            return field && field.getText() === newVarName && b.id !== block.id;
+                          })) {
+                            newVarName = `${currentVarName}_${counter}`;
+                            counter++;
+                          }
+
+                          // 设置新变量名
+                          if (newVarName !== currentVarName) {
+                            varField.setValue(newVarName);
+                            console.log(`🔄 自动重命名复制的变量: ${currentVarName} -> ${newVarName}`);
+                          }
+                        }
+                      } catch (error) {
+                        console.warn('处理变量块复制时出错:', error);
+                      }
+                    }
+                  }
+
+                  // 强制刷新所有输入字段的连接
+                  block.inputList.forEach((input: any) => {
+                    if (input.connection && input.connection.targetBlock()) {
+                      const targetBlock = input.connection.targetBlock();
+                      // 重新初始化目标块的字段
+                      targetBlock.inputList.forEach((targetInput: any) => {
+                        targetInput.fieldRow.forEach((field: any) => {
+                          if (field && field.setValue) {
+                            // 强制字段值重新设置，确保独立引用
+                            const currentValue = field.getValue();
+                            field.setValue(currentValue);
+                          }
+                        });
+                      });
+                    }
+                  });
+                }
+              }
+            });
+
             console.log('✅ Blockly workspace初始化成功');
 
             // 如果有已保存的Blockly定义，加载它
@@ -827,30 +899,45 @@ outputs = {
 
   // 打开测试弹窗
   const handleOpenTest = () => {
-    // 如果是可视化模式，先从 Blockly 工作区解析参数
+    // 如果是可视化模式，先从 Blockly 工作区解析参数（仅用于测试，不覆盖原配置）
     if (definitionMode === 'BLOCKLY' && workspaceRef.current) {
-      console.log('🔍 可视化模式：从 Blockly 工作区解析输入输出参数...');
+      console.log('🔍 可视化模式：从 Blockly 工作区解析输入输出参数（仅用于测试）...');
       const { inputParams: parsedInputParams, outputParams: parsedOutputParams } = parseBlocklyParameters();
 
       if (parsedInputParams.length > 0) {
         console.log(`✅ 解析到 ${parsedInputParams.length} 个输入参数:`, parsedInputParams);
-        setInputParams(parsedInputParams);
-        message.success(`已从可视化块中解析 ${parsedInputParams.length} 个输入参数`);
+        // ⚠️ 重要：不更新 inputParams 状态，只用于测试
+        // 使用解析后的参数初始化测试输入值
+        const initialInputs: Record<string, any> = {};
+        parsedInputParams.forEach(param => {
+          if (param.name) {
+            initialInputs[param.name] = param.defaultValue || '';
+          }
+        });
+        setTestInputs(initialInputs);
+
+        // 临时更新 inputParamsRef 用于测试弹窗显示（不影响左侧配置）
+        inputParamsRef.current = parsedInputParams;
+        message.info(`可视化模式测试：检测到 ${parsedInputParams.length} 个输入参数`);
+      } else {
+        // 如果没有解析到参数，使用现有配置
+        const initialInputs: Record<string, any> = {};
+        inputParams.forEach(param => {
+          if (param.name) {
+            initialInputs[param.name] = param.defaultValue || '';
+          }
+        });
+        setTestInputs(initialInputs);
+        inputParamsRef.current = inputParams;
       }
 
       if (parsedOutputParams.length > 0) {
         console.log(`✅ 解析到 ${parsedOutputParams.length} 个输出参数:`, parsedOutputParams);
-        setOutputParams(parsedOutputParams);
+        // 临时更新 outputParamsRef（不影响左侧配置）
+        outputParamsRef.current = parsedOutputParams;
+      } else {
+        outputParamsRef.current = outputParams;
       }
-
-      // 使用解析后的参数初始化测试输入值
-      const initialInputs: Record<string, any> = {};
-      parsedInputParams.forEach(param => {
-        if (param.name) {
-          initialInputs[param.name] = param.defaultValue || '';
-        }
-      });
-      setTestInputs(initialInputs);
     } else {
       // 代码模式：使用现有的 inputParams
       const initialInputs: Record<string, any> = {};
@@ -860,6 +947,8 @@ outputs = {
         }
       });
       setTestInputs(initialInputs);
+      inputParamsRef.current = inputParams;
+      outputParamsRef.current = outputParams;
     }
 
     setTestResult(null);
