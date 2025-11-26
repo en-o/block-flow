@@ -469,6 +469,22 @@ export function convertCodeToBlockly(
 
   console.log(`🎉 转换完成: ${convertedCount} 成功, ${skippedCount} 跳过`);
 
+  // 初始化并渲染所有块
+  const allBlocks = workspace.getAllBlocks(false);
+  allBlocks.forEach(block => {
+    try {
+      if (!block.isInFlyout) {
+        block.initSvg();
+        block.render();
+      }
+    } catch (error) {
+      console.warn('块渲染失败:', block.type, error);
+    }
+  });
+
+  // 最后渲染整个工作区
+  workspace.render();
+
   return {
     convertedCount,
     skippedCount,

@@ -883,8 +883,65 @@ outputs = {
             message.warning('可视化工作区为空，请先添加块');
             return;
           }
-          codeToTest = pythonCode;
-          console.log('🧪 可视化模式测试，生成的代码:', pythonCode);
+
+          // 智能检测是否需要 safe_* 函数（只有代码中使用了才添加）
+          const needsSafeInt = pythonCode.includes('safe_int(');
+          const needsSafeFloat = pythonCode.includes('safe_float(');
+          const needsSafeBool = pythonCode.includes('safe_bool(');
+
+          let helperFunctions = '';
+
+          if (needsSafeInt || needsSafeFloat || needsSafeBool) {
+            helperFunctions = '# ========== 安全类型转换函数 ==========\n\n';
+
+            if (needsSafeInt) {
+              helperFunctions += `def safe_int(value, default=0):
+    """安全地转换为整数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+`;
+            }
+
+            if (needsSafeFloat) {
+              helperFunctions += `def safe_float(value, default=0.0):
+    """安全地转换为浮点数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+`;
+            }
+
+            if (needsSafeBool) {
+              helperFunctions += `def safe_bool(value, default=False):
+    """安全地转换为布尔值"""
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ['true', '1', 'yes', 'on']
+    return bool(value)
+
+`;
+            }
+
+            helperFunctions += '# ========== 可视化块生成的代码 ==========\n\n';
+          }
+
+          codeToTest = helperFunctions + pythonCode;
+          console.log('🧪 可视化模式测试，生成的代码:', codeToTest);
+          if (needsSafeInt || needsSafeFloat || needsSafeBool) {
+            console.log('✅ 已自动添加安全转换函数:', { needsSafeInt, needsSafeFloat, needsSafeBool });
+          }
           message.info('正在测试可视化模式构建的代码...', 2);
         } catch (error) {
           console.error('生成代码失败', error);
