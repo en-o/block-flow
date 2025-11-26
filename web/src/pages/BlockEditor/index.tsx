@@ -480,8 +480,9 @@ outputs = {
                 // 当创建新块时（包括复制），确保所有字段都是独立的实例
                 const block = workspaceRef.current?.getBlockById(event.blockId);
                 if (block) {
-                  // 处理变量块的复制（variables_get, variables_set, variable_assign）
-                  if (block.type === 'variables_set' || block.type === 'variables_get' || block.type === 'variable_assign') {
+                  // 只处理赋值类型的变量块复制（variables_set, variable_assign）
+                  // variables_get 不应该触发重命名，它应该跟随赋值块的变量名
+                  if (block.type === 'variables_set' || block.type === 'variable_assign') {
                     const varField = block.getField('VAR');
                     if (varField) {
                       try {
@@ -490,16 +491,20 @@ outputs = {
                         const allBlocks = workspaceRef.current?.getAllBlocks(false) || [];
                         const sameVarBlocks = allBlocks.filter((b: any) => {
                           if (b.id === block.id) return false; // 排除自己
+                          // 只检查赋值类型的块
+                          if (b.type !== 'variables_set' && b.type !== 'variable_assign') return false;
                           const field = b.getField?.('VAR');
                           return field && field.getText() === currentVarName;
                         });
 
-                        // 如果有多个块使用同一个变量名，说明是复制操作，自动创建新变量
+                        // 如果有多个赋值块使用同一个变量名，说明是复制操作，自动创建新变量
                         if (sameVarBlocks.length > 0) {
                           // 生成新变量名（避免冲突）
                           let newVarName = currentVarName;
                           let counter = 2;
                           while (allBlocks.some((b: any) => {
+                            // 只检查赋值类型的块
+                            if (b.type !== 'variables_set' && b.type !== 'variable_assign') return false;
                             const field = b.getField?.('VAR');
                             return field && field.getText() === newVarName && b.id !== block.id;
                           })) {
@@ -518,6 +523,20 @@ outputs = {
                             // 设置变量ID而不是直接设置变量名
                             (varField as any).setValue(newVariable.getId());
                             console.log(`🔄 自动重命名复制的变量: ${currentVarName} -> ${newVarName}`);
+
+                            // 更新所有引用该变量的获取块（包括后代块）
+                            const descendants = block.getDescendants(false); // 获取所有子块（不包括自己）
+
+                            descendants.forEach((descendant: any) => {
+                              if (descendant.type === 'variables_get') {
+                                const getVarField = descendant.getField('VAR');
+                                if (getVarField && getVarField.getText() === currentVarName) {
+                                  // 更新为新的变量名
+                                  (getVarField as any).setValue(newVariable.getId());
+                                  console.log(`  ↳ 同步更新引用块中的变量: ${currentVarName} -> ${newVarName}`);
+                                }
+                              }
+                            });
                           }
                         }
                       } catch (error) {
