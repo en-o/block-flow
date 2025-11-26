@@ -1377,13 +1377,19 @@ outputs = {
     }
   }, [form, definitionMode, scriptCode, block, buildInputsObject, buildOutputsObject, loadBlock, navigate]);
 
+  // 保存函数引用，用于快捷键调用
+  const handleSaveRef = useRef<() => void>();
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
+
   // 监听Ctrl+S快捷键保存
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // 检查是否是Ctrl+S或Cmd+S（Mac）
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
         event.preventDefault(); // 阻止浏览器默认保存行为
-        handleSave();
+        handleSaveRef.current?.();
       }
     };
 
@@ -1394,7 +1400,7 @@ outputs = {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleSave]);
+  }, []);
 
   return (
     <div className="block-editor-container">
