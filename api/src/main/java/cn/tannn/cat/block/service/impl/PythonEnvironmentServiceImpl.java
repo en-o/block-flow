@@ -1581,6 +1581,16 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         String pythonVersion = detectPythonVersion(pythonExecutable);
         if (pythonVersion != null && !pythonVersion.isEmpty()) {
             progressLogService.sendLog(taskId, "Python版本: " + pythonVersion);
+        } else {
+            // 如果检测失败，尝试从文件名提取版本号
+            pythonVersion = extractPythonVersionFromFilename(originalFilename);
+            if (pythonVersion != null && !pythonVersion.isEmpty()) {
+                progressLogService.sendLog(taskId, "从文件名提取Python版本: " + pythonVersion);
+            } else {
+                // 如果仍然失败，使用默认值
+                pythonVersion = "unknown";
+                progressLogService.sendLog(taskId, "⚠ 无法检测Python版本，使用默认值: unknown");
+            }
         }
 
         // 检测site-packages路径（使用最终的Python目录）
@@ -2043,6 +2053,37 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
+     * 从文件名提取Python版本
+     * 例如: cpython-3.10.19+20251120-aarch64-unknown-linux-gnu-install_only.tar.gz -> 3.10.19
+     */
+    private String extractPythonVersionFromFilename(String filename) {
+        if (filename == null || filename.isEmpty()) {
+            return null;
+        }
+
+        try {
+            // 匹配类似 cpython-3.10.19 或 python-3.11.9 的模式
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "(cpython|python)[-_](\\d+\\.\\d+\\.\\d+)",
+                java.util.regex.Pattern.CASE_INSENSITIVE
+            );
+            java.util.regex.Matcher matcher = pattern.matcher(filename);
+
+            if (matcher.find()) {
+                String version = matcher.group(2);
+                log.info("从文件名 {} 提取Python版本: {}", filename, version);
+                return version;
+            }
+
+            log.warn("无法从文件名提取版本: {}", filename);
+        } catch (Exception e) {
+            log.warn("解析文件名版本时出错: {}", e.getMessage());
+        }
+
+        return null;
+    }
+
+    /**
      * 检测Python版本
      */
     private String detectPythonVersion(String pythonExecutable) {
@@ -2091,7 +2132,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.warn("检测Python版本失败", e);
         }
 
-        return "";
+        return null;  // 返回null而不是空字符串
     }
 
     /**
