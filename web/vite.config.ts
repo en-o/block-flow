@@ -28,6 +28,11 @@ export default defineConfig(({ mode }) => {
       },
     },
 
+    // 优化依赖预构建，排除 monaco-editor worker
+    optimizeDeps: {
+      exclude: ['monaco-editor'],
+    },
+
     build: {
       // 输出目录
       outDir: outDir,
@@ -53,8 +58,10 @@ export default defineConfig(({ mode }) => {
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
             // Ant Design 相关
             'antd-vendor': ['antd'],
-            // 其他第三方库
-            'vendor': ['axios', 'blockly', '@monaco-editor/react', '@xyflow/react'],
+            // 其他第三方库（排除 monaco-editor，它有特殊的 worker 处理）
+            'vendor': ['axios', 'blockly', '@xyflow/react'],
+            // Monaco Editor 单独打包
+            'monaco-vendor': ['monaco-editor', '@monaco-editor/react'],
           },
         },
       },
@@ -77,6 +84,12 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: 5173,
       historyApiFallback: true,
+    },
+
+    // Worker 配置
+    worker: {
+      format: 'es',
+      plugins: () => [],
     },
   }
 })
