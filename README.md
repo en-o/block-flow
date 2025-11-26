@@ -5,7 +5,7 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
 
 
 # run
-初始化数据 [doc](api/doc), 默认库名：db_block_flow
+初始化数据 [doc](doc), 默认库名：db_block_flow
 
 ## 源码运行
 1. 运行api项目 ，注意数据库地址和账户密码，库会自己创建不用管
@@ -32,7 +32,7 @@ docker run -d -p 1250:1250 \
 # 第一次使用
 
 ## 1. 初始化数据
-执行 [api/doc](api/doc) 目录下的SQL脚本，默认库名：`db_block_flow`
+执行 [api/doc](doc) 目录下的SQL脚本，默认库名：`db_block_flow`
 
 ## 2. 创建Python环境并上传运行时
 
@@ -122,4 +122,4 @@ docker run -d -p 1250:1250 \
 在"流程编排"界面拖拽代码块，构建工作流并测试执行。
 
 # 注意
-1. 数据初始化 [doc](api/doc)
+1. 数据初始化 [doc](doc)

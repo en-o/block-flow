@@ -57,7 +57,7 @@ vim .env
 ### 运行
 > dockerhub:  https://hub.docker.com/r/tannnn/block-flow
 
-运行之后需要自己将数据初始化进去[doc](api/doc)
+运行之后需要自己将数据初始化进去[doc](doc)
 ```shell
 # -e MYSQL_DB=db_block_flow
 # -e MYSQL_URL=192.168.0.162:3306

@@ -30,6 +30,9 @@ export function initCustomBlocks() {
     // 修复数学运算符生成器（使用 * / 而非 × ÷）
     fixMathArithmeticGenerator();
 
+    // 修复变量块生成器（处理特殊字符）
+    fixVariableBlockGenerators();
+
     console.log('✅ Blockly自定义块初始化成功（新架构）');
   } catch (error) {
     console.error('❌ Blockly自定义块初始化失败', error);
@@ -58,3 +61,47 @@ function fixMathArithmeticGenerator() {
     return [code, order];
   };
 }
+
+/**
+ * 清理变量名,确保是合法的Python标识符
+ */
+function sanitizeVariableName(varName: string): string {
+  if (!varName) return 'var';
+
+  // 手动清理: 只保留字母、数字和下划线
+  let cleaned = varName.replace(/[^a-zA-Z0-9_]/g, '_');
+
+  // 确保不以数字开头
+  if (/^\d/.test(cleaned)) {
+    cleaned = 'var_' + cleaned;
+  }
+
+  // 确保不为空
+  if (!cleaned || cleaned === '_') {
+    cleaned = 'var';
+  }
+
+  return cleaned;
+}
+
+/**
+ * 修复Blockly内置变量块的Python生成器
+ * 处理变量名中的特殊字符
+ */
+function fixVariableBlockGenerators() {
+  // 修复 variables_get 块（获取变量值）
+  pythonGenerator.forBlock['variables_get'] = function(block: any) {
+    const varName = block.getFieldValue('VAR');
+    const cleanedName = sanitizeVariableName(varName);
+    return [cleanedName, Order.ATOMIC];
+  };
+
+  // 修复 variables_set 块（设置变量值）
+  pythonGenerator.forBlock['variables_set'] = function(block: any, generator: any) {
+    const varName = block.getFieldValue('VAR');
+    const cleanedName = sanitizeVariableName(varName);
+    const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 'None';
+    return cleanedName + ' = ' + value + '\n';
+  };
+}
+
