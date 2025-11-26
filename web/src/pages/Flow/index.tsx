@@ -1303,6 +1303,11 @@ const Flow: React.FC = () => {
                               <span style={{ fontSize: '11px', color: '#8c8c8c' }}>
                                 {param.type}
                               </span>
+                              {param.required && (
+                                <span style={{ fontSize: '11px', color: '#ff4d4f', background: '#fff1f0', padding: '0 6px', borderRadius: '2px' }}>
+                                  必填
+                                </span>
+                              )}
                               {param.defaultValue !== undefined && param.defaultValue !== '' && (
                                 <span style={{ fontSize: '11px', color: '#1890ff', background: '#e6f7ff', padding: '0 6px', borderRadius: '2px' }}>
                                   默认: {String(param.defaultValue)}

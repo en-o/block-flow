@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -200,6 +201,33 @@ public class BlockServiceImpl implements BlockService {
                 });
                 log.info("过滤后的输入参数数量: {} (原始: {})",
                     mergedInputs.size(), testDTO.getInputs().size());
+            }
+
+            // 校验非空参数
+            if (block.getInputs() != null) {
+                List<String> missingRequiredParams = new ArrayList<>();
+                block.getInputs().forEach((paramName, paramDefObj) -> {
+                    if (paramDefObj instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> paramDef = (Map<String, Object>) paramDefObj;
+                        Boolean required = (Boolean) paramDef.get("required");
+                        if (required != null && required) {
+                            Object value = mergedInputs.get(paramName);
+                            // 如果参数为空
+                            if (value == null || "".equals(value)) {
+                                // 检查是否有默认值
+                                Object defaultValue = paramDef.get("defaultValue");
+                                if (defaultValue == null || "".equals(defaultValue)) {
+                                    missingRequiredParams.add(paramName);
+                                }
+                            }
+                        }
+                    }
+                });
+
+                if (!missingRequiredParams.isEmpty()) {
+                    throw new BusinessException("以下参数为必填项：" + String.join(", ", missingRequiredParams));
+                }
             }
 
             // 注入上下文变量（仅注入脚本中实际使用的上下文变量）

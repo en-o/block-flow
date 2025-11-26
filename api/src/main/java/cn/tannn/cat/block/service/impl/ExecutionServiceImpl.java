@@ -263,6 +263,39 @@ public class ExecutionServiceImpl implements ExecutionService {
                     }
                 }
 
+                // 校验非空参数
+                JSONObject inputsDefinition = null;
+                if (blockSnapshot != null) {
+                    inputsDefinition = blockSnapshot.getJSONObject("inputs");
+                }
+                if (inputsDefinition != null) {
+                    List<String> missingRequiredParams = new ArrayList<>();
+                    inputsDefinition.forEach((paramName, paramDefObj) -> {
+                        if (paramDefObj instanceof JSONObject) {
+                            JSONObject paramDef = (JSONObject) paramDefObj;
+                            Boolean required = paramDef.getBoolean("required");
+                            if (required != null && required) {
+                                Object value = blockInputs.get(paramName);
+                                // 如果参数为空
+                                if (value == null || "".equals(value)) {
+                                    // 检查是否有默认值
+                                    Object defaultValue = paramDef.get("defaultValue");
+                                    if (defaultValue == null || "".equals(defaultValue)) {
+                                        missingRequiredParams.add(paramName);
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    if (!missingRequiredParams.isEmpty()) {
+                        logsBuilder.append(String.format("  ✗ 参数校验失败: 以下参数为必填项：%s\n",
+                                String.join(", ", missingRequiredParams)));
+                        throw new RuntimeException("参数校验失败: 以下参数为必填项：" +
+                                String.join(", ", missingRequiredParams));
+                    }
+                }
+
                 // 输出输入参数日志
                 logsBuilder.append("  输入参数:\n");
                 if (blockInputs.isEmpty()) {

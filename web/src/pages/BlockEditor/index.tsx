@@ -129,7 +129,7 @@ outputs = {
 }
 `);
   const [loading, setLoading] = useState(false);
-  const [inputParams, setInputParams] = useState<Array<{ name: string; type: string; defaultValue: string; description: string }>>([]);
+  const [inputParams, setInputParams] = useState<Array<{ name: string; type: string; defaultValue: string; description: string; required?: boolean }>>([]);
   const [outputParams, setOutputParams] = useState<Array<{ name: string; type: string; description: string }>>([]);
   const [testModalVisible, setTestModalVisible] = useState(false);
   const [testInputs, setTestInputs] = useState<Record<string, any>>({});
@@ -790,7 +790,7 @@ outputs = {
 
   // 添加输入参数
   const handleAddInputParam = () => {
-    setInputParams([...inputParams, { name: '', type: 'string', defaultValue: '', description: '' }]);
+    setInputParams([...inputParams, { name: '', type: 'string', defaultValue: '', description: '', required: false }]);
   };
 
   // 删除输入参数
@@ -799,7 +799,7 @@ outputs = {
   };
 
   // 更新输入参数
-  const handleUpdateInputParam = (index: number, field: string, value: string) => {
+  const handleUpdateInputParam = (index: number, field: string, value: string | boolean) => {
     const newParams = [...inputParams];
     (newParams[index] as any)[field] = value;
     setInputParams(newParams);
@@ -814,6 +814,7 @@ outputs = {
           type: param.type,
           defaultValue: param.defaultValue,
           description: param.description,
+          required: param.required || false,
         };
       }
     });
@@ -1012,6 +1013,26 @@ outputs = {
   const handleTest = async () => {
     if (!block) {
       message.warning('请先保存块后再进行测试');
+      return;
+    }
+
+    // 校验非空参数
+    const missingRequiredParams: string[] = [];
+    inputParams.forEach(param => {
+      if (param.required) {
+        const value = testInputs[param.name];
+        // 如果参数为空（undefined、null、空字符串）
+        if (value === undefined || value === null || value === '') {
+          // 如果没有默认值，则报错
+          if (!param.defaultValue || param.defaultValue === '') {
+            missingRequiredParams.push(param.name);
+          }
+        }
+      }
+    });
+
+    if (missingRequiredParams.length > 0) {
+      message.error(`以下参数为必填项：${missingRequiredParams.join(', ')}`);
       return;
     }
 
@@ -1510,6 +1531,12 @@ outputs = {
                             <Select.Option value="boolean">布尔</Select.Option>
                             <Select.Option value="object">对象</Select.Option>
                           </Select>
+                          <Checkbox
+                            checked={param.required}
+                            onChange={(e) => handleUpdateInputParam(index, 'required', e.target.checked)}
+                          >
+                            非空
+                          </Checkbox>
                           <Button
                             type="link"
                             danger
