@@ -726,16 +726,164 @@ outputs = {
     return outputs;
   }, [outputParams]);
 
-  // 打开测试弹窗
-  const handleOpenTest = () => {
-    // 初始化测试输入值
-    const initialInputs: Record<string, any> = {};
-    inputParams.forEach(param => {
-      if (param.name) {
-        initialInputs[param.name] = param.defaultValue || '';
+  // 从 Blockly 工作区解析输入输出参数
+  const parseBlocklyParameters = useCallback(() => {
+    if (!workspaceRef.current) {
+      return { inputParams: [], outputParams: [] };
+    }
+
+    const workspace = workspaceRef.current;
+    const inputMatches = new Set<string>();
+    const inputTypes: Record<string, string> = {};
+    const outputMatches = new Set<string>();
+
+    // 获取所有块
+    const allBlocks = workspace.getAllBlocks(false);
+
+    allBlocks.forEach(block => {
+      const blockType = block.type;
+
+      // 1. 解析 python_input_get 块
+      if (blockType === 'python_input_get') {
+        // 获取参数名（从 PARAM_NAME 输入）
+        const paramNameInput = block.getInput('PARAM_NAME');
+        if (paramNameInput?.connection?.targetBlock()) {
+          const targetBlock = paramNameInput.connection.targetBlock();
+          if (targetBlock?.type === 'text') {
+            const paramName = targetBlock.getFieldValue('TEXT');
+            if (paramName && !paramName.startsWith('ctx.')) {
+              inputMatches.add(paramName);
+              inputTypes[paramName] = 'string'; // 默认字符串
+            }
+          }
+        }
+      }
+
+      // 2. 解析 safe_int, safe_float, safe_bool 块（判断类型）
+      if (blockType === 'safe_int' || blockType === 'int_conversion') {
+        // 检查这个块的输入是否连接了 python_input_get
+        const valueInput = block.getInput('VALUE');
+        if (valueInput?.connection?.targetBlock()) {
+          const targetBlock = valueInput.connection.targetBlock();
+          if (targetBlock?.type === 'python_input_get') {
+            const paramNameInput = targetBlock.getInput('PARAM_NAME');
+            if (paramNameInput?.connection?.targetBlock()) {
+              const textBlock = paramNameInput.connection.targetBlock();
+              if (textBlock?.type === 'text') {
+                const paramName = textBlock.getFieldValue('TEXT');
+                if (paramName && !paramName.startsWith('ctx.')) {
+                  inputMatches.add(paramName);
+                  inputTypes[paramName] = 'number';
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (blockType === 'safe_float' || blockType === 'float_conversion') {
+        const valueInput = block.getInput('VALUE');
+        if (valueInput?.connection?.targetBlock()) {
+          const targetBlock = valueInput.connection.targetBlock();
+          if (targetBlock?.type === 'python_input_get') {
+            const paramNameInput = targetBlock.getInput('PARAM_NAME');
+            if (paramNameInput?.connection?.targetBlock()) {
+              const textBlock = paramNameInput.connection.targetBlock();
+              if (textBlock?.type === 'text') {
+                const paramName = textBlock.getFieldValue('TEXT');
+                if (paramName && !paramName.startsWith('ctx.')) {
+                  inputMatches.add(paramName);
+                  inputTypes[paramName] = 'number';
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (blockType === 'safe_bool' || blockType === 'bool_conversion') {
+        const valueInput = block.getInput('VALUE');
+        if (valueInput?.connection?.targetBlock()) {
+          const targetBlock = valueInput.connection.targetBlock();
+          if (targetBlock?.type === 'python_input_get') {
+            const paramNameInput = targetBlock.getInput('PARAM_NAME');
+            if (paramNameInput?.connection?.targetBlock()) {
+              const textBlock = paramNameInput.connection.targetBlock();
+              if (textBlock?.type === 'text') {
+                const paramName = textBlock.getFieldValue('TEXT');
+                if (paramName && !paramName.startsWith('ctx.')) {
+                  inputMatches.add(paramName);
+                  inputTypes[paramName] = 'boolean';
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 3. 解析 python_output_item 块（输出参数）
+      if (blockType === 'python_output_item') {
+        const key = block.getFieldValue('KEY');
+        if (key && key !== '_console_output') {
+          outputMatches.add(key);
+        }
       }
     });
-    setTestInputs(initialInputs);
+
+    // 转换为参数数组
+    const newInputParams = Array.from(inputMatches).map(name => ({
+      name,
+      type: inputTypes[name] || 'string',
+      defaultValue: '',
+      description: ''
+    }));
+
+    const newOutputParams = Array.from(outputMatches).map(name => ({
+      name,
+      type: 'string',
+      description: ''
+    }));
+
+    return { inputParams: newInputParams, outputParams: newOutputParams };
+  }, []);
+
+  // 打开测试弹窗
+  const handleOpenTest = () => {
+    // 如果是可视化模式，先从 Blockly 工作区解析参数
+    if (definitionMode === 'BLOCKLY' && workspaceRef.current) {
+      console.log('🔍 可视化模式：从 Blockly 工作区解析输入输出参数...');
+      const { inputParams: parsedInputParams, outputParams: parsedOutputParams } = parseBlocklyParameters();
+
+      if (parsedInputParams.length > 0) {
+        console.log(`✅ 解析到 ${parsedInputParams.length} 个输入参数:`, parsedInputParams);
+        setInputParams(parsedInputParams);
+        message.success(`已从可视化块中解析 ${parsedInputParams.length} 个输入参数`);
+      }
+
+      if (parsedOutputParams.length > 0) {
+        console.log(`✅ 解析到 ${parsedOutputParams.length} 个输出参数:`, parsedOutputParams);
+        setOutputParams(parsedOutputParams);
+      }
+
+      // 使用解析后的参数初始化测试输入值
+      const initialInputs: Record<string, any> = {};
+      parsedInputParams.forEach(param => {
+        if (param.name) {
+          initialInputs[param.name] = param.defaultValue || '';
+        }
+      });
+      setTestInputs(initialInputs);
+    } else {
+      // 代码模式：使用现有的 inputParams
+      const initialInputs: Record<string, any> = {};
+      inputParams.forEach(param => {
+        if (param.name) {
+          initialInputs[param.name] = param.defaultValue || '';
+        }
+      });
+      setTestInputs(initialInputs);
+    }
+
     setTestResult(null);
     setTestModalVisible(true);
   };
