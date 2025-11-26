@@ -1117,6 +1117,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(400, "文件大小不能超过2GB");
         }
 
+        // 等待SSE连接建立（避免消息丢失）
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         progressLogService.sendLog(taskId, "开始上传Python运行时...");
         progressLogService.sendProgress(taskId, 5, "验证文件格式和大小");
 
