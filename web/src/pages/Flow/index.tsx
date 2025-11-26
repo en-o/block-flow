@@ -76,12 +76,15 @@ const Flow: React.FC = () => {
     loadMyWorkflows();
   }, []);
 
+  // 保存流程引用，避免循环依赖
+  const handleSaveRef = useRef<() => void>();
+
   // 监听 Ctrl+S 快捷键保存流程
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {
         event.preventDefault(); // 阻止浏览器默认的保存行为
-        handleSave();
+        handleSaveRef.current?.();
       }
     };
 
@@ -90,7 +93,7 @@ const Flow: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentWorkflow, nodes, edges]);
+  }, []);
 
   // 监听 Delete/Ctrl+X/Ctrl+C/Ctrl+V 快捷键
   useEffect(() => {
@@ -418,7 +421,7 @@ const Flow: React.FC = () => {
   };
 
   // 保存流程
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     // 如果有当前流程，直接更新（不弹窗）
     if (currentWorkflow) {
       const flowDefinition = {
@@ -471,7 +474,12 @@ const Flow: React.FC = () => {
       // 没有当前流程，打开新建流程对话框
       setSaveModalVisible(true);
     }
-  };
+  }, [currentWorkflow, nodes, edges]);
+
+  // 更新保存函数引用
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
 
   // 新建流程
   const handleNew = () => {
@@ -776,6 +784,55 @@ const Flow: React.FC = () => {
   const handleExecute = async () => {
     if (!currentWorkflow) {
       message.warning('请先保存流程后再执行');
+      return;
+    }
+
+    // 校验所有节点的必填参数
+    const missingParams: Array<{ nodeName: string; paramName: string }> = [];
+
+    nodes.forEach((node) => {
+      if (node.data.inputs) {
+        Object.entries(node.data.inputs).forEach(([paramName, paramDef]: [string, any]) => {
+          if (paramDef.required) {
+            const value = node.data.inputValues?.[paramName];
+            // 如果参数为空（undefined、null、空字符串）且没有默认值
+            if ((value === undefined || value === null || value === '')
+                && (!paramDef.defaultValue || paramDef.defaultValue === '')) {
+              missingParams.push({
+                nodeName: node.data.label || node.id,
+                paramName: paramName,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // 如果有缺失的必填参数，显示错误并阻止执行
+    if (missingParams.length > 0) {
+      const errorMsg = missingParams
+        .map(item => `节点"${item.nodeName}"的参数"${item.paramName}"`)
+        .join('、');
+
+      modal.error({
+        title: '参数验证失败',
+        content: (
+          <div>
+            <p>以下必填参数未填写：</p>
+            <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+              {missingParams.map((item, index) => (
+                <li key={index}>
+                  节点 <strong>{item.nodeName}</strong> 的参数 <strong>{item.paramName}</strong>
+                </li>
+              ))}
+            </ul>
+            <p style={{ marginTop: 8, color: '#ff4d4f' }}>
+              请填写所有必填参数后再执行流程。
+            </p>
+          </div>
+        ),
+        width: 500,
+      });
       return;
     }
 
