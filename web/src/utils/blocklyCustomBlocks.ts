@@ -86,19 +86,23 @@ function sanitizeVariableName(varName: string): string {
 
 /**
  * 修复Blockly内置变量块的Python生成器
- * 处理变量名中的特殊字符
+ * 使用变量的显示名称而不是内部ID，并处理特殊字符
  */
 function fixVariableBlockGenerators() {
   // 修复 variables_get 块（获取变量值）
   pythonGenerator.forBlock['variables_get'] = function(block: any) {
-    const varName = block.getFieldValue('VAR');
+    // 获取变量对象，使用显示名称而不是内部ID
+    const variable = block.getField('VAR')?.getVariable();
+    const varName = variable ? variable.name : block.getFieldValue('VAR');
     const cleanedName = sanitizeVariableName(varName);
     return [cleanedName, Order.ATOMIC];
   };
 
   // 修复 variables_set 块（设置变量值）
   pythonGenerator.forBlock['variables_set'] = function(block: any, generator: any) {
-    const varName = block.getFieldValue('VAR');
+    // 获取变量对象，使用显示名称而不是内部ID
+    const variable = block.getField('VAR')?.getVariable();
+    const varName = variable ? variable.name : block.getFieldValue('VAR');
     const cleanedName = sanitizeVariableName(varName);
     const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 'None';
     return cleanedName + ' = ' + value + '\n';

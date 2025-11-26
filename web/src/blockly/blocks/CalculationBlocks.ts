@@ -53,9 +53,14 @@ export class VariableAssignBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): string => {
-    const variable = sanitizeVariableName(BlockHelper.getFieldValue(block, 'VAR'));
+    // 获取变量对象，使用显示名称而不是内部ID
+    const field = block.getField('VAR');
+    const variable = field?.getVariable?.();
+    const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
+    const cleanedName = sanitizeVariableName(varName);
+
     const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE) || '0';
-    const code = `${variable} = ${value}\n`;
+    const code = `${cleanedName} = ${value}\n`;
     return code;
   };
 }
@@ -83,9 +88,13 @@ export class VariableGetBlock extends BlockDefinition {
   };
 
   generator = (block: Blockly.Block): [string, number] => {
-    const variable = sanitizeVariableName(BlockHelper.getFieldValue(block, 'VAR'));
-    const code = variable;
-    return [code, pythonGenerator.ORDER_ATOMIC];
+    // 获取变量对象，使用显示名称而不是内部ID
+    const field = block.getField('VAR');
+    const variable = field?.getVariable?.();
+    const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
+    const cleanedName = sanitizeVariableName(varName);
+
+    return [cleanedName, pythonGenerator.ORDER_ATOMIC];
   };
 }
 
@@ -439,12 +448,17 @@ export class IncrementBlock extends BlockDefinition {
       'DIVIDE': ' /= ',
     };
 
-    const variable = sanitizeVariableName(BlockHelper.getFieldValue(block, 'VAR'));
+    // 获取变量对象，使用显示名称而不是内部ID
+    const field = block.getField('VAR');
+    const variable = field?.getVariable?.();
+    const varName = variable ? variable.name : BlockHelper.getFieldValue(block, 'VAR');
+    const cleanedName = sanitizeVariableName(varName);
+
     const opField = BlockHelper.getFieldValue(block, 'OP');
     const operator = OPERATORS[opField];
     const value = BlockHelper.getInputValue(block, 'VALUE', pythonGenerator.ORDER_NONE) || '1';
 
-    const code = `${variable}${operator}${value}\n`;
+    const code = `${cleanedName}${operator}${value}\n`;
     return code;
   };
 }
