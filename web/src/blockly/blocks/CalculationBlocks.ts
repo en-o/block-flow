@@ -33,7 +33,7 @@ export class VariableAssignBlock extends BlockDefinition {
   category = 'python_calculation';
 
   definition = {
-    message0: '%1 = %2',
+    message0: '设置 %1 = %2',
     args0: [
       {
         type: 'field_variable',
@@ -48,7 +48,7 @@ export class VariableAssignBlock extends BlockDefinition {
     previousStatement: null,
     nextStatement: null,
     colour: '#ff7a45',
-    tooltip: '将表达式的结果赋值给变量',
+    tooltip: '【语句块】给变量赋值，如: aa = 10 或 bb = aa + 5\n必须连接在其他块的下方或上方',
     helpUrl: '',
   };
 
@@ -73,7 +73,7 @@ export class VariableGetBlock extends BlockDefinition {
   category = 'python_calculation';
 
   definition = {
-    message0: '%1',
+    message0: '获取 %1',
     args0: [
       {
         type: 'field_variable',
@@ -83,7 +83,7 @@ export class VariableGetBlock extends BlockDefinition {
     ],
     output: null,
     colour: '#ff7a45',
-    tooltip: '获取变量的值',
+    tooltip: '【值块】获取变量的值，用于计算或输出\n可以插入到其他块的输入口中',
     helpUrl: '',
   };
 
