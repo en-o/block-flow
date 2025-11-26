@@ -25,6 +25,7 @@ import { blockTypeApi } from '../../api/blockType';
 import { pythonEnvApi } from '../../api/pythonEnv';
 import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO, PythonEnvironment } from '../../types/api';
 import { initCustomBlocks } from '../../utils/blocklyCustomBlocks';
+import { getBlocklyToolbox } from '../../blockly';
 import './index.css';
 
 const BlockEditor: React.FC = () => {
@@ -349,7 +350,7 @@ outputs = {
           try {
             console.log('🔧 初始化Blockly workspace...');
             workspaceRef.current = Blockly.inject(blocklyDivRef.current, {
-              toolbox: getBlocklyToolbox(),
+              toolbox: getToolbox(),
               grid: {
                 spacing: 20,
                 length: 3,
@@ -498,11 +499,19 @@ outputs = {
     }
   };
 
-  const getBlocklyToolbox = () => {
+  const getToolbox = useCallback(() => {
     // 使用新的ToolboxManager自动生成工具箱
-    const { getBlocklyToolbox } = require('../../blockly');
-    return getBlocklyToolbox();
-  };
+    try {
+      return getBlocklyToolbox();
+    } catch (error) {
+      console.error('获取工具箱配置失败', error);
+      // 返回一个最小的fallback配置
+      return {
+        kind: 'categoryToolbox',
+        contents: []
+      };
+    }
+  }, []);
 
   const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
     if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
