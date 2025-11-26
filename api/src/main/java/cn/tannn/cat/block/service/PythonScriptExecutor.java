@@ -82,10 +82,21 @@ public class PythonScriptExecutor {
             // 包装脚本：添加输入参数读取和输出格式化逻辑
             String wrappedScript = wrapScript(scriptContent, inputs != null && !inputs.isEmpty());
 
+            // 打印完整脚本用于调试（仅在DEBUG级别）
+            if (log.isDebugEnabled()) {
+                log.debug("========================================");
+                log.debug("包装后的完整Python脚本:");
+                log.debug("========================================");
+                log.debug("\n{}", wrappedScript);
+                log.debug("========================================");
+            }
+
             // 创建临时脚本文件
             tempScript = File.createTempFile("python_script_", ".py");
             tempScript.deleteOnExit();
             java.nio.file.Files.write(tempScript.toPath(), wrappedScript.getBytes(StandardCharsets.UTF_8));
+
+            log.info("临时脚本文件: {}", tempScript.getAbsolutePath());
 
             // 如果有输入参数，创建临时输入文件
             List<String> command = new ArrayList<>();
@@ -106,6 +117,10 @@ public class PythonScriptExecutor {
 
             // 设置环境变量 - 关键：设置PYTHONPATH实现依赖隔离
             Map<String, String> envVars = pb.environment();
+
+            // 禁用Python输出缓冲（确保Docker环境下输出及时）
+            envVars.put("PYTHONUNBUFFERED", "1");
+
             if (environment.getSitePackagesPath() != null && !environment.getSitePackagesPath().isEmpty()) {
                 String existingPythonPath = envVars.get("PYTHONPATH");
                 String newPythonPath = environment.getSitePackagesPath();
@@ -162,9 +177,15 @@ public class PythonScriptExecutor {
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             long endTime = System.currentTimeMillis();
 
+            // 确保子进程已完全退出
+            if (finished) {
+                // 再等待一小段时间确保输出流完全刷新
+                Thread.sleep(100);
+            }
+
             // 等待输出读取完成
-            stdoutReader.join(1000);
-            stderrReader.join(1000);
+            stdoutReader.join(2000);  // 增加到2秒
+            stderrReader.join(2000);
 
             if (!finished) {
                 process.destroyForcibly();
@@ -184,6 +205,15 @@ public class PythonScriptExecutor {
             result.setExecutionTime(endTime - startTime);
             result.setOutput(stdout.toString().trim());
             result.setError(stderr.toString().trim());
+
+            log.debug("脚本执行完成 - 退出码: {}, stdout长度: {}, stderr长度: {}",
+                     exitCode, stdout.length(), stderr.length());
+            if (stdout.length() > 0) {
+                log.debug("stdout内容: {}", stdout.toString());
+            }
+            if (stderr.length() > 0) {
+                log.debug("stderr内容: {}", stderr.toString());
+            }
 
             if (exitCode == 0) {
                 result.setSuccess(true);
@@ -237,9 +267,13 @@ public class PythonScriptExecutor {
         wrapped.append("import io\n");
         wrapped.append("import json\n");
         wrapped.append("\n");
+        wrapped.append("# 禁用输出缓冲，确保Docker环境下输出及时刷新\n");
+        wrapped.append("import os\n");
+        wrapped.append("os.environ['PYTHONUNBUFFERED'] = '1'\n");
+        wrapped.append("\n");
         wrapped.append("# 强制标准输出使用 UTF-8 编码（解决中文及特殊字符乱码问题）\n");
-        wrapped.append("sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')\n");
-        wrapped.append("sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')\n");
+        wrapped.append("sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)\n");
+        wrapped.append("sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)\n");
         wrapped.append("\n");
 
         if (hasInputs) {
@@ -296,6 +330,7 @@ public class PythonScriptExecutor {
         wrapped.append("        _final_output['_console_output'] = _console_text.rstrip()\n");
         wrapped.append("\n");
         wrapped.append("    print(json.dumps(_final_output, ensure_ascii=False))\n");
+        wrapped.append("    sys.stdout.flush()  # 强制刷新输出缓冲区\n");
 
         // except块与try对齐
         wrapped.append("except Exception as e:\n");
@@ -307,6 +342,7 @@ public class PythonScriptExecutor {
         wrapped.append("    if _console_text:\n");
         wrapped.append("        _error_output['_console_output'] = _console_text.rstrip()\n");
         wrapped.append("    print(json.dumps(_error_output, ensure_ascii=False))\n");
+        wrapped.append("    sys.stdout.flush()  # 强制刷新输出缓冲区\n");
         wrapped.append("    sys.exit(1)\n");
 
         return wrapped.toString();
