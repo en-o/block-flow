@@ -121,11 +121,13 @@ public class ExecutionServiceImpl implements ExecutionService {
 
             // 构建依赖图和入度
             Map<String, List<String>> graph = new HashMap<>(); // nodeId -> [依赖的nodeId列表]
+            Map<String, List<String>> reverseGraph = new HashMap<>(); // nodeId -> [依赖于它的nodeId列表]
             Map<String, Integer> inDegree = new HashMap<>();
 
             // 初始化
             for (String nodeId : nodeMap.keySet()) {
                 graph.put(nodeId, new ArrayList<>());
+                reverseGraph.put(nodeId, new ArrayList<>());
                 inDegree.put(nodeId, 0);
             }
 
@@ -143,6 +145,7 @@ public class ExecutionServiceImpl implements ExecutionService {
                             i + 1, source, sourceHandle, target, targetHandle));
 
                     graph.get(target).add(source); // target依赖于source
+                    reverseGraph.get(source).add(target); // source的输出被target使用
                     inDegree.put(target, inDegree.get(target) + 1);
                 }
                 logsBuilder.append("\n");
@@ -158,7 +161,7 @@ public class ExecutionServiceImpl implements ExecutionService {
             }
             logsBuilder.append("\n");
 
-            List<String> executionOrder = topologicalSort(nodeMap.keySet(), graph, inDegree);
+            List<String> executionOrder = topologicalSort(nodeMap.keySet(), reverseGraph, inDegree);
             if (executionOrder == null) {
                 throw new RuntimeException("流程中存在循环依赖，无法执行");
             }
@@ -407,13 +410,13 @@ public class ExecutionServiceImpl implements ExecutionService {
     /**
      * 拓扑排序
      *
-     * @param nodes    所有节点ID
-     * @param graph    依赖图
-     * @param inDegree 入度
+     * @param nodes        所有节点ID
+     * @param reverseGraph 反向图（nodeId -> 依赖它的节点列表）
+     * @param inDegree     入度
      * @return 排序后的节点ID列表，如果存在循环返回null
      */
     private List<String> topologicalSort(Set<String> nodes,
-                                         Map<String, List<String>> graph,
+                                         Map<String, List<String>> reverseGraph,
                                          Map<String, Integer> inDegree) {
         List<String> result = new ArrayList<>();
         Queue<String> queue = new LinkedList<>();
@@ -429,12 +432,13 @@ public class ExecutionServiceImpl implements ExecutionService {
             String current = queue.poll();
             result.add(current);
 
-            // 遍历所有依赖当前节点的节点
-            for (String nodeId : nodes) {
-                if (graph.get(nodeId).contains(current)) {
-                    inDegree.put(nodeId, inDegree.get(nodeId) - 1);
-                    if (inDegree.get(nodeId) == 0) {
-                        queue.offer(nodeId);
+            // 获取所有依赖当前节点的节点（从反向图中直接获取）
+            List<String> dependents = reverseGraph.get(current);
+            if (dependents != null) {
+                for (String dependent : dependents) {
+                    inDegree.put(dependent, inDegree.get(dependent) - 1);
+                    if (inDegree.get(dependent) == 0) {
+                        queue.offer(dependent);
                     }
                 }
             }
