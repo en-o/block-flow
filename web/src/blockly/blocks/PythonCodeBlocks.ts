@@ -10,7 +10,6 @@ export class FileReadBlock extends BlockDefinition {
   category = 'python_file';
 
   definition = {
-    type: this.type,
     message0: '读取文件 %1 编码 %2',
     args0: [
       {
@@ -52,7 +51,6 @@ export class FileWriteBlock extends BlockDefinition {
   category = 'python_file';
 
   definition = {
-    type: this.type,
     message0: '写入文件 %1 内容 %2 编码 %3',
     args0: [
       {
@@ -98,7 +96,6 @@ export class HttpRequestBlock extends BlockDefinition {
   category = 'python_http';
 
   definition = {
-    type: this.type,
     message0: 'HTTP %1 请求 %2',
     message1: 'URL %1',
     message2: '请求体 %1',
@@ -169,7 +166,6 @@ export class HttpResponseBlock extends BlockDefinition {
   category = 'python_http';
 
   definition = {
-    type: this.type,
     message0: '响应 %1 . %2',
     args0: [
       {
@@ -209,7 +205,6 @@ export class JsonParseBlock extends BlockDefinition {
   category = 'python_json';
 
   definition = {
-    type: this.type,
     message0: 'JSON解析 %1',
     args0: [
       {
@@ -239,7 +234,6 @@ export class JsonStringifyBlock extends BlockDefinition {
   category = 'python_json';
 
   definition = {
-    type: this.type,
     message0: 'JSON序列化 %1 缩进 %2',
     args0: [
       {
@@ -274,7 +268,6 @@ export class DictCreateBlock extends BlockDefinition {
   category = 'python_data';
 
   definition = {
-    type: this.type,
     message0: '创建字典',
     message1: '%1',
     args1: [
@@ -304,7 +297,6 @@ export class DictItemBlock extends BlockDefinition {
   category = 'python_data';
 
   definition = {
-    type: this.type,
     message0: '"%1": %2',
     args0: [
       {
@@ -340,7 +332,6 @@ export class DictGetBlock extends BlockDefinition {
   category = 'python_data';
 
   definition = {
-    type: this.type,
     message0: '字典 %1 获取 %2 默认值 %3',
     args0: [
       {
@@ -380,7 +371,6 @@ export class ListAppendBlock extends BlockDefinition {
   category = 'python_data';
 
   definition = {
-    type: this.type,
     message0: '列表 %1 添加 %2',
     args0: [
       {
@@ -415,7 +405,6 @@ export class StringFormatBlock extends BlockDefinition {
   category = 'python_string';
 
   definition = {
-    type: this.type,
     message0: 'f字符串 %1',
     args0: [
       {
@@ -445,7 +434,6 @@ export class TryExceptBlock extends BlockDefinition {
   category = 'python_control';
 
   definition = {
-    type: this.type,
     message0: 'try 尝试执行',
     message1: '%1',
     message2: 'except 捕获异常',

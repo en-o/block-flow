@@ -10,7 +10,6 @@ export class PythonInputGetBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: '获取输入 %1 默认值 %2',
     args0: [
       {
@@ -45,7 +44,6 @@ export class PythonOutputSetBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: '设置输出 outputs',
     message1: '%1',
     args1: [
@@ -76,7 +74,6 @@ export class PythonOutputItemBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: '"%1": %2',
     args0: [
       {
@@ -112,7 +109,6 @@ export class SafeIntBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: 'safe_int %1 默认值 %2',
     args0: [
       {
@@ -147,7 +143,6 @@ export class SafeFloatBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: 'safe_float %1 默认值 %2',
     args0: [
       {
@@ -183,7 +178,6 @@ export class SafeBoolBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: 'safe_bool %1 默认值 %2',
     args0: [
       {
@@ -221,7 +215,6 @@ export class PythonPrintBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: 'print %1',
     args0: [
       {
@@ -251,7 +244,6 @@ export class ContextVariableBlock extends BlockDefinition {
   category = 'python_io';
 
   definition = {
-    type: this.type,
     message0: '上下文变量 ctx.%1 默认值 %2',
     args0: [
       {

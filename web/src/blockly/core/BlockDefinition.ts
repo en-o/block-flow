@@ -36,22 +36,29 @@ export abstract class BlockDefinition implements IBlockDefinition {
    * 注册块到Blockly
    */
   register(): void {
+    const blockType = this.type;
+    const blockDef = this.getDefinition();
+
     // 注册块定义
-    Blockly.Blocks[this.type] = {
+    Blockly.Blocks[blockType] = {
       init: function() {
-        this.jsonInit(this.getDefinition());
-      }.bind(this),
+        this.jsonInit(blockDef);
+      }
     };
 
     // 注册Python代码生成器
-    pythonGenerator.forBlock[this.type] = this.generator;
+    pythonGenerator.forBlock[blockType] = this.generator;
   }
 
   /**
    * 获取块定义（可以在子类中重写以动态生成）
+   * 确保定义中不包含type字段（会自动添加）
    */
   protected getDefinition(): any {
-    return this.definition;
+    const def = { ...this.definition };
+    // 移除definition中的type字段（如果存在），因为Blockly会从Blocks对象的key获取
+    delete def.type;
+    return def;
   }
 }
 
