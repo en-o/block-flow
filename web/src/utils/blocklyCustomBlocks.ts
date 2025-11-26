@@ -6,6 +6,7 @@
  *
  * 包括: 输入/输出处理、文件操作、HTTP请求、字典操作等
  */
+import * as Blockly from 'blockly';
 import { pythonGenerator, Order } from 'blockly/python';
 import { initializeBlockly } from '../blockly';
 
@@ -107,5 +108,25 @@ function fixVariableBlockGenerators() {
     const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 'None';
     return cleanedName + ' = ' + value + '\n';
   };
+
+  // 禁用自动变量声明（去掉 "变量名 = None" 的初始化）
+  // 覆盖 init 函数，让它不生成变量声明
+  pythonGenerator.init = function(workspace: any) {
+    // 创建一个空的变量定义映射，但不生成声明代码
+    // 这样可以保留变量跟踪功能，但不会在代码开头添加 "var = None"
+    if (!pythonGenerator.nameDB_) {
+      pythonGenerator.nameDB_ = new (Blockly as any).Names(pythonGenerator.RESERVED_WORDS_);
+    } else {
+      pythonGenerator.nameDB_.reset();
+    }
+
+    pythonGenerator.nameDB_.setVariableMap(workspace.getVariableMap());
+
+    // 重要：不生成变量初始化代码
+    // 原始实现会在这里生成 "变量名 = None"，我们跳过这一步
+    pythonGenerator.definitions_ = Object.create(null);
+    pythonGenerator.functionNames_ = Object.create(null);
+  };
 }
+
 
