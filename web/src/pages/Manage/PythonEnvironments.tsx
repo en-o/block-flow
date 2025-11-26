@@ -212,10 +212,10 @@ const PythonEnvironments: React.FC = () => {
           setIsInstalling(true);
           setCanForceClose(false);
 
-          // 30秒后允许强制关闭
+          // 15秒后允许强制关闭
           setTimeout(() => {
             setCanForceClose(true);
-          }, 30000);
+          }, 15000);
 
           try {
             // 步骤1：创建环境
@@ -555,10 +555,10 @@ const PythonEnvironments: React.FC = () => {
       setIsInstalling(true);
       setCanForceClose(false);
 
-      // 30秒后允许强制关闭
+      // 15秒后允许强制关闭
       setTimeout(() => {
         setCanForceClose(true);
-      }, 30000);
+      }, 15000);
 
       // 模拟pip安装的各个阶段
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -804,10 +804,10 @@ const PythonEnvironments: React.FC = () => {
       setUploadProgress(0);
       setCanForceClose(false);
 
-      // 30秒后允许强制关闭
+      // 15秒后允许强制关闭
       setTimeout(() => {
         setCanForceClose(true);
-      }, 30000);
+      }, 15000);
 
       // 订阅SSE进度事件（添加token参数以支持认证）
       const taskId = `import-requirements-${selectedEnv.id}`;
@@ -975,10 +975,10 @@ const PythonEnvironments: React.FC = () => {
     setUploadingFile(true);
     setCanForceClose(false);
 
-    // 30秒后允许强制关闭
+    // 15秒后允许强制关闭
     setTimeout(() => {
       setCanForceClose(true);
-    }, 30000);
+    }, 15000);
 
     try {
       setInstallLogs(prev => [...prev, '正在上传文件...']);
@@ -1069,10 +1069,10 @@ const PythonEnvironments: React.FC = () => {
     setIsInstalling(true);
     setCanForceClose(false);
 
-    // 30秒后允许强制关闭
+    // 15秒后允许强制关闭
     setTimeout(() => {
       setCanForceClose(true);
-    }, 30000);
+    }, 15000);
 
     // 订阅SSE进度事件（添加token参数以支持认证）
     const taskId = `upload-python-${selectedEnv.id}`;
@@ -2136,9 +2136,14 @@ const PythonEnvironments: React.FC = () => {
               {log}
             </div>
           ))}
-          {isInstalling && (
+          {isInstalling && !canForceClose && (
             <div style={{ marginTop: '8px', color: '#ff0' }}>
-              ⏳ 正在处理，请稍候...
+              ⏳ 正在处理，请稍候... (30秒后可手动关闭)
+            </div>
+          )}
+          {isInstalling && canForceClose && (
+            <div style={{ marginTop: '8px', color: '#ffa500' }}>
+              ⚠️ 任务运行时间较长，您可以点击关闭按钮手动关闭此窗口，任务将在后台继续执行
             </div>
           )}
         </div>
