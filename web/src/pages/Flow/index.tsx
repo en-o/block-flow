@@ -422,12 +422,30 @@ const Flow: React.FC = () => {
     // 如果有当前流程，直接更新（不弹窗）
     if (currentWorkflow) {
       const flowDefinition = {
-        nodes: nodes.map((node) => ({
-          id: node.id,
-          type: node.type,
-          position: node.position,
-          data: node.data,
-        })),
+        nodes: nodes.map((node) => {
+          // 自动填充默认值：如果参数为空且有默认值，用默认值填充
+          const filledInputValues = { ...(node.data.inputValues || {}) };
+          if (node.data.inputs) {
+            Object.entries(node.data.inputs).forEach(([paramName, paramDef]: [string, any]) => {
+              // 如果用户没有填写该参数（undefined、null、空字符串），且该参数有默认值
+              const currentValue = filledInputValues[paramName];
+              if ((currentValue === undefined || currentValue === null || currentValue === '')
+                  && paramDef.defaultValue !== undefined && paramDef.defaultValue !== '') {
+                filledInputValues[paramName] = paramDef.defaultValue;
+              }
+            });
+          }
+
+          return {
+            id: node.id,
+            type: node.type,
+            position: node.position,
+            data: {
+              ...node.data,
+              inputValues: filledInputValues, // 使用填充了默认值的 inputValues
+            },
+          };
+        }),
         edges: edges.map((edge) => ({
           id: edge.id,
           source: edge.source,
@@ -486,12 +504,29 @@ const Flow: React.FC = () => {
     try {
       const values = await editForm.validateFields();
       const flowDefinition = {
-        nodes: nodes.map((node) => ({
-          id: node.id,
-          type: node.type,
-          position: node.position,
-          data: node.data,
-        })),
+        nodes: nodes.map((node) => {
+          // 自动填充默认值：如果参数为空且有默认值，用默认值填充
+          const filledInputValues = { ...(node.data.inputValues || {}) };
+          if (node.data.inputs) {
+            Object.entries(node.data.inputs).forEach(([paramName, paramDef]: [string, any]) => {
+              const currentValue = filledInputValues[paramName];
+              if ((currentValue === undefined || currentValue === null || currentValue === '')
+                  && paramDef.defaultValue !== undefined && paramDef.defaultValue !== '') {
+                filledInputValues[paramName] = paramDef.defaultValue;
+              }
+            });
+          }
+
+          return {
+            id: node.id,
+            type: node.type,
+            position: node.position,
+            data: {
+              ...node.data,
+              inputValues: filledInputValues,
+            },
+          };
+        }),
         edges: edges.map((edge) => ({
           id: edge.id,
           source: edge.source,
@@ -534,12 +569,29 @@ const Flow: React.FC = () => {
     try {
       const values = await saveForm.validateFields();
       const flowDefinition = {
-        nodes: nodes.map((node) => ({
-          id: node.id,
-          type: node.type,
-          position: node.position,
-          data: node.data,
-        })),
+        nodes: nodes.map((node) => {
+          // 自动填充默认值：如果参数为空且有默认值，用默认值填充
+          const filledInputValues = { ...(node.data.inputValues || {}) };
+          if (node.data.inputs) {
+            Object.entries(node.data.inputs).forEach(([paramName, paramDef]: [string, any]) => {
+              const currentValue = filledInputValues[paramName];
+              if ((currentValue === undefined || currentValue === null || currentValue === '')
+                  && paramDef.defaultValue !== undefined && paramDef.defaultValue !== '') {
+                filledInputValues[paramName] = paramDef.defaultValue;
+              }
+            });
+          }
+
+          return {
+            id: node.id,
+            type: node.type,
+            position: node.position,
+            data: {
+              ...node.data,
+              inputValues: filledInputValues,
+            },
+          };
+        }),
         edges: edges.map((edge) => ({
           id: edge.id,
           source: edge.source,
