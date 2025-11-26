@@ -291,8 +291,8 @@ export function convertCodeToBlockly(
           prevItemBlock = itemBlock;
         });
 
-        if (firstItemBlock) {
-          const connection = firstItemBlock.previousConnection;
+        if (firstItemBlock !== null) {
+          const connection = (firstItemBlock as Blockly.Block).previousConnection;
           if (connection) {
             block.getInput('OUTPUTS')?.connection?.connect(connection);
           }

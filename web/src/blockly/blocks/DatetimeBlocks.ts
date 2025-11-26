@@ -18,7 +18,7 @@ export class ImportDatetimeBlock extends BlockDefinition {
     helpUrl: '',
   };
 
-  generator = (block: Blockly.Block): string => {
+  generator = (_block: Blockly.Block): string => {
     return 'from datetime import datetime\n';
   };
 }
@@ -39,7 +39,7 @@ export class ImportDateutilBlock extends BlockDefinition {
     helpUrl: '',
   };
 
-  generator = (block: Blockly.Block): string => {
+  generator = (_block: Blockly.Block): string => {
     return 'from dateutil import parser\n';
   };
 }
@@ -59,7 +59,7 @@ export class DatetimeNowBlock extends BlockDefinition {
     helpUrl: '',
   };
 
-  generator = (block: Blockly.Block): [string, number] => {
+  generator = (_block: Blockly.Block): [string, number] => {
     return ['datetime.now()', Order.FUNCTION_CALL];
   };
 }
@@ -232,7 +232,7 @@ export class ImportTimedeltaBlock extends BlockDefinition {
     helpUrl: '',
   };
 
-  generator = (block: Blockly.Block): string => {
+  generator = (_block: Blockly.Block): string => {
     return 'from datetime import timedelta\n';
   };
 }

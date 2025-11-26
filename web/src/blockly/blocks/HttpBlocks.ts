@@ -18,7 +18,7 @@ export class ImportRequestsBlock extends BlockDefinition {
     helpUrl: '',
   };
 
-  generator = (block: Blockly.Block): string => {
+  generator = (_block: Blockly.Block): string => {
     return 'import requests\n';
   };
 }
