@@ -90,6 +90,12 @@ export class ToolboxManager {
       colour: '#722ed1',
       order: 10,
     },
+    {
+      name: '🕐 日期时间',
+      categoryId: 'python_datetime',
+      colour: '#eb2f96',
+      order: 11,
+    },
   ];
 
   /**

@@ -20,10 +20,27 @@ export function convertCodeToBlockly(
   workspace.clear(); // 清空工作区
 
   // 解析代码并转换为块
-  const lines = code.split('\n').filter(line => {
-    const trimmed = line.trim();
-    return trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('def ');
-  });
+  const lines = code.split('\n')
+    .map(line => {
+      // 移除行尾注释
+      const commentIndex = line.indexOf('#');
+      if (commentIndex !== -1) {
+        // 检查 # 是否在字符串内
+        const beforeComment = line.substring(0, commentIndex);
+        const singleQuotes = (beforeComment.match(/'/g) || []).length;
+        const doubleQuotes = (beforeComment.match(/"/g) || []).length;
+
+        // 如果引号是成对的，说明 # 在字符串外，可以移除
+        if (singleQuotes % 2 === 0 && doubleQuotes % 2 === 0) {
+          return beforeComment;
+        }
+      }
+      return line;
+    })
+    .filter(line => {
+      const trimmed = line.trim();
+      return trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('def ');
+    });
 
   let convertedCount = 0;
   let skippedCount = 0;
@@ -39,6 +56,12 @@ export function convertCodeToBlockly(
 
     let block: Blockly.Block | null = null;
 
+    // 0. 编码声明: # -*- coding: utf-8 -*-
+    if (line.match(/^#\s*-\*-\s*coding:\s*utf-8\s*-\*-$/)) {
+      console.log('✅ 识别为编码声明');
+      block = workspace.newBlock('coding_declaration');
+      convertedCount++;
+    }
     // 1. 上下文变量：name = inputs.get('ctx.USER_NAME', '默认值')
     const ctxVarMatch = line.match(/^(\w+)\s*=\s*inputs\.get\s*\(\s*['"]ctx\.([^'"]+)['"]\s*(?:,\s*(.+))?\s*\)$/);
     if (ctxVarMatch) {
@@ -76,30 +99,36 @@ export function convertCodeToBlockly(
         // Create safe conversion block
         const safeBlock = workspace.newBlock(blockType);
 
-        // Create python_input_get block
+        // 从 inputs.get('a', '1') 或 int(inputs.get('a', '1'), 0) 提取默认值
+        // 优先使用转换函数的默认值（第二个参数），如果没有则使用 inputs.get 的默认值
+        let defaultValue = '0';
+
+        // 提取 inputs.get 的默认值
+        const inputsGetMatch = line.match(/inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*,\s*(['"]?)([^)'"]+)\2\s*\)/);
+        if (inputsGetMatch && inputsGetMatch[3]) {
+          defaultValue = inputsGetMatch[3].trim();
+        }
+
+        // 如果有转换函数的第二个参数，优先使用它
+        if (match[4]) {
+          defaultValue = match[4].trim();
+        }
+
+        // 设置 safe_int/float/bool 的默认值
+        if (blockType === 'safe_bool') {
+          // bool 类型：True 或 False
+          const boolValue = defaultValue.toLowerCase() === 'true' || defaultValue === '1' ? 'True' : 'False';
+          safeBlock.setFieldValue(boolValue, 'DEFAULT');
+        } else {
+          // int/float 类型：数字
+          safeBlock.setFieldValue(defaultValue, 'DEFAULT');
+        }
+
+        // Create python_input_get block (不设置默认值，让 safe_int 来处理)
         const inputGetBlock = workspace.newBlock('python_input_get');
         const paramNameBlock = workspace.newBlock('text');
         paramNameBlock.setFieldValue(match[3], 'TEXT');
         inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
-
-        // 处理默认值（如果有）
-        // 从 inputs.get('a', '1') 中提取默认值 '1'
-        const inputsGetMatch = line.match(/inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*,\s*(['"]?)([^)'"]+)\2\s*\)/);
-        if (inputsGetMatch && inputsGetMatch[3]) {
-          const defaultVal = inputsGetMatch[3];
-          const defaultBlock = /^\d+$/.test(defaultVal)
-            ? workspace.newBlock('math_number')
-            : workspace.newBlock('text');
-
-          if (defaultBlock.type === 'math_number') {
-            defaultBlock.setFieldValue(defaultVal, 'NUM');
-          } else {
-            defaultBlock.setFieldValue(defaultVal, 'TEXT');
-          }
-          inputGetBlock.getInput('DEFAULT_VALUE')?.connection?.connect(defaultBlock.outputConnection!);
-          defaultBlock.initSvg();
-          defaultBlock.render();
-        }
 
         // Connect input_get to safe conversion
         safeBlock.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
@@ -328,7 +357,122 @@ export function convertCodeToBlockly(
         convertedCount++;
       }
     }
-    // 10. For 循环
+    // 10. from xxx import yyy
+    else if (line.match(/^from\s+\S+\s+import\s+/)) {
+      const match = line.match(/^from\s+(\S+)\s+import\s+(.+)$/);
+      if (match) {
+        console.log('✅ 识别为 from import');
+        block = workspace.newBlock('from_import');
+        block.setFieldValue(match[1], 'MODULE');
+        block.setFieldValue(match[2], 'NAMES');
+        convertedCount++;
+      }
+    }
+    // 11. import xxx (通用 import)
+    else if (line.match(/^import\s+\w+$/)) {
+      const match = line.match(/^import\s+(\w+)$/);
+      if (match) {
+        console.log(`✅ 识别为 import ${match[1]}`);
+
+        // 特殊处理：requests
+        if (match[1] === 'requests') {
+          block = workspace.newBlock('import_requests');
+        } else {
+          // 通用 import 块
+          block = workspace.newBlock('import_module');
+          block.setFieldValue(match[1], 'MODULE');
+        }
+        convertedCount++;
+      }
+    }
+    // 12. r = requests.get(url) / requests.post(url)
+    else if (line.match(/^(\w+)\s*=\s*requests\.(get|post|put|delete)\s*\(/)) {
+      const match = line.match(/^(\w+)\s*=\s*requests\.(get|post|put|delete)\s*\(\s*['"]([^'"]+)['"]\s*\)$/);
+      if (match) {
+        console.log(`✅ 识别为 requests.${match[2]}(...)`);
+        block = workspace.newBlock('variable_assign');
+        block.setFieldValue(match[1], 'VAR');
+
+        const requestBlock = workspace.newBlock(`requests_${match[2]}`);
+        const urlBlock = workspace.newBlock('text');
+        urlBlock.setFieldValue(match[3], 'TEXT');
+        requestBlock.getInput('URL')?.connection?.connect(urlBlock.outputConnection!);
+
+        block.getInput('VALUE')?.connection?.connect(requestBlock.outputConnection!);
+
+        urlBlock.initSvg();
+        urlBlock.render();
+        requestBlock.initSvg();
+        requestBlock.render();
+        convertedCount++;
+      }
+    }
+    // 13. print('label:', value) - 带标签的打印
+    else if (line.match(/^print\s*\(\s*['"]([^'"]+:)['"]\s*,\s*(\w+[\w\.]*(?:\[:[^\]]*\])?)\s*\)$/)) {
+      const match = line.match(/^print\s*\(\s*['"]([^'"]+:)['"]\s*,\s*(\w+[\w\.]*(?:\[:[^\]]*\])?)\s*\)$/);
+      if (match) {
+        console.log('✅ 识别为 print(label:, value)');
+        block = workspace.newBlock('print_with_label');
+        block.setFieldValue(match[1], 'LABEL');
+
+        // 解析 value：可能是变量、属性访问或切片
+        const value = match[2];
+        let valueBlock: Blockly.Block;
+
+        // 如果包含切片 [:n]
+        if (value.match(/(\w+(?:\.\w+)*)\[:(\d+)\]$/)) {
+          const sliceMatch = value.match(/(\w+(?:\.\w+)*)\[:(\d+)\]$/);
+          if (sliceMatch) {
+            // 创建字符串切片块
+            valueBlock = workspace.newBlock('string_slice');
+
+            // 创建源变量/属性块
+            const source = sliceMatch[1];
+            let sourceBlock: Blockly.Block;
+            if (source.includes('.')) {
+              // 属性访问
+              sourceBlock = createPropertyAccessChain(workspace, source);
+            } else {
+              // 简单变量
+              sourceBlock = workspace.newBlock('variables_get');
+              sourceBlock.setFieldValue(source, 'VAR');
+            }
+
+            // 连接源到切片块
+            valueBlock.getInput('STRING')?.connection?.connect(sourceBlock.outputConnection!);
+
+            // 设置结束索引
+            const endBlock = workspace.newBlock('math_number');
+            endBlock.setFieldValue(sliceMatch[2], 'NUM');
+            valueBlock.getInput('END')?.connection?.connect(endBlock.outputConnection!);
+
+            sourceBlock.initSvg();
+            sourceBlock.render();
+            endBlock.initSvg();
+            endBlock.render();
+          } else {
+            valueBlock = workspace.newBlock('variables_get');
+            valueBlock.setFieldValue(value, 'VAR');
+          }
+        }
+        // 如果包含属性访问
+        else if (value.includes('.')) {
+          valueBlock = createPropertyAccessChain(workspace, value);
+        }
+        // 简单变量
+        else {
+          valueBlock = workspace.newBlock('variables_get');
+          valueBlock.setFieldValue(value, 'VAR');
+        }
+
+        block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
+
+        valueBlock.initSvg();
+        valueBlock.render();
+        convertedCount++;
+      }
+    }
+    // 14. For 循环
     else if (line.match(/^for\s+\w+\s+in\s+range\((\d+)\):\s*$/)) {
       const match = line.match(/^for\s+(\w+)\s+in\s+range\((\d+)\):\s*$/);
       if (match) {
@@ -374,4 +518,87 @@ export function convertCodeToBlockly(
     skippedCount,
     skippedLines,
   };
+}
+
+/**
+ * 创建属性访问链 (如 r.status_code 或 r.headers.get('xxx'))
+ */
+function createPropertyAccessChain(workspace: Blockly.WorkspaceSvg, expression: string): Blockly.Block {
+  // 解析属性访问链，例如：r.status_code, r.headers.get('Content-Type')
+
+  // 检查是否包含方法调用
+  const methodMatch = expression.match(/^(\w+(?:\.\w+)*)\.(\w+)\((.*)\)$/);
+  if (methodMatch) {
+    // 创建对象方法调用块
+    const methodBlock = workspace.newBlock('object_method_call');
+
+    // 设置方法名
+    methodBlock.setFieldValue(methodMatch[2], 'METHOD');
+
+    // 创建对象部分（可能是嵌套的属性访问）
+    const objectPart = methodMatch[1];
+    let objectBlock: Blockly.Block;
+    if (objectPart.includes('.')) {
+      // 递归处理嵌套属性
+      objectBlock = createPropertyAccessChain(workspace, objectPart);
+    } else {
+      // 简单变量
+      objectBlock = workspace.newBlock('variables_get');
+      objectBlock.setFieldValue(objectPart, 'VAR');
+    }
+    methodBlock.getInput('OBJECT')?.connection?.connect(objectBlock.outputConnection!);
+
+    // 处理参数
+    const args = methodMatch[3].trim();
+    if (args) {
+      // 简单处理：只支持单个字符串参数
+      const argMatch = args.match(/^['"]([^'"]+)['"]$/);
+      if (argMatch) {
+        const argBlock = workspace.newBlock('text');
+        argBlock.setFieldValue(argMatch[1], 'TEXT');
+        methodBlock.getInput('ARGS')?.connection?.connect(argBlock.outputConnection!);
+        argBlock.initSvg();
+        argBlock.render();
+      }
+    }
+
+    objectBlock.initSvg();
+    objectBlock.render();
+
+    return methodBlock;
+  }
+
+  // 简单属性访问（如 r.status_code）
+  const parts = expression.split('.');
+  if (parts.length === 2) {
+    const propertyBlock = workspace.newBlock('object_property');
+    propertyBlock.setFieldValue(parts[1], 'PROPERTY');
+
+    const varBlock = workspace.newBlock('variables_get');
+    varBlock.setFieldValue(parts[0], 'VAR');
+    propertyBlock.getInput('OBJECT')?.connection?.connect(varBlock.outputConnection!);
+
+    varBlock.initSvg();
+    varBlock.render();
+
+    return propertyBlock;
+  }
+
+  // 嵌套属性访问（如 r.headers.xxx）
+  const firstVar = parts[0];
+  let currentBlock: Blockly.Block = workspace.newBlock('variables_get');
+  currentBlock.setFieldValue(firstVar, 'VAR');
+
+  for (let i = 1; i < parts.length; i++) {
+    const propertyBlock = workspace.newBlock('object_property');
+    propertyBlock.setFieldValue(parts[i], 'PROPERTY');
+    propertyBlock.getInput('OBJECT')?.connection?.connect(currentBlock.outputConnection!);
+
+    currentBlock.initSvg();
+    currentBlock.render();
+
+    currentBlock = propertyBlock;
+  }
+
+  return currentBlock;
 }

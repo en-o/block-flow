@@ -35,6 +35,39 @@ import {
   LogicNotBlock,
   NumberConstantBlock,
   IncrementBlock,
+  // 类型转换块
+  IntConversionBlock,
+  FloatConversionBlock,
+  StrConversionBlock,
+  BoolConversionBlock,
+  ListConversionBlock,
+  DictConversionBlock,
+  // HTTP请求块
+  ImportRequestsBlock,
+  RequestsGetBlock,
+  RequestsPostBlock,
+  RequestsPutBlock,
+  RequestsDeleteBlock,
+  ObjectPropertyBlock,
+  ObjectMethodCallBlock,
+  StringSliceBlock,
+  PrintWithLabelBlock,
+  // 工具块
+  CodingDeclarationBlock,
+  CommentBlock,
+  ImportBlock,
+  FromImportBlock,
+  // 日期时间块
+  ImportDatetimeBlock,
+  ImportDateutilBlock,
+  DatetimeNowBlock,
+  ParserParseBlock,
+  DatetimeStrptimeBlock,
+  DatetimeStrftimeBlock,
+  TimedeltaBlock,
+  ImportTimedeltaBlock,
+  DatetimeAttributeBlock,
+  DateFormatBlock,
 } from './blocks';
 
 /**
@@ -95,6 +128,51 @@ export class BlocklyInitializer {
       new LogicNotBlock(),
       new NumberConstantBlock(),
       new IncrementBlock(),
+    ]);
+
+    // 注册类型转换块
+    BlockRegistry.registerBlocks([
+      new IntConversionBlock(),
+      new FloatConversionBlock(),
+      new StrConversionBlock(),
+      new BoolConversionBlock(),
+      new ListConversionBlock(),
+      new DictConversionBlock(),
+    ]);
+
+    // 注册HTTP请求块
+    BlockRegistry.registerBlocks([
+      new ImportRequestsBlock(),
+      new RequestsGetBlock(),
+      new RequestsPostBlock(),
+      new RequestsPutBlock(),
+      new RequestsDeleteBlock(),
+      new ObjectPropertyBlock(),
+      new ObjectMethodCallBlock(),
+      new StringSliceBlock(),
+      new PrintWithLabelBlock(),
+    ]);
+
+    // 注册工具块
+    BlockRegistry.registerBlocks([
+      new CodingDeclarationBlock(),
+      new CommentBlock(),
+      new ImportBlock(),
+      new FromImportBlock(),
+    ]);
+
+    // 注册日期时间块
+    BlockRegistry.registerBlocks([
+      new ImportDatetimeBlock(),
+      new ImportDateutilBlock(),
+      new DatetimeNowBlock(),
+      new ParserParseBlock(),
+      new DatetimeStrptimeBlock(),
+      new DatetimeStrftimeBlock(),
+      new TimedeltaBlock(),
+      new ImportTimedeltaBlock(),
+      new DatetimeAttributeBlock(),
+      new DateFormatBlock(),
     ]);
 
     // 注册额外的自定义块
