@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,6 +25,16 @@ public class ProgressLogService {
      * value: SseEmitter
      */
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+
+    /**
+     * 缓存未发送的消息（当SSE连接未建立时）
+     */
+    private final Map<String, List<CachedMessage>> messageCache = new ConcurrentHashMap<>();
+
+    /**
+     * 缓存的消息
+     */
+    private record CachedMessage(String type, Object data) {}
 
     /**
      * 创建SSE连接
@@ -48,16 +60,19 @@ public class ProgressLogService {
         emitter.onCompletion(() -> {
             log.info("SSE连接完成，taskId: {}", taskId);
             emitters.remove(taskId);
+            messageCache.remove(taskId);
         });
 
         emitter.onTimeout(() -> {
             log.warn("SSE连接超时，taskId: {}", taskId);
             emitters.remove(taskId);
+            messageCache.remove(taskId);
         });
 
         emitter.onError((e) -> {
             log.error("SSE连接错误，taskId: {}, error: {}", taskId, e.getMessage());
             emitters.remove(taskId);
+            messageCache.remove(taskId);
         });
 
         emitters.put(taskId, emitter);
@@ -68,6 +83,22 @@ public class ProgressLogService {
                     .name("connected")
                     .data("SSE连接已建立"));
             log.info("SSE连接建立成功，taskId: {}", taskId);
+
+            // 发送缓存的消息
+            List<CachedMessage> cached = messageCache.remove(taskId);
+            if (cached != null && !cached.isEmpty()) {
+                log.info("发送 {} 条缓存消息，taskId: {}", cached.size(), taskId);
+                for (CachedMessage msg : cached) {
+                    try {
+                        emitter.send(SseEmitter.event()
+                                .name(msg.type)
+                                .data(msg.data));
+                    } catch (IOException ex) {
+                        log.error("发送缓存消息失败，taskId: {}", taskId, ex);
+                        break;
+                    }
+                }
+            }
         } catch (IOException e) {
             log.error("发送SSE初始化消息失败，taskId: {}", taskId, e);
             emitters.remove(taskId);
@@ -91,7 +122,15 @@ public class ProgressLogService {
                 emitters.remove(taskId);
             }
         } else {
-            log.warn("未找到SSE连接，taskId: {}, 无法发送日志: {}", taskId, message);
+            // 缓存消息（最多缓存50条）
+            messageCache.computeIfAbsent(taskId, k -> new ArrayList<>());
+            List<CachedMessage> cache = messageCache.get(taskId);
+            if (cache.size() < 50) {
+                cache.add(new CachedMessage("log", message));
+                log.debug("缓存日志消息，taskId: {}, 当前缓存: {} 条", taskId, cache.size());
+            } else {
+                log.warn("消息缓存已满，taskId: {}, 丢弃日志: {}", taskId, message);
+            }
         }
     }
 
@@ -114,7 +153,13 @@ public class ProgressLogService {
                 emitters.remove(taskId);
             }
         } else {
-            log.warn("未找到SSE连接，taskId: {}, 无法发送进度: {}%", taskId, progress);
+            // 缓存消息
+            messageCache.computeIfAbsent(taskId, k -> new ArrayList<>());
+            List<CachedMessage> cache = messageCache.get(taskId);
+            if (cache.size() < 50) {
+                cache.add(new CachedMessage("progress", Map.of("progress", progress, "message", message)));
+                log.debug("缓存进度消息，taskId: {}, 进度: {}%", taskId, progress);
+            }
         }
     }
 

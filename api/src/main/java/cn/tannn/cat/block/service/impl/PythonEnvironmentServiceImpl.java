@@ -1313,7 +1313,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 等待SSE连接建立（避免消息丢失）
         try {
-            Thread.sleep(500);
+            Thread.sleep(1000);  // 增加到1秒，确保SSE连接完全建立
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

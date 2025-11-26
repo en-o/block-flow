@@ -1056,8 +1056,13 @@ const PythonEnvironments: React.FC = () => {
     });
 
     eventSource.onerror = () => {
+      console.error('SSE连接失败');
+      setInstallLogs(prev => [...prev, '⚠ 实时进度连接失败，上传继续进行（请查看后台日志）']);
       eventSource.close();
     };
+
+    // 等待SSE连接建立
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
       const response = await pythonEnvApi.uploadPythonRuntime(selectedEnv.id, file);
