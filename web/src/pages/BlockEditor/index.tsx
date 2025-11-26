@@ -26,6 +26,7 @@ import { pythonEnvApi } from '../../api/pythonEnv';
 import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO, PythonEnvironment } from '../../types/api';
 import { initCustomBlocks } from '../../utils/blocklyCustomBlocks';
 import { getBlocklyToolbox } from '../../blockly';
+import { convertCodeToBlockly } from '../../utils/codeToBlocklyConverter';
 import './index.css';
 
 const BlockEditor: React.FC = () => {
@@ -614,9 +615,9 @@ outputs = {
     }
   };
 
-  // 尝试将Python代码转换为Blockly块（实验性功能）
+  // 尝试将Python代码转换为Blockly块（使用增强型转换器）
   const handleConvertCodeToBlockly = () => {
-    console.log('🧪 开始尝试转换Python代码到Blockly');
+    console.log('🧪 开始尝试转换Python代码到Blockly (使用增强型转换器)');
     console.log('当前代码:', scriptCode);
 
     try {
@@ -627,217 +628,35 @@ outputs = {
       }
 
       const workspace = workspaceRef.current;
-      workspace.clear(); // 清空工作区
 
-      // 解析代码并转换为块
-      const lines = scriptCode.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
-      let convertedCount = 0;
-      let skippedCount = 0;
-      let yPosition = 50; // 初始Y坐标
+      // 使用增强型转换器进行转换
+      const result = convertCodeToBlockly(workspace, scriptCode);
 
-      console.log('📝 准备转换', lines.length, '行代码');
+      console.log(`🎉 转换完成: ${result.convertedCount} 成功, ${result.skippedCount} 跳过`);
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        console.log(`处理第 ${i + 1} 行:`, line);
-
-        let block = null;
-
-        // 1. inputs.get() with safe_int/int conversion: a = safe_int(inputs.get('a'), 0)
-        const safeIntInputMatch = line.match(/^(\w+)\s*=\s*(?:safe_int|int)\s*\(\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*[^)]+)?\s*\)\s*(?:,\s*([^)]+))?\s*\)$/);
-        if (safeIntInputMatch) {
-          console.log('✅ 识别为 safe_int/int(inputs.get(...))');
-          block = workspace.newBlock('variables_set');
-          block.setFieldValue(safeIntInputMatch[1], 'VAR');
-
-          // Create safe_int block
-          const safeIntBlock = workspace.newBlock('safe_int');
-
-          // Create python_input_get block
-          const inputGetBlock = workspace.newBlock('python_input_get');
-          const paramNameBlock = workspace.newBlock('text');
-          paramNameBlock.setFieldValue(safeIntInputMatch[2], 'TEXT');
-          inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
-
-          // Connect input_get to safe_int
-          safeIntBlock.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
-
-          // Connect safe_int to variable
-          block.getInput('VALUE')?.connection?.connect(safeIntBlock.outputConnection!);
-
-          paramNameBlock.initSvg();
-          paramNameBlock.render();
-          inputGetBlock.initSvg();
-          inputGetBlock.render();
-          safeIntBlock.initSvg();
-          safeIntBlock.render();
-          convertedCount++;
+      if (result.convertedCount > 0) {
+        message.success(
+          `转换完成：成功 ${result.convertedCount} 条语句${
+            result.skippedCount > 0 ? `，跳过 ${result.skippedCount} 条` : ''
+          }`
+        );
+        if (result.skippedCount > 0) {
+          message.warning(
+            `部分语句无法转换，请手动添加或调整。${
+              result.skippedLines.length > 0
+                ? `\n跳过的语句:\n${result.skippedLines.slice(0, 3).join('\n')}${
+                    result.skippedLines.length > 3 ? '\n...' : ''
+                  }`
+                : ''
+            }`,
+            5
+          );
         }
-        // 2. Simple inputs.get(): variable = inputs.get('param', 'default')
-        else if (line.match(/^(\w+)\s*=\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)$/)) {
-          const match = line.match(/^(\w+)\s*=\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)$/);
-          if (match) {
-            console.log('✅ 识别为 inputs.get(...)');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-
-            const inputGetBlock = workspace.newBlock('python_input_get');
-            const paramNameBlock = workspace.newBlock('text');
-            paramNameBlock.setFieldValue(match[2], 'TEXT');
-            inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
-
-            block.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
-
-            paramNameBlock.initSvg();
-            paramNameBlock.render();
-            inputGetBlock.initSvg();
-            inputGetBlock.render();
-            convertedCount++;
-          }
-        }
-        // 3. Math operations: result = a + b, result = a * b, etc.
-        else if (line.match(/^(\w+)\s*=\s*(\w+)\s*([\+\-\*\/])\s*(\w+)$/)) {
-          const match = line.match(/^(\w+)\s*=\s*(\w+)\s*([\+\-\*\/])\s*(\w+)$/);
-          if (match) {
-            const opMap: Record<string, string> = { '+': 'ADD', '-': 'MINUS', '*': 'MULTIPLY', '/': 'DIVIDE' };
-            console.log(`✅ 识别为数学运算 (${match[3]})`);
-
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-
-            const mathBlock = workspace.newBlock('math_arithmetic');
-            mathBlock.setFieldValue(opMap[match[3]], 'OP');
-
-            // Create variable blocks for operands
-            const varA = workspace.newBlock('variables_get');
-            varA.setFieldValue(match[2], 'VAR');
-            const varB = workspace.newBlock('variables_get');
-            varB.setFieldValue(match[4], 'VAR');
-
-            mathBlock.getInput('A')?.connection?.connect(varA.outputConnection!);
-            mathBlock.getInput('B')?.connection?.connect(varB.outputConnection!);
-            block.getInput('VALUE')?.connection?.connect(mathBlock.outputConnection!);
-
-            varA.initSvg();
-            varA.render();
-            varB.initSvg();
-            varB.render();
-            mathBlock.initSvg();
-            mathBlock.render();
-            convertedCount++;
-          }
-        }
-        // 4. Dictionary creation: outputs = { "key": value, ... }
-        else if (line.match(/^(\w+)\s*=\s*\{[^}]*\}$/)) {
-          const match = line.match(/^(\w+)\s*=\s*\{/);
-          if (match) {
-            console.log('✅ 识别为字典创建');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-
-            const dictBlock = workspace.newBlock('dict_create');
-            block.getInput('VALUE')?.connection?.connect(dictBlock.outputConnection!);
-
-            dictBlock.initSvg();
-            dictBlock.render();
-            convertedCount++;
-          }
-        }
-        // 5. Multi-argument print with f-string or concatenation (simplified)
-        else if (line.match(/^print\s*\([^)]+\)$/)) {
-          console.log('✅ 识别为 print 语句（多参数或复杂）');
-          block = workspace.newBlock('python_print');
-
-          // Extract content between print( and )
-          const content = line.match(/^print\s*\((.+)\)$/)?.[1];
-          if (content) {
-            // Create a text block with the content (simplified)
-            const textBlock = workspace.newBlock('text');
-            // Remove quotes if it's a simple string
-            const cleanContent = content.replace(/^['"]|['"]$/g, '');
-            textBlock.setFieldValue(cleanContent, 'TEXT');
-            block.getInput('TEXT')?.connection?.connect(textBlock.outputConnection!);
-            textBlock.initSvg();
-            textBlock.render();
-          }
-          convertedCount++;
-        }
-        // 6. 匹配变量赋值（字符串）
-        else if (line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/)) {
-          const match = line.match(/^(\w+)\s*=\s*['"](.+?)['"]$/);
-          if (match) {
-            console.log('✅ 识别为字符串变量赋值');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-            const valueBlock = workspace.newBlock('text');
-            valueBlock.setFieldValue(match[2], 'TEXT');
-            block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
-            valueBlock.initSvg();
-            valueBlock.render();
-            convertedCount++;
-          }
-        }
-        // 7. 匹配变量赋值（数字）
-        else if (line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/)) {
-          const match = line.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/);
-          if (match) {
-            console.log('✅ 识别为数字变量赋值');
-            block = workspace.newBlock('variables_set');
-            block.setFieldValue(match[1], 'VAR');
-            const valueBlock = workspace.newBlock('math_number');
-            valueBlock.setFieldValue(match[2], 'NUM');
-            block.getInput('VALUE')?.connection?.connect(valueBlock.outputConnection!);
-            valueBlock.initSvg();
-            valueBlock.render();
-            convertedCount++;
-          }
-        }
-        // 8. 匹配简单的if语句（仅识别开始）
-        else if (line.match(/^if\s+.+:\s*$/)) {
-          console.log('⚠️ 识别为 if 语句（但转换有限）');
-          skippedCount++;
-          console.log('  提示：if语句转换功能有限，建议手动构建');
-        }
-        // 9. 匹配简单的for循环
-        else if (line.match(/^for\s+\w+\s+in\s+range\((\d+)\):\s*$/)) {
-          const match = line.match(/^for\s+(\w+)\s+in\s+range\((\d+)\):\s*$/);
-          if (match) {
-            console.log('✅ 识别为 for 循环');
-            block = workspace.newBlock('controls_repeat_ext');
-            const timesBlock = workspace.newBlock('math_number');
-            timesBlock.setFieldValue(match[2], 'NUM');
-            block.getInput('TIMES')?.connection?.connect(timesBlock.outputConnection!);
-            timesBlock.initSvg();
-            timesBlock.render();
-            convertedCount++;
-          }
-        }
-        // 无法识别的语句
-        else {
-          console.log('❌ 无法转换此行代码');
-          skippedCount++;
-        }
-
-        // 如果成功创建了块，初始化并放置
-        if (block) {
-          block.initSvg();
-          block.render();
-          block.moveBy(50, yPosition);
-          yPosition += 80; // 下一个块的Y坐标
-        }
-      }
-
-      console.log(`🎉 转换完成: ${convertedCount} 成功, ${skippedCount} 跳过`);
-
-      if (convertedCount > 0) {
-        message.success(`转换完成：成功 ${convertedCount} 条语句${skippedCount > 0 ? `，跳过 ${skippedCount} 条` : ''}`);
-        if (skippedCount > 0) {
-          message.warning('部分语句无法转换，请手动添加或调整', 5);
-        }
-      } else if (skippedCount > 0) {
+      } else if (result.skippedCount > 0) {
         message.warning('未能转换任何语句，代码可能过于复杂。你可以手动添加可视化块。', 6);
+      } else {
+        message.info('代码为空或没有可转换的语句');
       }
-
     } catch (error) {
       console.error('❌ 转换失败:', error);
       message.error('代码转换失败，但你可以手动添加可视化块');

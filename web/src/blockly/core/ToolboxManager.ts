@@ -27,99 +27,68 @@ export class ToolboxManager {
 
   /**
    * 默认分类配置
+   * 已优化：去除重复分类，更清晰的Python专用结构
    */
   private static defaultCategories: ToolboxCategory[] = [
     {
-      name: 'Python输入/输出',
+      name: '📥 Python基础',
       categoryId: 'python_io',
       colour: '#1890ff',
       order: 1,
     },
     {
-      name: '计算与变量',
+      name: '🔢 变量与赋值',
       categoryId: 'python_calculation',
       colour: '#ff7a45',
       order: 2,
     },
     {
-      name: '文件操作',
-      categoryId: 'python_file',
-      colour: '#13c2c2',
+      name: '➕ 数学运算',
+      categoryId: 'math',
+      colour: '#FA8C16',
       order: 3,
     },
     {
-      name: 'HTTP请求',
-      categoryId: 'python_http',
-      colour: '#fa8c16',
+      name: '🔀 逻辑控制',
+      categoryId: 'logic',
+      colour: '#5C7CFA',
       order: 4,
     },
     {
-      name: 'JSON操作',
-      categoryId: 'python_json',
-      colour: '#722ed1',
+      name: '🔁 循环迭代',
+      categoryId: 'loops',
+      colour: '#52C41A',
       order: 5,
     },
     {
-      name: '数据结构',
-      categoryId: 'python_data',
-      colour: '#52c41a',
+      name: '📝 文本处理',
+      categoryId: 'text',
+      colour: '#722ED1',
       order: 6,
     },
     {
-      name: '字符串操作',
-      categoryId: 'python_string',
-      colour: '#eb2f96',
+      name: '📦 列表/字典',
+      categoryId: 'python_data',
+      colour: '#52c41a',
       order: 7,
     },
     {
-      name: '控制流',
-      categoryId: 'python_control',
-      colour: '#5c7cfa',
+      name: '📁 文件操作',
+      categoryId: 'python_file',
+      colour: '#13c2c2',
       order: 8,
     },
     {
-      name: '逻辑',
-      categoryId: 'logic',
-      colour: '#5C7CFA',
+      name: '🌐 HTTP请求',
+      categoryId: 'python_http',
+      colour: '#fa8c16',
+      order: 9,
+    },
+    {
+      name: '{ } JSON操作',
+      categoryId: 'python_json',
+      colour: '#722ed1',
       order: 10,
-    },
-    {
-      name: '循环',
-      categoryId: 'loops',
-      colour: '#52C41A',
-      order: 11,
-    },
-    {
-      name: '数学',
-      categoryId: 'math',
-      colour: '#FA8C16',
-      order: 12,
-    },
-    {
-      name: '文本',
-      categoryId: 'text',
-      colour: '#722ED1',
-      order: 13,
-    },
-    {
-      name: '列表',
-      categoryId: 'lists',
-      colour: '#52C41A',
-      order: 14,
-    },
-    {
-      name: '变量',
-      categoryId: 'variables',
-      colour: '#A0522D',
-      custom: 'VARIABLE',
-      order: 20,
-    },
-    {
-      name: '函数',
-      categoryId: 'procedures',
-      colour: '#9966FF',
-      custom: 'PROCEDURE',
-      order: 21,
     },
   ];
 
@@ -237,14 +206,16 @@ export class ToolboxManager {
 
   /**
    * 判断是否为Blockly内置分类
+   * 只保留核心的内置分类，其他使用自定义块
    */
   private static isBuiltInCategory(categoryId: string): boolean {
-    const builtInCategories = ['logic', 'loops', 'math', 'text', 'lists'];
+    const builtInCategories = ['logic', 'loops', 'math', 'text'];
     return builtInCategories.includes(categoryId);
   }
 
   /**
    * 获取Blockly内置分类的块定义
+   * 针对Python优化：只提供最常用的块
    */
   private static getBuiltInCategoryBlocks(categoryId: string): any[] {
     const blockDefinitions: Record<string, any[]> = {
@@ -255,7 +226,6 @@ export class ToolboxManager {
         { kind: 'block', type: 'logic_negate' },
         { kind: 'block', type: 'logic_boolean' },
         { kind: 'block', type: 'logic_null' },
-        { kind: 'block', type: 'logic_ternary' },
       ],
       loops: [
         { kind: 'block', type: 'controls_repeat_ext' },
@@ -268,20 +238,14 @@ export class ToolboxManager {
         { kind: 'block', type: 'math_number' },
         { kind: 'block', type: 'math_arithmetic' },
         { kind: 'block', type: 'math_single' },
-        { kind: 'block', type: 'math_trig' },
-        { kind: 'block', type: 'math_constant' },
-        { kind: 'block', type: 'math_number_property' },
         { kind: 'block', type: 'math_round' },
-        { kind: 'block', type: 'math_on_list' },
         { kind: 'block', type: 'math_modulo' },
-        { kind: 'block', type: 'math_constrain' },
         { kind: 'block', type: 'math_random_int' },
         { kind: 'block', type: 'math_random_float' },
       ],
       text: [
         { kind: 'block', type: 'text' },
         { kind: 'block', type: 'text_join' },
-        { kind: 'block', type: 'text_append' },
         { kind: 'block', type: 'text_length' },
         { kind: 'block', type: 'text_isEmpty' },
         { kind: 'block', type: 'text_indexOf' },
@@ -289,20 +253,6 @@ export class ToolboxManager {
         { kind: 'block', type: 'text_getSubstring' },
         { kind: 'block', type: 'text_changeCase' },
         { kind: 'block', type: 'text_trim' },
-        { kind: 'block', type: 'text_print' },
-      ],
-      lists: [
-        { kind: 'block', type: 'lists_create_with' },
-        { kind: 'block', type: 'lists_create_empty' },
-        { kind: 'block', type: 'lists_repeat' },
-        { kind: 'block', type: 'lists_length' },
-        { kind: 'block', type: 'lists_isEmpty' },
-        { kind: 'block', type: 'lists_indexOf' },
-        { kind: 'block', type: 'lists_getIndex' },
-        { kind: 'block', type: 'lists_setIndex' },
-        { kind: 'block', type: 'lists_getSublist' },
-        { kind: 'block', type: 'lists_split' },
-        { kind: 'block', type: 'lists_sort' },
       ],
     };
 
