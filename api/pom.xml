@@ -118,8 +118,8 @@
                 <version>1.15.0</version>
                 <configuration>
                     <workingDirectory>${frontend.project.dir}</workingDirectory>
-                    <nodeVersion>v20.11.0</nodeVersion>
-                    <npmVersion>10.2.4</npmVersion>
+                    <nodeVersion>v20.19.2</nodeVersion>
+                    <npmVersion>10.8.2</npmVersion>
                     <skip>${skip.frontend.build}</skip>
                 </configuration>
                 <executions>
