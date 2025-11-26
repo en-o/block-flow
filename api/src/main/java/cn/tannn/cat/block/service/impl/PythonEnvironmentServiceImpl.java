@@ -431,46 +431,240 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     public PythonEnvironment importRequirements(Integer id, String requirementsText) {
         PythonEnvironment environment = getById(id);
 
-        JSONObject packages = environment.getPackages();
-        if (packages == null) {
-            packages = new JSONObject();
+        // 生成任务ID用于SSE推送
+        String taskId = "import-requirements-" + id;
+
+        // 检查环境是否已初始化并配置了Python
+        if (environment.getPythonExecutable() == null || environment.getPythonExecutable().isEmpty()) {
+            throw new ServiceException(500, "未配置Python解释器路径，无法安装包");
         }
+
+        if (environment.getSitePackagesPath() == null || environment.getSitePackagesPath().isEmpty()) {
+            throw new ServiceException(500, "未配置site-packages路径，无法安装包");
+        }
+
+        // 检查pip是否可用
+        if (!checkPipAvailable(environment.getPythonExecutable())) {
+            throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
+        }
+
+        log.info("========================================");
+        log.info("开始批量安装requirements.txt中的包");
+        log.info("========================================");
+        log.info("环境ID: {}", id);
+        log.info("环境名称: {}", environment.getName());
+
+        progressLogService.sendLog(taskId, "========================================");
+        progressLogService.sendLog(taskId, "开始批量安装requirements.txt中的包");
+        progressLogService.sendLog(taskId, "========================================");
 
         // 解析requirements.txt格式
         String[] lines = requirementsText.split("\n");
+        List<String> packagesToInstall = new ArrayList<>();
+
         for (String line : lines) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#")) {
                 continue;
             }
-
-            String packageName;
-            String version = "";
-
-            if (line.contains("==")) {
-                String[] parts = line.split("==");
-                packageName = parts[0].trim();
-                version = parts.length > 1 ? parts[1].trim() : "";
-            } else if (line.contains(">=")) {
-                String[] parts = line.split(">=");
-                packageName = parts[0].trim();
-                version = parts.length > 1 ? ">=" + parts[1].trim() : "";
-            } else if (line.contains("<=")) {
-                String[] parts = line.split("<=");
-                packageName = parts[0].trim();
-                version = parts.length > 1 ? "<=" + parts[1].trim() : "";
-            } else {
-                packageName = line;
-            }
-
-            JSONObject packageInfo = new JSONObject();
-            packageInfo.put("name", packageName);
-            packageInfo.put("version", version);
-            packages.put(packageName, packageInfo);
+            packagesToInstall.add(line);
         }
 
-        environment.setPackages(packages);
-        return pythonEnvironmentRepository.save(environment);
+        if (packagesToInstall.isEmpty()) {
+            throw new ServiceException(400, "requirements.txt内容为空，没有需要安装的包");
+        }
+
+        log.info("待安装包数量: {}", packagesToInstall.size());
+        log.info("包列表: {}", packagesToInstall);
+
+        progressLogService.sendLog(taskId, "待安装包数量: " + packagesToInstall.size());
+        progressLogService.sendLog(taskId, "包列表: " + String.join(", ", packagesToInstall));
+        progressLogService.sendProgress(taskId, 10, "准备安装...");
+
+        // 创建临时requirements.txt文件
+        String tempRequirementsPath = null;
+        try {
+            // 在环境目录创建临时文件
+            String envRoot = environment.getEnvRootPath();
+            if (envRoot == null) {
+                throw new ServiceException(500, "环境未初始化");
+            }
+
+            Path tempFile = Files.createTempFile(Paths.get(envRoot), "requirements-", ".txt");
+            tempRequirementsPath = tempFile.toString();
+            Files.write(tempFile, packagesToInstall);
+            log.info("创建临时requirements.txt: {}", tempRequirementsPath);
+            progressLogService.sendLog(taskId, "✓ 创建临时requirements.txt");
+
+            // 构建pip install -r命令
+            List<String> command = new ArrayList<>();
+            command.add(environment.getPythonExecutable());
+            command.add("-m");
+            command.add("pip");
+            command.add("install");
+            command.add("-r");
+            command.add(tempRequirementsPath);
+            command.add("--target");
+            command.add(environment.getSitePackagesPath());
+
+            log.info("执行pip install命令: {}", String.join(" ", command));
+            progressLogService.sendLog(taskId, "执行命令: python -m pip install -r requirements.txt");
+            progressLogService.sendProgress(taskId, 20, "开始下载和安装包...");
+
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            // 读取输出
+            StringBuilder output = new StringBuilder();
+            List<String> successfulPackages = new ArrayList<>();
+            List<String> failedPackages = new ArrayList<>();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                int lineCount = 0;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                    log.info("pip output: {}", line);
+
+                    // 发送实时日志到前端
+                    if (line.contains("Collecting")) {
+                        progressLogService.sendLog(taskId, "📦 " + line);
+                    } else if (line.contains("Downloading")) {
+                        progressLogService.sendLog(taskId, "⬇️  " + line);
+                    } else if (line.contains("Installing")) {
+                        progressLogService.sendLog(taskId, "🔧 " + line);
+                    } else if (line.contains("Successfully installed")) {
+                        progressLogService.sendLog(taskId, "✓ " + line);
+                        // 解析成功安装的包
+                        String packagesStr = line.substring(line.indexOf("Successfully installed") + 22).trim();
+                        String[] installedPackages = packagesStr.split("\\s+");
+                        for (String pkg : installedPackages) {
+                            if (!pkg.isEmpty()) {
+                                successfulPackages.add(pkg);
+                            }
+                        }
+                    } else if (line.contains("Requirement already satisfied")) {
+                        progressLogService.sendLog(taskId, "ℹ️  " + line);
+                    } else if (line.contains("error") || line.contains("ERROR")) {
+                        progressLogService.sendLog(taskId, "❌ " + line);
+                    } else if (!line.trim().isEmpty()) {
+                        // 其他非空行也发送
+                        progressLogService.sendLog(taskId, line);
+                    }
+
+                    // 更新进度（20% ~ 80%）
+                    lineCount++;
+                    if (lineCount % 5 == 0) {
+                        int progress = Math.min(80, 20 + lineCount * 2);
+                        progressLogService.sendProgress(taskId, progress, "正在安装包...");
+                    }
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                log.error("pip install -r失败，退出代码: {}, 输出: {}", exitCode, output);
+                progressLogService.sendLog(taskId, "❌ 安装失败，退出代码: " + exitCode);
+                progressLogService.sendError(taskId, "批量安装包失败: " + output.toString());
+                throw new ServiceException(500, "批量安装包失败: " + output.toString());
+            }
+
+            log.info("批量安装成功，成功安装的包: {}", successfulPackages);
+            progressLogService.sendProgress(taskId, 80, "验证安装结果...");
+
+            // 更新环境的packages字段
+            JSONObject packages = environment.getPackages();
+            if (packages == null) {
+                packages = new JSONObject();
+            }
+
+            // 遍历每个包，验证安装并更新记录
+            int installedCount = 0;
+            int totalPackages = packagesToInstall.size();
+            for (int i = 0; i < totalPackages; i++) {
+                String packageLine = packagesToInstall.get(i);
+                String packageName;
+                String requestedVersion = "";
+
+                // 解析包名和版本
+                if (packageLine.contains("==")) {
+                    String[] parts = packageLine.split("==");
+                    packageName = parts[0].trim();
+                    requestedVersion = parts.length > 1 ? parts[1].trim() : "";
+                } else if (packageLine.contains(">=")) {
+                    String[] parts = packageLine.split(">=");
+                    packageName = parts[0].trim();
+                    requestedVersion = parts.length > 1 ? ">=" + parts[1].trim() : "";
+                } else if (packageLine.contains("<=")) {
+                    String[] parts = packageLine.split("<=");
+                    packageName = parts[0].trim();
+                    requestedVersion = parts.length > 1 ? "<=" + parts[1].trim() : "";
+                } else {
+                    packageName = packageLine.trim();
+                }
+
+                // 验证包是否真正安装了
+                String installedVersion = verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+                if (installedVersion != null) {
+                    JSONObject packageInfo = new JSONObject();
+                    packageInfo.put("name", packageName);
+                    packageInfo.put("version", installedVersion);
+                    packageInfo.put("installMethod", "pip");
+                    packageInfo.put("installedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                    packageInfo.put("installedFrom", "requirements.txt");
+                    packages.put(packageName, packageInfo);
+                    installedCount++;
+                    log.info("✓ 包 {} 安装成功，版本: {}", packageName, installedVersion);
+                    progressLogService.sendLog(taskId, String.format("✓ 验证成功: %s %s", packageName, installedVersion));
+                } else {
+                    log.warn("⚠ 包 {} 验证失败，可能未正确安装", packageName);
+                    progressLogService.sendLog(taskId, "⚠ 验证失败: " + packageName);
+                    failedPackages.add(packageName);
+                }
+
+                // 更新验证进度（80% ~ 95%）
+                int verifyProgress = 80 + (15 * (i + 1) / totalPackages);
+                progressLogService.sendProgress(taskId, verifyProgress, String.format("验证中 %d/%d", i + 1, totalPackages));
+            }
+
+            environment.setPackages(packages);
+            pythonEnvironmentRepository.save(environment);
+
+            log.info("========================================");
+            log.info("批量安装完成");
+            log.info("========================================");
+            log.info("成功安装: {} 个包", installedCount);
+            if (!failedPackages.isEmpty()) {
+                log.warn("失败/跳过: {} 个包: {}", failedPackages.size(), failedPackages);
+            }
+
+            progressLogService.sendProgress(taskId, 100, "安装完成");
+            progressLogService.sendLog(taskId, "========================================");
+            progressLogService.sendLog(taskId, String.format("✓ 批量安装完成！成功: %d 个包", installedCount));
+            if (!failedPackages.isEmpty()) {
+                progressLogService.sendLog(taskId, String.format("⚠ 失败/跳过: %d 个包: %s", failedPackages.size(), String.join(", ", failedPackages)));
+            }
+            progressLogService.sendLog(taskId, "========================================");
+            progressLogService.sendComplete(taskId, true, "requirements.txt安装完成");
+
+            return environment;
+
+        } catch (IOException | InterruptedException e) {
+            log.error("批量安装包失败", e);
+            progressLogService.sendError(taskId, "批量安装包失败: " + e.getMessage());
+            throw new ServiceException(500, "批量安装包失败: " + e.getMessage());
+        } finally {
+            // 清理临时文件
+            if (tempRequirementsPath != null) {
+                try {
+                    Files.deleteIfExists(Paths.get(tempRequirementsPath));
+                    log.info("临时requirements.txt已删除");
+                } catch (IOException e) {
+                    log.warn("删除临时requirements.txt失败: {}", e.getMessage());
+                }
+            }
+        }
     }
 
     /**

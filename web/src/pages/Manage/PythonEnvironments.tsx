@@ -717,13 +717,145 @@ const PythonEnvironments: React.FC = () => {
 
     try {
       const values = await requirementsForm.validateFields();
-      await pythonEnvApi.importRequirements(selectedEnv.id, values.requirementsText);
-      message.success('导入成功');
+
+      // 检查内容是否为空
+      const requirementsText = values.requirementsText.trim();
+      if (!requirementsText) {
+        message.warning('请输入requirements.txt内容');
+        return;
+      }
+
+      // 解析包数量
+      const lines = requirementsText.split('\n').filter(line => {
+        const trimmed = line.trim();
+        return trimmed && !trimmed.startsWith('#');
+      });
+
+      if (lines.length === 0) {
+        message.warning('requirements.txt内容为空或仅包含注释');
+        return;
+      }
+
+      // 显示确认对话框
+      const confirmed = await new Promise<boolean>((resolve) => {
+        modal.confirm({
+          title: '确认批量安装',
+          content: (
+            <div>
+              <p>即将从requirements.txt安装 <strong>{lines.length}</strong> 个包。</p>
+              <p>这可能需要较长时间，请耐心等待。</p>
+              <p style={{ marginTop: 16, color: '#666', fontSize: 13 }}>
+                包列表：
+              </p>
+              <div style={{
+                maxHeight: 200,
+                overflow: 'auto',
+                background: '#f5f5f5',
+                padding: '8px 12px',
+                borderRadius: 4,
+                fontSize: 12,
+                fontFamily: 'monospace'
+              }}>
+                {lines.join('\n')}
+              </div>
+            </div>
+          ),
+          okText: '开始安装',
+          cancelText: '取消',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
+
+      if (!confirmed) {
+        return;
+      }
+
+      // 关闭requirements弹窗，打开日志弹窗
       setRequirementsModalVisible(false);
+      setInstallLogs(['开始批量安装requirements.txt...']);
+      setInstallLogVisible(true);
+      setIsInstalling(true);
+      setUploadProgress(0);
+
+      // 订阅SSE进度事件（添加token参数以支持认证）
+      const taskId = `import-requirements-${selectedEnv.id}`;
+      const token = localStorage.getItem('token') || '';
+      const eventSource = new EventSource(`/api/python-envs/${selectedEnv.id}/progress/${taskId}?token=${encodeURIComponent(token)}`);
+
+      eventSource.addEventListener('connected', (e: MessageEvent) => {
+        console.log('SSE连接已建立:', e.data);
+        setInstallLogs(prev => [...prev, '✓ 实时进度连接已建立']);
+      });
+
+      eventSource.addEventListener('log', (e: MessageEvent) => {
+        const message = e.data;
+        setInstallLogs(prev => [...prev, message]);
+      });
+
+      eventSource.addEventListener('progress', (e: MessageEvent) => {
+        const data = JSON.parse(e.data);
+        setUploadProgress(data.progress);
+        setInstallLogs(prev => [...prev, `[${data.progress}%] ${data.message}`]);
+      });
+
+      const handleComplete = (data: any) => {
+        setInstallLogs(prev => [...prev, data.success ? '✓ 完成！' : '✗ 失败']);
+        setIsInstalling(false);
+        setUploadProgress(100);
+        eventSource.close();
+
+        setTimeout(() => {
+          setInstallLogVisible(false);
+        }, 2000);
+      };
+
+      eventSource.addEventListener('complete', (e: MessageEvent) => {
+        const data = JSON.parse(e.data);
+        handleComplete(data);
+      });
+
+      eventSource.addEventListener('error', (e: MessageEvent) => {
+        const error = e.data;
+        setInstallLogs(prev => [...prev, `✗ SSE错误: ${error}`]);
+        setIsInstalling(false);
+        eventSource.close();
+      });
+
+      eventSource.onerror = (error) => {
+        console.error('SSE连接错误:', error);
+        console.error('EventSource readyState:', eventSource.readyState);
+        setInstallLogs(prev => [...prev, '⚠ 实时进度连接失败，安装继续进行（请查看后台日志）']);
+        eventSource.close();
+      };
+
+      // 等待SSE连接建立
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 异步安装
+      await pythonEnvApi.importRequirements(selectedEnv.id, requirementsText);
+
+      message.success('requirements.txt安装完成！');
+
       requirementsForm.resetFields();
-      fetchEnvironments();
-    } catch (error) {
-      console.error('导入失败', error);
+
+      // 刷新环境列表
+      await fetchEnvironments();
+
+      // 更新selectedEnv以显示最新的包列表
+      const updatedEnv = await pythonEnvApi.getById(selectedEnv.id);
+      if (updatedEnv.code === 200 && updatedEnv.data) {
+        setSelectedEnv(updatedEnv.data);
+      }
+
+    } catch (error: any) {
+      setInstallLogs(prev => [...prev, `✗ 安装失败: ${error.message || '未知错误'}`]);
+      setIsInstalling(false);
+      message.error({
+        content: error.message || '导入失败',
+        duration: 8
+      });
+      console.error('导入requirements.txt失败', error);
     }
   };
 
