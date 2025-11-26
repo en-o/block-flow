@@ -1619,6 +1619,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
         pythonEnvironmentRepository.save(environment);
 
+        // 发送完成消息（在构建返回结果之前，确保SSE连接还在）
+        progressLogService.sendProgress(taskId, 100, "配置完成");
+        progressLogService.sendComplete(taskId, true, "Python运行时配置成功！");
+
         // 返回结果
         PythonRuntimeUploadResultDTO result = new PythonRuntimeUploadResultDTO();
         result.setFileName(originalFilename);
@@ -1634,8 +1638,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         StringBuilder message = new StringBuilder();
         message.append("Python运行时上传成功！");
 
-        // 推荐使用python-build-standalone
-        progressLogService.sendComplete(taskId, true, "Python运行时配置成功！");
+        // 推荐使用python-build-standalone（不再发送sendComplete，已在前面发送）
         message.append("\n\n【推荐】使用预编译Python运行时（python-build-standalone）:");
         message.append("\n  下载地址: https://github.com/astral-sh/python-build-standalone/releases");
         message.append("\n  选择对应平台的cpython版本（如: cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz）");

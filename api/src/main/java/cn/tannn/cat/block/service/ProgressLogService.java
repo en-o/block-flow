@@ -178,13 +178,16 @@ public class ProgressLogService {
                         .name("complete")
                         .data(data));
                 emitter.complete();
+                log.info("发送完成消息成功，taskId: {}, success: {}", taskId, success);
             } catch (IOException e) {
                 log.error("发送SSE完成消息失败，taskId: {}", taskId, e);
             } finally {
                 emitters.remove(taskId);
+                messageCache.remove(taskId);
             }
         } else {
-            log.warn("未找到SSE连接，taskId: {}, 无法发送完成消息", taskId);
+            // 完成时连接已关闭是正常的（前端收到HTTP响应后会关闭连接）
+            log.debug("完成时SSE连接已关闭，taskId: {} (这是正常的)", taskId);
         }
     }
 
@@ -199,10 +202,12 @@ public class ProgressLogService {
                         .name("error")
                         .data(error));
                 emitter.completeWithError(new RuntimeException(error));
+                log.info("发送错误消息成功，taskId: {}", taskId);
             } catch (IOException e) {
                 log.error("发送SSE错误消息失败，taskId: {}", taskId, e);
             } finally {
                 emitters.remove(taskId);
+                messageCache.remove(taskId);
             }
         } else {
             log.warn("未找到SSE连接，taskId: {}, 无法发送错误消息: {}", taskId, error);
