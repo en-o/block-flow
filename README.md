@@ -3,7 +3,7 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
 
 # 环境
 - java 17
-- node 20+
+- node 20.19.2+
 
 
 # 待办
