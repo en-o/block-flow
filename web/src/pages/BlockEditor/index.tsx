@@ -740,84 +740,59 @@ outputs = {
     // 获取所有块
     const allBlocks = workspace.getAllBlocks(false);
 
+    // 定义类型转换块与类型的映射关系
+    const typeConversionMap: Record<string, string> = {
+      'safe_int': 'number',
+      'int_conversion': 'number',
+      'safe_float': 'number',
+      'float_conversion': 'number',
+      'safe_bool': 'boolean',
+      'bool_conversion': 'boolean',
+      'str_conversion': 'string',
+    };
+
+    // 辅助函数：从块中提取参数名
+    const extractParamNameFromInputGet = (inputGetBlock: Blockly.Block): string | null => {
+      const paramNameInput = inputGetBlock.getInput('PARAM_NAME');
+      if (paramNameInput?.connection?.targetBlock()) {
+        const textBlock = paramNameInput.connection.targetBlock();
+        if (textBlock?.type === 'text') {
+          const paramName = textBlock.getFieldValue('TEXT');
+          if (paramName && !paramName.startsWith('ctx.')) {
+            return paramName;
+          }
+        }
+      }
+      return null;
+    };
+
     allBlocks.forEach(block => {
       const blockType = block.type;
 
-      // 1. 解析 python_input_get 块
-      if (blockType === 'python_input_get') {
-        // 获取参数名（从 PARAM_NAME 输入）
-        const paramNameInput = block.getInput('PARAM_NAME');
-        if (paramNameInput?.connection?.targetBlock()) {
-          const targetBlock = paramNameInput.connection.targetBlock();
-          if (targetBlock?.type === 'text') {
-            const paramName = targetBlock.getFieldValue('TEXT');
-            if (paramName && !paramName.startsWith('ctx.')) {
+      // 1. 优先解析类型转换块包裹的 python_input_get（这样可以推断类型）
+      if (typeConversionMap[blockType]) {
+        const valueInput = block.getInput('VALUE');
+        if (valueInput?.connection?.targetBlock()) {
+          const targetBlock = valueInput.connection.targetBlock();
+          if (targetBlock?.type === 'python_input_get') {
+            const paramName = extractParamNameFromInputGet(targetBlock);
+            if (paramName) {
               inputMatches.add(paramName);
-              inputTypes[paramName] = 'string'; // 默认字符串
+              inputTypes[paramName] = typeConversionMap[blockType];
+              console.log(`🔍 解析到类型转换: ${paramName} -> ${typeConversionMap[blockType]} (来自 ${blockType})`);
             }
           }
         }
       }
 
-      // 2. 解析 safe_int, safe_float, safe_bool 块（判断类型）
-      if (blockType === 'safe_int' || blockType === 'int_conversion') {
-        // 检查这个块的输入是否连接了 python_input_get
-        const valueInput = block.getInput('VALUE');
-        if (valueInput?.connection?.targetBlock()) {
-          const targetBlock = valueInput.connection.targetBlock();
-          if (targetBlock?.type === 'python_input_get') {
-            const paramNameInput = targetBlock.getInput('PARAM_NAME');
-            if (paramNameInput?.connection?.targetBlock()) {
-              const textBlock = paramNameInput.connection.targetBlock();
-              if (textBlock?.type === 'text') {
-                const paramName = textBlock.getFieldValue('TEXT');
-                if (paramName && !paramName.startsWith('ctx.')) {
-                  inputMatches.add(paramName);
-                  inputTypes[paramName] = 'number';
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (blockType === 'safe_float' || blockType === 'float_conversion') {
-        const valueInput = block.getInput('VALUE');
-        if (valueInput?.connection?.targetBlock()) {
-          const targetBlock = valueInput.connection.targetBlock();
-          if (targetBlock?.type === 'python_input_get') {
-            const paramNameInput = targetBlock.getInput('PARAM_NAME');
-            if (paramNameInput?.connection?.targetBlock()) {
-              const textBlock = paramNameInput.connection.targetBlock();
-              if (textBlock?.type === 'text') {
-                const paramName = textBlock.getFieldValue('TEXT');
-                if (paramName && !paramName.startsWith('ctx.')) {
-                  inputMatches.add(paramName);
-                  inputTypes[paramName] = 'number';
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (blockType === 'safe_bool' || blockType === 'bool_conversion') {
-        const valueInput = block.getInput('VALUE');
-        if (valueInput?.connection?.targetBlock()) {
-          const targetBlock = valueInput.connection.targetBlock();
-          if (targetBlock?.type === 'python_input_get') {
-            const paramNameInput = targetBlock.getInput('PARAM_NAME');
-            if (paramNameInput?.connection?.targetBlock()) {
-              const textBlock = paramNameInput.connection.targetBlock();
-              if (textBlock?.type === 'text') {
-                const paramName = textBlock.getFieldValue('TEXT');
-                if (paramName && !paramName.startsWith('ctx.')) {
-                  inputMatches.add(paramName);
-                  inputTypes[paramName] = 'boolean';
-                }
-              }
-            }
-          }
+      // 2. 解析没有被类型转换包裹的 python_input_get 块（默认为 string）
+      if (blockType === 'python_input_get') {
+        const paramName = extractParamNameFromInputGet(block);
+        if (paramName && !inputMatches.has(paramName)) {
+          // 只有在尚未记录的情况下才添加（避免覆盖已识别的类型）
+          inputMatches.add(paramName);
+          inputTypes[paramName] = 'string'; // 默认字符串
+          console.log(`🔍 解析到输入参数: ${paramName} -> string (默认)`);
         }
       }
 
@@ -826,6 +801,7 @@ outputs = {
         const key = block.getFieldValue('KEY');
         if (key && key !== '_console_output') {
           outputMatches.add(key);
+          console.log(`🔍 解析到输出参数: ${key}`);
         }
       }
     });
@@ -843,6 +819,8 @@ outputs = {
       type: 'string',
       description: ''
     }));
+
+    console.log('✅ 参数解析完成:', { inputParams: newInputParams, outputParams: newOutputParams });
 
     return { inputParams: newInputParams, outputParams: newOutputParams };
   }, []);
