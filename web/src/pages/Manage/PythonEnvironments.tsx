@@ -67,6 +67,7 @@ const PythonEnvironments: React.FC = () => {
   const [installLogs, setInstallLogs] = useState<string[]>([]); // 安装日志
   const [isInstalling, setIsInstalling] = useState(false); // 是否正在安装
   const [uploadProgress, setUploadProgress] = useState(0); // 上传进度
+  const [canForceClose, setCanForceClose] = useState(false); // 是否允许强制关闭
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
@@ -209,6 +210,12 @@ const PythonEnvironments: React.FC = () => {
           setInstallLogs(['开始创建环境并上传Python运行时...']);
           setUploadProgress(0);
           setIsInstalling(true);
+          setCanForceClose(false);
+
+          // 30秒后允许强制关闭
+          setTimeout(() => {
+            setCanForceClose(true);
+          }, 30000);
 
           try {
             // 步骤1：创建环境
@@ -546,6 +553,12 @@ const PythonEnvironments: React.FC = () => {
       setInstallLogs([`开始在线安装 ${packageName}${versionStr}...`]);
       setInstallLogVisible(true);
       setIsInstalling(true);
+      setCanForceClose(false);
+
+      // 30秒后允许强制关闭
+      setTimeout(() => {
+        setCanForceClose(true);
+      }, 30000);
 
       // 模拟pip安装的各个阶段
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -789,6 +802,12 @@ const PythonEnvironments: React.FC = () => {
       setInstallLogVisible(true);
       setIsInstalling(true);
       setUploadProgress(0);
+      setCanForceClose(false);
+
+      // 30秒后允许强制关闭
+      setTimeout(() => {
+        setCanForceClose(true);
+      }, 30000);
 
       // 订阅SSE进度事件（添加token参数以支持认证）
       const taskId = `import-requirements-${selectedEnv.id}`;
@@ -954,6 +973,12 @@ const PythonEnvironments: React.FC = () => {
     setInstallLogVisible(true);
     setIsInstalling(true);
     setUploadingFile(true);
+    setCanForceClose(false);
+
+    // 30秒后允许强制关闭
+    setTimeout(() => {
+      setCanForceClose(true);
+    }, 30000);
 
     try {
       setInstallLogs(prev => [...prev, '正在上传文件...']);
@@ -1042,6 +1067,12 @@ const PythonEnvironments: React.FC = () => {
     setInstallLogs(['开始上传Python运行时...']);
     setUploadProgress(0);
     setIsInstalling(true);
+    setCanForceClose(false);
+
+    // 30秒后允许强制关闭
+    setTimeout(() => {
+      setCanForceClose(true);
+    }, 30000);
 
     // 订阅SSE进度事件（添加token参数以支持认证）
     const taskId = `upload-python-${selectedEnv.id}`;
@@ -2070,14 +2101,15 @@ const PythonEnvironments: React.FC = () => {
           <Button
             key="close"
             onClick={() => setInstallLogVisible(false)}
-            disabled={isInstalling}
+            disabled={isInstalling && !canForceClose}
+            type={canForceClose && isInstalling ? "primary" : "default"}
           >
-            关闭
+            {isInstalling && !canForceClose ? "安装中..." : "关闭"}
           </Button>,
         ]}
         width={700}
-        closable={!isInstalling}
-        maskClosable={!isInstalling}
+        closable={!isInstalling || canForceClose}
+        maskClosable={!isInstalling || canForceClose}
         zIndex={2000}
         style={{ top: 20 }}
       >
