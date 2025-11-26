@@ -662,12 +662,58 @@ outputs = {
 
   const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
     if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
-      // 从Blockly切换回代码模式：恢复原始代码
-      console.log('从可视化模式切换回代码模式，恢复原始代码');
+      // 从Blockly切换回代码模式：生成并应用Blockly代码
+      console.log('从可视化模式切换回代码模式，生成Python代码');
 
-      if (originalScriptCode) {
-        setScriptCode(originalScriptCode);
-        message.info('已恢复原始代码（可视化编辑未保存）');
+      try {
+        if (!workspaceRef.current) {
+          console.error('❌ Blockly workspace未初始化');
+          message.error('可视化编辑器未就绪，无法生成代码');
+          setDefinitionMode(mode);
+          return;
+        }
+
+        // 从Blockly生成Python代码
+        const generatedCode = pythonGenerator.workspaceToCode(workspaceRef.current);
+
+        if (generatedCode && generatedCode.trim().length > 0) {
+          // 从生成的代码中解析输入输出参数
+          const { inputParams: parsedInputParams, outputParams: parsedOutputParams } = parseBlocklyParameters();
+
+          console.log('✅ 从Blockly生成代码成功', {
+            codeLength: generatedCode.length,
+            inputParams: parsedInputParams.length,
+            outputParams: parsedOutputParams.length
+          });
+
+          // 更新代码和参数
+          setScriptCode(generatedCode);
+
+          // 更新输入输出参数配置
+          if (parsedInputParams.length > 0) {
+            setInputParams(parsedInputParams);
+            console.log('✅ 更新输入参数:', parsedInputParams);
+          }
+
+          if (parsedOutputParams.length > 0) {
+            setOutputParams(parsedOutputParams);
+            console.log('✅ 更新输出参数:', parsedOutputParams);
+          }
+
+          message.success('已从可视化块生成代码并更新参数配置');
+        } else {
+          console.warn('⚠️ Blockly工作区为空，恢复原始代码');
+          if (originalScriptCode) {
+            setScriptCode(originalScriptCode);
+            message.info('工作区为空，已恢复原始代码');
+          }
+        }
+      } catch (error) {
+        console.error('❌ 从Blockly生成代码失败:', error);
+        message.error('生成代码失败，已恢复原始代码');
+        if (originalScriptCode) {
+          setScriptCode(originalScriptCode);
+        }
       }
 
       setDefinitionMode(mode);
@@ -1054,9 +1100,21 @@ outputs = {
     setTestResult(null);
 
     try {
+      // 过滤掉空值参数（空字符串、null、undefined）
+      // 这样 Python 代码的 inputs.get('param', default) 可以使用默认值
+      const filteredInputs: Record<string, any> = {};
+      Object.entries(testInputs).forEach(([key, value]) => {
+        // 只保留非空值（空字符串、null、undefined 都会被过滤）
+        if (value !== '' && value !== null && value !== undefined) {
+          filteredInputs[key] = value;
+        }
+      });
+
+      console.log('🧪 测试输入参数（已过滤空值）:', filteredInputs);
+
       // 使用临时代码测试（不保存块）
       const response = await blockApi.test(block.id, {
-        inputs: testInputs,
+        inputs: filteredInputs, // 使用过滤后的参数
         tempScript: codeToTest, // 传入临时代码用于测试
       });
 

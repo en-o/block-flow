@@ -191,7 +191,15 @@ public class BlockServiceImpl implements BlockService {
             // 合并上下文变量到 inputs
             Map<String, Object> mergedInputs = new HashMap<>();
             if (testDTO.getInputs() != null) {
-                mergedInputs.putAll(testDTO.getInputs());
+                // 过滤掉空值参数（null、空字符串）
+                // 这样 Python 代码的 inputs.get('param', default) 可以使用默认值
+                testDTO.getInputs().forEach((key, value) -> {
+                    if (value != null && !"".equals(value)) {
+                        mergedInputs.put(key, value);
+                    }
+                });
+                log.info("过滤后的输入参数数量: {} (原始: {})",
+                    mergedInputs.size(), testDTO.getInputs().size());
             }
 
             // 注入上下文变量（仅注入脚本中实际使用的上下文变量）

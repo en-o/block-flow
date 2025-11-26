@@ -200,10 +200,17 @@ public class ExecutionServiceImpl implements ExecutionService {
                 // 准备输入参数
                 Map<String, Object> blockInputs = new HashMap<>();
 
-                // 1. 添加用户配置的输入值
+                // 1. 添加用户配置的输入值（过滤空值）
                 JSONObject inputValues = nodeData.getJSONObject("inputValues");
                 if (inputValues != null) {
-                    blockInputs.putAll(inputValues);
+                    // 过滤掉空值参数（null、空字符串）
+                    // 这样 Python 代码的 inputs.get('param', default) 可以使用默认值
+                    inputValues.forEach((key, value) -> {
+                        if (value != null && !"".equals(value)) {
+                            blockInputs.put(key, value);
+                        }
+                    });
+                    log.debug("块 {} 输入参数（已过滤空值）: {}", blockName, blockInputs);
                 }
 
                 // 2. 添加从前置节点传递的数据
