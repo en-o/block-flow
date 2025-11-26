@@ -664,60 +664,16 @@ outputs = {
 
   const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
     if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
-      // 从Blockly切换回代码模式：生成并应用Blockly代码
-      console.log('从可视化模式切换回代码模式，生成Python代码');
+      // 从Blockly切换回代码模式：恢复原始代码，不解析参数
+      console.log('从可视化模式切换回代码模式，恢复原始代码');
 
-      try {
-        if (!workspaceRef.current) {
-          console.error('❌ Blockly workspace未初始化');
-          message.error('可视化编辑器未就绪，无法生成代码');
-          setDefinitionMode(mode);
-          return;
-        }
-
-        // 从Blockly生成Python代码
-        const generatedCode = pythonGenerator.workspaceToCode(workspaceRef.current);
-
-        if (generatedCode && generatedCode.trim().length > 0) {
-          // 从生成的代码中解析输入输出参数
-          const { inputParams: parsedInputParams, outputParams: parsedOutputParams } = parseBlocklyParameters();
-
-          console.log('✅ 从Blockly生成代码成功', {
-            codeLength: generatedCode.length,
-            inputParams: parsedInputParams.length,
-            outputParams: parsedOutputParams.length
-          });
-
-          // 更新代码和参数
-          setScriptCode(generatedCode);
-
-          // 更新输入输出参数配置
-          if (parsedInputParams.length > 0) {
-            setInputParams(parsedInputParams);
-            console.log('✅ 更新输入参数:', parsedInputParams);
-          }
-
-          if (parsedOutputParams.length > 0) {
-            setOutputParams(parsedOutputParams);
-            console.log('✅ 更新输出参数:', parsedOutputParams);
-          }
-
-          message.success('已从可视化块生成代码并更新参数配置');
-        } else {
-          console.warn('⚠️ Blockly工作区为空，恢复原始代码');
-          if (originalScriptCode) {
-            setScriptCode(originalScriptCode);
-            message.info('工作区为空，已恢复原始代码');
-          }
-        }
-      } catch (error) {
-        console.error('❌ 从Blockly生成代码失败:', error);
-        message.error('生成代码失败，已恢复原始代码');
-        if (originalScriptCode) {
-          setScriptCode(originalScriptCode);
-        }
+      // 恢复原始代码
+      if (originalScriptCode) {
+        setScriptCode(originalScriptCode);
+        message.info('已恢复原始代码');
       }
 
+      // 不修改参数配置，保持原有配置不变
       setDefinitionMode(mode);
     } else if (mode === 'BLOCKLY' && definitionMode === 'CODE') {
       // 从代码模式切换到可视化模式：保存原始代码
@@ -1247,26 +1203,64 @@ outputs = {
       }
     }
 
-    // 转换为参数数组
-    const newInputParams = Array.from(inputMatches).map(name => ({
-      name,
-      type: inputTypes[name] || 'string',
-      defaultValue: '',
-      description: '',
-      required: false,
-    }));
+    // 创建现有参数的映射，用于保留已有参数的配置
+    const existingInputParamsMap = new Map(
+      inputParams.map(p => [p.name, p])
+    );
+    const existingOutputParamsMap = new Map(
+      outputParams.map(p => [p.name, p])
+    );
 
-    const newOutputParams = Array.from(outputMatches).map(name => ({
-      name,
-      type: 'string',
-      description: ''
-    }));
+    // 转换为参数数组，保留已存在参数的配置
+    const newInputParams = Array.from(inputMatches).map(name => {
+      const existing = existingInputParamsMap.get(name);
+      if (existing) {
+        // 如果参数已存在，保留原有配置，只更新类型（如果类型推断不同）
+        return {
+          ...existing,
+          type: inputTypes[name] || existing.type, // 使用新推断的类型，如果没有则保持原类型
+        };
+      } else {
+        // 新参数，使用默认配置
+        return {
+          name,
+          type: inputTypes[name] || 'string',
+          defaultValue: '',
+          description: '',
+          required: false,
+        };
+      }
+    });
+
+    const newOutputParams = Array.from(outputMatches).map(name => {
+      const existing = existingOutputParamsMap.get(name);
+      if (existing) {
+        // 如果参数已存在，保留原有配置
+        return existing;
+      } else {
+        // 新参数，使用默认配置
+        return {
+          name,
+          type: 'string',
+          description: ''
+        };
+      }
+    });
 
     // 更新参数列表
     if (newInputParams.length > 0 || newOutputParams.length > 0) {
       setInputParams(newInputParams);
       setOutputParams(newOutputParams);
-      message.success(`已解析 ${newInputParams.length} 个输入参数和 ${newOutputParams.length} 个输出参数`);
+      const addedInputCount = newInputParams.filter(p => !existingInputParamsMap.has(p.name)).length;
+      const addedOutputCount = newOutputParams.filter(p => !existingOutputParamsMap.has(p.name)).length;
+      const keptInputCount = newInputParams.length - addedInputCount;
+      const keptOutputCount = newOutputParams.length - addedOutputCount;
+
+      message.success(
+        `已解析参数：` +
+        `输入参数 ${newInputParams.length} 个（新增 ${addedInputCount}，保留 ${keptInputCount}），` +
+        `输出参数 ${newOutputParams.length} 个（新增 ${addedOutputCount}，保留 ${keptOutputCount}）`
+      );
     } else {
       message.info('未从脚本中解析到输入输出参数');
     }
