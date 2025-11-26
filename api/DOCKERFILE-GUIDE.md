@@ -215,6 +215,7 @@ docker-compose restart
 docker run -d \
   --name block-flow \
   -p 1250:1250 \
+  -e TZ=Asia/Shanghai \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e MYSQL_URL=localhost:3306 \
   -e MYSQL_DB=db_block_flow \
@@ -240,6 +241,7 @@ docker run -d \
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
+| `TZ` | `Asia/Shanghai` | 时区设置（中国时区） |
 | `CONFIG_ENV` | `prod` | 运行环境（dev/prod） |
 | `SPRING_PROFILES_ACTIVE` | `prod` | Spring 配置文件 |
 | `MYSQL_URL` | `localhost:3306` | MySQL 地址和端口 |

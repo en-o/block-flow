@@ -36,6 +36,10 @@ LABEL build.method="local-maven-build"
 # 设置工作目录
 WORKDIR /app
 
+# 设置时区为中国（Asia/Shanghai）
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # 从本地构建产物复制完整 JAR（使用通配符匹配版本号）
 COPY api/target/block-flow-*.jar /app/block-flow.jar
 
