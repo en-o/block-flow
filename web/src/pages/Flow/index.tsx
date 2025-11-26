@@ -800,12 +800,15 @@ const Flow: React.FC = () => {
         Object.entries(node.data.inputs).forEach(([paramName, paramDef]: [string, any]) => {
           if (paramDef.required) {
             // 检查该参数是否已通过边连接（从上游节点获取数据）
+            // targetHandle 格式为 "input-{paramName}"，需要匹配
             const isConnected = edges.some(edge =>
-              edge.target === node.id && edge.targetHandle === paramName
+              edge.target === node.id &&
+              (edge.targetHandle === paramName || edge.targetHandle === `input-${paramName}`)
             );
 
             // 如果参数已连接，则跳过验证（上游节点会提供数据）
             if (isConnected) {
+              console.log(`✅ 参数已连接，跳过验证: 节点=${node.data.blockName}, 参数=${paramName}`);
               return;
             }
 
@@ -813,6 +816,7 @@ const Flow: React.FC = () => {
             // 如果参数为空（undefined、null、空字符串）且没有默认值
             if ((value === undefined || value === null || value === '')
                 && (!paramDef.defaultValue || paramDef.defaultValue === '')) {
+              console.log(`❌ 参数验证失败: 节点=${node.data.blockName}, 参数=${paramName}, 值=${value}, 默认值=${paramDef.defaultValue}`);
               missingParams.push({
                 nodeName: node.data.blockName || node.data.label || `节点${node.id}`,
                 paramName: paramName,
