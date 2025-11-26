@@ -149,10 +149,14 @@ public class PythonScriptExecutor {
             StringBuilder stdout = new StringBuilder();
             StringBuilder stderr = new StringBuilder();
 
+            // 获取输入输出流
+            InputStream stdoutStream = process.getInputStream();
+            InputStream stderrStream = process.getErrorStream();
+
             // 启动线程读取stdout
             Process finalProcess = process;
             Thread stdoutReader = new Thread(() -> {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(finalProcess.getInputStream(), StandardCharsets.UTF_8))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(stdoutStream, StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         stdout.append(line).append("\n");
@@ -162,11 +166,11 @@ public class PythonScriptExecutor {
                     log.error("读取stdout失败", e);
                 }
             });
+            stdoutReader.setDaemon(false); // 非守护线程，确保读取完成
 
             // 启动线程读取stderr
-            Process finalProcess1 = process;
             Thread stderrReader = new Thread(() -> {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(finalProcess1.getErrorStream(), StandardCharsets.UTF_8))) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(stderrStream, StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         stderr.append(line).append("\n");
@@ -176,6 +180,7 @@ public class PythonScriptExecutor {
                     log.error("读取stderr失败", e);
                 }
             });
+            stderrReader.setDaemon(false); // 非守护线程，确保读取完成
 
             stdoutReader.start();
             stderrReader.start();
@@ -184,15 +189,15 @@ public class PythonScriptExecutor {
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             long endTime = System.currentTimeMillis();
 
-            // 确保子进程已完全退出
+            // 确保子进程已完全退出并输出流关闭
             if (finished) {
-                // 再等待一小段时间确保输出流完全刷新
-                Thread.sleep(100);
+                // 等待更长时间确保输出流完全刷新（Docker 环境下很关键）
+                Thread.sleep(300);
             }
 
-            // 等待输出读取完成
-            stdoutReader.join(2000);  // 增加到2秒
-            stderrReader.join(2000);
+            // 等待输出读取完成（增加到5秒，确保大输出也能完全读取）
+            stdoutReader.join(5000);
+            stderrReader.join(5000);
 
             if (!finished) {
                 process.destroyForcibly();
