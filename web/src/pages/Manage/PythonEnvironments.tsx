@@ -228,9 +228,10 @@ const PythonEnvironments: React.FC = () => {
             // 步骤3：上传Python运行时（关键步骤）
             setInstallLogs(prev => [...prev, '开始上传Python运行时...']);
 
-            // 订阅SSE进度事件
+            // 订阅SSE进度事件（添加token参数以支持认证）
             const taskId = `upload-python-${newEnvId}`;
-            const eventSource = new EventSource(`/api/python-envs/${newEnvId}/progress/${taskId}`);
+            const token = localStorage.getItem('token') || '';
+            const eventSource = new EventSource(`/api/python-envs/${newEnvId}/progress/${taskId}?token=${encodeURIComponent(token)}`);
 
             eventSource.addEventListener('connected', (e: MessageEvent) => {
               console.log('SSE连接已建立:', e.data);
@@ -887,9 +888,10 @@ const PythonEnvironments: React.FC = () => {
     setUploadProgress(0);
     setIsInstalling(true);
 
-    // 订阅SSE进度事件
+    // 订阅SSE进度事件（添加token参数以支持认证）
     const taskId = `upload-python-${selectedEnv.id}`;
-    const eventSource = new EventSource(`/api/python-envs/${selectedEnv.id}/progress/${taskId}`);
+    const token = localStorage.getItem('token') || '';
+    const eventSource = new EventSource(`/api/python-envs/${selectedEnv.id}/progress/${taskId}?token=${encodeURIComponent(token)}`);
 
     eventSource.addEventListener('log', (e: MessageEvent) => {
       const message = e.data;

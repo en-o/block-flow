@@ -11,6 +11,7 @@ import cn.tannn.cat.block.controller.dto.pythonenvironment.UploadedPackageFileDT
 import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.service.ProgressLogService;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
+import cn.tannn.jdevelops.annotations.web.authentication.ApiMapping;
 import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -186,7 +187,7 @@ public class PythonEnvironmentController {
         return ResultVO.success(pythonEnvironmentService.detectPythonExecutable(id));
     }
 
-    @GetMapping(value = "/{id}/progress/{taskId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ApiMapping(value = "/{id}/progress/{taskId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE,checkToken = false, method = RequestMethod.GET)
     @Operation(summary = "订阅进度日志", description = "实时订阅Python运行时上传/安装进度日志（SSE）")
     public SseEmitter subscribeProgress(
             @Parameter(description = "环境ID") @PathVariable Integer id,
