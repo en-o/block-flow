@@ -799,6 +799,16 @@ const Flow: React.FC = () => {
       if (node.data.inputs) {
         Object.entries(node.data.inputs).forEach(([paramName, paramDef]: [string, any]) => {
           if (paramDef.required) {
+            // 检查该参数是否已通过边连接（从上游节点获取数据）
+            const isConnected = edges.some(edge =>
+              edge.target === node.id && edge.targetHandle === paramName
+            );
+
+            // 如果参数已连接，则跳过验证（上游节点会提供数据）
+            if (isConnected) {
+              return;
+            }
+
             const value = node.data.inputValues?.[paramName];
             // 如果参数为空（undefined、null、空字符串）且没有默认值
             if ((value === undefined || value === null || value === '')
