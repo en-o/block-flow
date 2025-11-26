@@ -79,60 +79,79 @@ export function convertCodeToBlockly(
     else if (line.match(/^(\w+)\s*=\s*(?:safe_int|safe_float|safe_bool|int|float|bool)\s*\(\s*inputs\.get\s*\(/)) {
       const match = line.match(/^(\w+)\s*=\s*(safe_int|safe_float|safe_bool|int|float|bool)\s*\(\s*inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*[^)]+)?\s*\)\s*(?:,\s*([^)]+))?\s*\)$/);
       if (match) {
-        console.log(`✅ 识别为 ${match[2]}(inputs.get(...))`);
+        const conversionType = match[2]; // int, float, bool, safe_int, safe_float, safe_bool
+        console.log(`✅ 识别为 ${conversionType}(inputs.get(...))`);
         block = workspace.newBlock('variable_assign');
         block.setFieldValue(match[1], 'VAR');
 
-        // Map int/float/bool to safe_int/safe_float/safe_bool
-        const typeMap: Record<string, string> = {
-          'int': 'safe_int',
-          'float': 'safe_float',
-          'bool': 'safe_bool',
-          'safe_int': 'safe_int',
-          'safe_float': 'safe_float',
-          'safe_bool': 'safe_bool'
-        };
-        const blockType = typeMap[match[2]] || 'safe_int';
+        // 区分 int/float/bool 和 safe_int/safe_float/safe_bool
+        const isSafeConversion = conversionType.startsWith('safe_');
 
-        // Create safe conversion block
-        const safeBlock = workspace.newBlock(blockType);
+        let conversionBlock: Blockly.Block;
 
-        // 从 inputs.get('a', '1') 或 int(inputs.get('a', '1'), 0) 提取默认值
-        // 优先使用转换函数的默认值（第二个参数），如果没有则使用 inputs.get 的默认值
-        let defaultValue = '0';
+        if (isSafeConversion) {
+          // 使用 safe_* 块
+          conversionBlock = workspace.newBlock(conversionType);
 
-        // 提取 inputs.get 的默认值
-        const inputsGetMatch = line.match(/inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*,\s*(['"]?)([^)'"]+)\2\s*\)/);
-        if (inputsGetMatch && inputsGetMatch[3]) {
-          defaultValue = inputsGetMatch[3].trim();
-        }
+          // 从 inputs.get('a', '1') 或 safe_int(inputs.get('a', '1'), 0) 提取默认值
+          let defaultValue = '0';
 
-        // 如果有转换函数的第二个参数，优先使用它
-        if (match[4]) {
-          defaultValue = match[4].trim();
-        }
+          // 提取 inputs.get 的默认值
+          const inputsGetMatch = line.match(/inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*,\s*(['"]?)([^)'"]+)\2\s*\)/);
+          if (inputsGetMatch && inputsGetMatch[3]) {
+            defaultValue = inputsGetMatch[3].trim();
+          }
 
-        // 设置 safe_int/float/bool 的默认值
-        if (blockType === 'safe_bool') {
-          // bool 类型：True 或 False
-          const boolValue = defaultValue.toLowerCase() === 'true' || defaultValue === '1' ? 'True' : 'False';
-          safeBlock.setFieldValue(boolValue, 'DEFAULT');
+          // 如果有转换函数的第二个参数，优先使用它
+          if (match[4]) {
+            defaultValue = match[4].trim();
+          }
+
+          // 设置 safe_int/float/bool 的默认值
+          if (conversionType === 'safe_bool') {
+            const boolValue = defaultValue.toLowerCase() === 'true' || defaultValue === '1' ? 'True' : 'False';
+            conversionBlock.setFieldValue(boolValue, 'DEFAULT');
+          } else {
+            conversionBlock.setFieldValue(defaultValue, 'DEFAULT');
+          }
         } else {
-          // int/float 类型：数字
-          safeBlock.setFieldValue(defaultValue, 'DEFAULT');
+          // 使用普通的 int_conversion/float_conversion/bool_conversion 块
+          const typeMap: Record<string, string> = {
+            'int': 'int_conversion',
+            'float': 'float_conversion',
+            'bool': 'bool_conversion',
+            'str': 'str_conversion'
+          };
+          conversionBlock = workspace.newBlock(typeMap[conversionType] || 'int_conversion');
         }
 
-        // Create python_input_get block (不设置默认值，让 safe_int 来处理)
+        // Create python_input_get block
         const inputGetBlock = workspace.newBlock('python_input_get');
         const paramNameBlock = workspace.newBlock('text');
         paramNameBlock.setFieldValue(match[3], 'TEXT');
         inputGetBlock.getInput('PARAM_NAME')?.connection?.connect(paramNameBlock.outputConnection!);
 
-        // Connect input_get to safe conversion
-        safeBlock.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
+        // 为 python_input_get 添加默认值（从 inputs.get 的第二个参数）
+        const inputsGetMatch = line.match(/inputs\.get\s*\(\s*['"]([^'"]+)['"]\s*,\s*(['"]?)([^)'"]+)\2\s*\)/);
+        if (inputsGetMatch && inputsGetMatch[3]) {
+          const defaultVal = inputsGetMatch[3].trim().replace(/^['"]|['"]$/g, '');
+          const defaultBlock = /^\d+(\.\d+)?$/.test(defaultVal)
+            ? workspace.newBlock('math_number')
+            : workspace.newBlock('text');
 
-        // Connect safe conversion to variable
-        block.getInput('VALUE')?.connection?.connect(safeBlock.outputConnection!);
+          if (defaultBlock.type === 'math_number') {
+            defaultBlock.setFieldValue(defaultVal, 'NUM');
+          } else {
+            defaultBlock.setFieldValue(defaultVal, 'TEXT');
+          }
+          inputGetBlock.getInput('DEFAULT_VALUE')?.connection?.connect(defaultBlock.outputConnection!);
+        }
+
+        // Connect input_get to conversion block
+        conversionBlock.getInput('VALUE')?.connection?.connect(inputGetBlock.outputConnection!);
+
+        // Connect conversion to variable
+        block.getInput('VALUE')?.connection?.connect(conversionBlock.outputConnection!);
 
         convertedCount++;
       }
