@@ -2524,7 +2524,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 errorMsg.append("  - 手动取消了编译操作\n\n");
             }
 
-            if (errorOutput.length() > 0) {
+            if (!errorOutput.isEmpty()) {
                 errorMsg.append("错误信息:\n").append(errorOutput.toString()).append("\n");
             }
 
@@ -2573,27 +2573,141 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         log.info("编译命令执行成功");
         progressLogService.sendLog(taskId, "✓ Python源代码编译成功");
         progressLogService.sendLog(taskId, "ℹ️  注意：编译时未安装pip（避免ensurepip失败）");
-        progressLogService.sendLog(taskId, "ℹ️  稍后可通过‘配置/离线包’上传pip.whl手动安装pip");
+        progressLogService.sendLog(taskId, "ℹ️  稍后可通过'配置/离线包'上传pip.whl手动安装pip");
 
-        // 验证编译结果
-        File pythonBin = new File(installDir, "bin/python3");
-        if (!pythonBin.exists()) {
-            log.error("编译完成但未找到python3可执行文件");
-            log.error("预期位置: {}", pythonBin.getAbsolutePath());
+        // 验证编译结果 - 多级检查和自动修复
+        File binDir = new File(installDir, "bin");
+        if (!binDir.exists() || !binDir.isDirectory()) {
+            log.error("编译完成但未找到bin目录");
+            log.error("安装目录内容:");
+            logDirectoryStructure(new File(installDir), 0, 3);
+            throw new IOException("编译完成但未找到bin目录，编译可能未正确完成");
+        }
+
+        log.info("开始验证Python可执行文件...");
+        progressLogService.sendLog(taskId, "验证Python可执行文件...");
+
+        // 第一步：查找 python3 符号链接或实际文件
+        File python3 = new File(binDir, "python3");
+        File actualPythonBinary = null;
+
+        // 第二步：如果python3不存在或是空文件（0字节），查找版本化的python3.x
+        if (!python3.exists() || python3.length() == 0) {
+            log.warn("python3不存在或为空文件，尝试查找版本化的python3.x");
+            progressLogService.sendLog(taskId, "⚠ python3不存在，查找版本化二进制文件...");
+
+            // 列出bin目录下的所有文件
+            File[] binFiles = binDir.listFiles();
+            if (binFiles != null) {
+                for (File file : binFiles) {
+                    String name = file.getName();
+                    // 查找 python3.x 格式的文件（排除config文件）
+                    if (name.matches("python3\\.\\d+") && !name.contains("config") && file.length() > 0) {
+                        actualPythonBinary = file;
+                        log.info("找到版本化Python二进制: {} ({}字节)",
+                            actualPythonBinary.getName(), actualPythonBinary.length());
+                        progressLogService.sendLog(taskId,
+                            "✓ 找到: " + actualPythonBinary.getName());
+                        break;
+                    }
+                }
+            }
+
+            // 第三步：如果找到了版本化的二进制文件，创建python3符号链接
+            if (actualPythonBinary != null && actualPythonBinary.length() > 0) {
+                log.info("尝试创建python3符号链接指向: {}", actualPythonBinary.getName());
+                progressLogService.sendLog(taskId, "创建python3符号链接...");
+
+                try {
+                    // 方法1：使用Java NIO创建符号链接
+                    java.nio.file.Path linkPath = python3.toPath();
+                    java.nio.file.Path targetPath = actualPythonBinary.toPath();
+
+                    // 删除旧的空文件（如果存在）
+                    if (python3.exists()) {
+                        java.nio.file.Files.delete(linkPath);
+                        log.info("删除了旧的空python3文件");
+                    }
+
+                    // 创建符号链接
+                    java.nio.file.Files.createSymbolicLink(linkPath,
+                        binDir.toPath().relativize(targetPath));
+                    log.info("✓ 成功创建符号链接: python3 -> {}", actualPythonBinary.getName());
+                    progressLogService.sendLog(taskId,
+                        "✓ 创建符号链接: python3 -> " + actualPythonBinary.getName());
+                } catch (Exception linkError) {
+                    log.warn("Java创建符号链接失败: {}", linkError.getMessage());
+                    progressLogService.sendLog(taskId, "⚠ 符号链接创建失败，尝试使用ln命令...");
+
+                    // 方法2：使用shell命令创建符号链接
+                    try {
+                        ProcessBuilder linkPb = new ProcessBuilder("ln", "-sf",
+                            actualPythonBinary.getName(), "python3");
+                        linkPb.directory(binDir);
+                        linkPb.redirectErrorStream(true);
+                        Process linkProcess = linkPb.start();
+                        int linkExitCode = linkProcess.waitFor();
+
+                        if (linkExitCode == 0) {
+                            log.info("✓ 使用ln命令成功创建符号链接");
+                            progressLogService.sendLog(taskId, "✓ 符号链接创建成功");
+                        } else {
+                            log.error("ln命令创建符号链接失败，退出码: {}", linkExitCode);
+                        }
+                    } catch (Exception cmdError) {
+                        log.error("使用ln命令创建符号链接失败: {}", cmdError.getMessage());
+                    }
+                }
+
+                // 刷新python3文件对象
+                python3 = new File(binDir, "python3");
+            }
+        }
+
+        // 第四步：最终验证
+        if (!python3.exists()) {
+            log.error("编译完成但无法创建python3可执行文件");
+            log.error("预期位置: {}", python3.getAbsolutePath());
             log.error("安装目录内容:");
             logDirectoryStructure(new File(installDir), 0, 3);
 
             throw new IOException(
                 "编译完成但未找到python3可执行文件。\n" +
-                "这通常表示编译过程未正确完成。\n\n" +
-                "【推荐】使用预编译Python运行时:\n" +
+                "这通常表示编译过程未正确完成或make install失败。\n\n" +
+                "【强烈推荐】使用预编译Python运行时:\n" +
+                "  https://github.com/astral-sh/python-build-standalone/releases\n" +
+                "  下载install_only版本，无需编译，直接使用！"
+            );
+        }
+
+        // 第五步：检查文件大小（确保不是0字节的占位符）
+        if (python3.length() == 0) {
+            log.error("python3文件存在但大小为0字节");
+            log.error("这可能是一个空占位符文件");
+            log.error("bin目录内容:");
+            logDirectoryStructure(binDir, 0, 1);
+
+            throw new IOException(
+                "python3文件为空（0字节），编译可能失败。\n\n" +
+                "【强烈推荐】使用预编译Python运行时:\n" +
                 "  https://github.com/astral-sh/python-build-standalone/releases"
             );
         }
 
-        // 设置可执行权限
-        pythonBin.setExecutable(true);
-        log.info("✓ 找到Python可执行文件: {}", pythonBin.getAbsolutePath());
+        // 第六步：设置可执行权限
+        if (!python3.canExecute()) {
+            boolean success = python3.setExecutable(true, false);
+            if (success) {
+                log.info("✓ 已设置python3可执行权限");
+            } else {
+                log.warn("设置python3可执行权限失败");
+            }
+        }
+
+        log.info("✓ Python可执行文件验证成功: {}", python3.getAbsolutePath());
+        log.info("  文件大小: {} 字节", python3.length());
+        log.info("  可执行: {}", python3.canExecute());
+        progressLogService.sendLog(taskId, "✓ Python可执行文件验证成功");
 
         // 删除源代码目录以节省空间
         try {
