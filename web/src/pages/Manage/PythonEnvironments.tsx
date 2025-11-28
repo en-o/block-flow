@@ -2138,7 +2138,7 @@ const PythonEnvironments: React.FC = () => {
           ))}
           {isInstalling && !canForceClose && (
             <div style={{ marginTop: '8px', color: '#ff0' }}>
-              ⏳ 正在处理，请稍候... (30秒后可手动关闭)
+              ⏳ 正在处理，请稍候... (15秒后可手动关闭)
             </div>
           )}
           {isInstalling && canForceClose && (
