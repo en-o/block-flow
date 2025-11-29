@@ -54,7 +54,7 @@ docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306  
 **下载地址：** https://github.com/astral-sh/python-build-standalone/releases
 
 **选择文件：**
-- **Windows**: `cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`
+- **Windows**: 官方`python-3.12.5-embed-amd64.zip` /  第三方`cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`  
 - **Linux x86_64**: `cpython-3.11.9+...-x86_64-unknown-linux-gnu-install_only.tar.gz`
 - **Linux ARM64**: `cpython-3.11.9+...-aarch64-unknown-linux-gnu-install_only.tar.gz`
 - **macOS**: `cpython-3.11.9+...-x86_64-apple-darwin-install_only.tar.gz`
