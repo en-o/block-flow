@@ -38,6 +38,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -85,6 +86,41 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             environment.setPackages(new JSONObject());
         }
 
+        // 处理Python路径（如果手动配置了系统Python路径）
+        if (createDTO.getPythonExecutable() != null && !createDTO.getPythonExecutable().trim().isEmpty()) {
+            String pythonPath = createDTO.getPythonExecutable().trim();
+
+            // 验证Python路径是否有效
+            if (!PythonEnvDetector.verifyPythonExecutable(pythonPath)) {
+                throw new ServiceException(500, "Python路径无效或不可执行: " + pythonPath);
+            }
+
+            log.info("配置Python路径: {}", pythonPath);
+
+            // 自动检测Python版本
+            String version = PythonEnvDetector.detectPythonVersion(pythonPath);
+            if (version != null) {
+                environment.setPythonVersion(version);
+                log.info("检测到Python版本: {}", version);
+            }
+
+            // 自动检测site-packages路径（对于系统Python）
+            String sitePackages = detectSitePackagesForSystemPython(pythonPath);
+            if (sitePackages != null) {
+                environment.setSitePackagesPath(sitePackages);
+                log.info("检测到site-packages: {}", sitePackages);
+            }
+
+            // 检测pip版本
+            String pipVersion = PythonEnvDetector.getPipVersion(pythonPath);
+            if (pipVersion != null) {
+                environment.setPipVersion(pipVersion);
+                log.info("检测到pip版本: {}", pipVersion);
+            } else {
+                log.warn("未检测到pip");
+            }
+        }
+
         // 如果设置为默认环境，需要取消其他默认环境
         if (Boolean.TRUE.equals(createDTO.getIsDefault())) {
             clearDefaultEnvironments();
@@ -117,6 +153,44 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 clearDefaultEnvironments();
             }
             environment.setIsDefault(updateDTO.getIsDefault());
+        }
+
+        // 处理Python路径更新（关键修复：手动配置系统Python路径）
+        if (updateDTO.getPythonExecutable() != null && !updateDTO.getPythonExecutable().equals(environment.getPythonExecutable())) {
+            String pythonPath = updateDTO.getPythonExecutable().trim();
+
+            // 验证Python路径是否有效
+            if (!PythonEnvDetector.verifyPythonExecutable(pythonPath)) {
+                throw new ServiceException(500, "Python路径无效或不可执行: " + pythonPath);
+            }
+
+            // 保存Python路径
+            environment.setPythonExecutable(pythonPath);
+            log.info("更新Python路径: {}", pythonPath);
+
+            // 自动检测Python版本
+            String version = PythonEnvDetector.detectPythonVersion(pythonPath);
+            if (version != null) {
+                environment.setPythonVersion(version);
+                log.info("检测到Python版本: {}", version);
+            }
+
+            // 自动检测site-packages路径（对于系统Python）
+            String sitePackages = detectSitePackagesForSystemPython(pythonPath);
+            if (sitePackages != null) {
+                environment.setSitePackagesPath(sitePackages);
+                log.info("检测到site-packages: {}", sitePackages);
+            }
+
+            // 检测pip版本
+            String pipVersion = PythonEnvDetector.getPipVersion(pythonPath);
+            if (pipVersion != null) {
+                environment.setPipVersion(pipVersion);
+                log.info("检测到pip版本: {}", pipVersion);
+            } else {
+                environment.setPipVersion(null);
+                log.warn("未检测到pip");
+            }
         }
 
         return pythonEnvironmentRepository.save(environment);
@@ -1899,6 +1973,53 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
 
         log.error("❌ 未能找到可用的Python可执行文件");
+        return null;
+    }
+
+    /**
+     * 检测系统Python的site-packages路径
+     * 通过执行Python命令获取site-packages的实际路径
+     *
+     * @param pythonExecutable Python可执行文件路径
+     * @return site-packages路径，失败返回null
+     */
+    private String detectSitePackagesForSystemPython(String pythonExecutable) {
+        if (pythonExecutable == null || pythonExecutable.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            // 使用Python命令获取site-packages路径
+            ProcessBuilder pb = new ProcessBuilder(
+                    pythonExecutable,
+                    "-c",
+                    "import site; print(site.getsitepackages()[0])"
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String sitePackages = reader.readLine();
+                int exitCode = process.waitFor();
+
+                if (exitCode == 0 && sitePackages != null && !sitePackages.trim().isEmpty()) {
+                    String path = sitePackages.trim();
+
+                    // 验证路径是否存在
+                    File sitePackagesDir = new File(path);
+                    if (sitePackagesDir.exists() && sitePackagesDir.isDirectory()) {
+                        log.info("检测到site-packages路径: {}", path);
+                        return path;
+                    } else {
+                        log.warn("site-packages路径不存在: {}", path);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("检测site-packages路径失败: {}", e.getMessage());
+        }
+
         return null;
     }
 
