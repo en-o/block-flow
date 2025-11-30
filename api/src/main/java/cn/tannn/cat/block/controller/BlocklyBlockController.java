@@ -163,7 +163,7 @@ public class BlocklyBlockController {
         if (result == null) {
             return ResultVO.success("验证通过");
         } else {
-            return ResultVO.failMessage("验证失败");
+            return ResultVO.failMessage(result); // 返回具体的错误信息
         }
     }
 }
