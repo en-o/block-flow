@@ -1172,10 +1172,35 @@ outputs = {
         });
       }
     } catch (error: any) {
-      setTestResult({
-        success: false,
-        error: `执行失败: ${error.message || '未知错误'}`
-      });
+      const errorMessage = error.message || '未知错误';
+
+      // 检查是否是Python环境不存在的错误
+      if (errorMessage.includes('Python环境不存在')) {
+        Modal.error({
+          title: '脚本执行异常',
+          content: (
+            <div>
+              <p>Python环境不存在，请先配置Python环境。</p>
+              <p style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
+                当前块关联的Python环境可能已被删除或未正确配置。
+              </p>
+            </div>
+          ),
+          okText: '去配置Python环境',
+          onOk: () => {
+            navigate('/manage/python-envs');
+          },
+        });
+        setTestResult({
+          success: false,
+          error: `执行失败: ${errorMessage}`
+        });
+      } else {
+        setTestResult({
+          success: false,
+          error: `执行失败: ${errorMessage}`
+        });
+      }
     } finally {
       setTesting(false);
     }
