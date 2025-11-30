@@ -73,8 +73,8 @@ const BlocklyBlocks: React.FC = () => {
   const fetchCategories = async () => {
     try {
       const response = await getBlocklyCategories();
-      if (response.data.code === 200) {
-        setCategories(response.data.data || []);
+      if (response.code === 200) {
+        setCategories(response.data || []);
       }
     } catch (error) {
       console.error('获取分类失败:', error);
@@ -92,10 +92,10 @@ const BlocklyBlocks: React.FC = () => {
         },
       });
 
-      if (response.data.code === 200) {
-        // 修复：使用正确的字段名 rows 和 total
-        setData(response.data.data.rows || []);
-        setTotal(response.data.data.total || 0);
+      if (response.code === 200) {
+        // 修复：响应拦截器已经处理过，直接使用 response.data
+        setData(response.data.rows || []);
+        setTotal(response.data.total || 0);
       }
     } catch (error) {
       message.error('获取数据失败');

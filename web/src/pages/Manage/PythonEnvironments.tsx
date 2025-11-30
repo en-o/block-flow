@@ -69,6 +69,8 @@ const PythonEnvironments: React.FC = () => {
   const [isInstalling, setIsInstalling] = useState(false); // 是否正在安装
   const [uploadProgress, setUploadProgress] = useState(0); // 上传进度
   const [canForceClose, setCanForceClose] = useState(false); // 是否允许强制关闭
+  const [pipDetecting, setPipDetecting] = useState(false); // 是否正在检测pip
+  const [pipDetected, setPipDetected] = useState(false); // 是否已完成pip检测
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
 
