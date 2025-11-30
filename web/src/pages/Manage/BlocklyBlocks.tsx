@@ -187,7 +187,7 @@ return \`from ${moduleName} import \${items}\\n\`;`,
       // 如果是复杂表达式，智能提取参数
       if (isComplexExpression) {
         // 提取字符串字面量和数字作为参数
-        const params: { value: string, placeholder: string, type: string }[] = [];
+        const params: { value: string, placeholder: string, type: string, quote: string }[] = [];
         let message = `${varName} = ${rightSide}`;
         let generatorCode = `const code = \`${varName} = ${rightSide}`;
 
@@ -200,31 +200,35 @@ return \`from ${moduleName} import \${items}\\n\`;`,
           stringMatches.forEach((match) => {
             const stringValue = match[0];
             const stringContent = stringValue.slice(1, -1); // 去掉引号
+            const quote = stringValue[0]; // 保存原始引号类型
             params.push({
               value: stringContent,
               placeholder: `%${paramIndex + 1}`,
-              type: 'String'
+              type: 'String',
+              quote: quote
             });
             // 替换message中的字符串为占位符
             message = message.replace(stringValue, `%${paramIndex + 1}`);
             paramIndex++;
           });
 
-          // 生成args0
+          // 生成args0 - 使用 field_input 而不是 input_value，这样可以直接编辑
           const args0 = params.map((param, idx) => ({
-            type: 'input_value',
+            type: 'field_input',
             name: `PARAM${idx}`,
-            check: param.type
+            text: param.value  // 设置默认值
           }));
 
-          // 生成Python代码生成器
-          const paramGetters = params.map((_, idx) =>
-            `const param${idx} = generator.valueToCode(block, 'PARAM${idx}', Order.NONE) || "''";`
+          // 生成Python代码生成器 - 使用 getFieldValue 获取文本字段的值
+          const paramGetters = params.map((param, idx) =>
+            `const param${idx} = block.getFieldValue('PARAM${idx}') || '${param.value}';`
           ).join('\n');
 
+          // 生成代码模板，保留原始引号
           let codeTemplate = rightSide;
           stringMatches.forEach((match, idx) => {
-            codeTemplate = codeTemplate.replace(match[0], `\${param${idx}}`);
+            const quote = params[idx].quote;
+            codeTemplate = codeTemplate.replace(match[0], `${quote}\${param${idx}}${quote}`);
           });
 
           generatorCode = `${paramGetters}
