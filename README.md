@@ -1,5 +1,6 @@
 # Block Flow
 Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用户通过拖拽代码块的方式构建和执行自动化工作流。系统内置 Python 脚本执行引擎，支持自定义代码块、环境变量管理、多环境配置等功能。
+> dockerhub:  https://hub.docker.com/r/tannnn/block-flow
 
 # 环境
 - java 17
@@ -37,7 +38,7 @@ docker run -d -p 1250:1250 \
   
 # windows
 #  -v $(pwd)/python-envs:/app/python-envs
-docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306   -e MYSQL_DB=db_block_flow   tannnn/block-flow:0.0.1
+docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306   -e MYSQL_DB=db_block_flow   tannnn/block-flow:0.0.2
 
 ```
 
