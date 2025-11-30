@@ -79,15 +79,28 @@ const PythonEnvironments: React.FC = () => {
   useEffect(() => {
     const shouldOpenPackageManagement = urlSearchParams.get('openPackageManagement') === 'true';
     const shouldOpenOnlineInstall = urlSearchParams.get('openOnlineInstall') === 'true';
+    const envIdParam = urlSearchParams.get('id');
 
     if ((shouldOpenPackageManagement || shouldOpenOnlineInstall) && environments.length > 0) {
-      // 查找默认环境或第一个环境
-      const defaultEnv = environments.find(env => env.isDefault) || environments[0];
+      // 优先使用URL参数中的id，否则使用默认环境或第一个环境
+      let targetEnv: PythonEnvironment | undefined;
 
-      if (defaultEnv) {
+      if (envIdParam) {
+        const envId = parseInt(envIdParam, 10);
+        targetEnv = environments.find(env => env.id === envId);
+
+        if (!targetEnv) {
+          message.warning(`未找到ID为${envId}的环境，使用默认环境`);
+          targetEnv = environments.find(env => env.isDefault) || environments[0];
+        }
+      } else {
+        targetEnv = environments.find(env => env.isDefault) || environments[0];
+      }
+
+      if (targetEnv) {
         // 延迟一下，确保页面已经渲染完成
         setTimeout(async () => {
-          setSelectedEnv(defaultEnv);
+          setSelectedEnv(targetEnv!);
 
           if (shouldOpenOnlineInstall) {
             // 打开在线包管理弹窗
@@ -95,7 +108,7 @@ const PythonEnvironments: React.FC = () => {
           } else {
             // 打开离线包上传弹窗
             try {
-              const response = await pythonEnvApi.listUploadedPackageFiles(defaultEnv.id);
+              const response = await pythonEnvApi.listUploadedPackageFiles(targetEnv!.id);
               if (response.code === 200 && response.data) {
                 setUploadedFiles(response.data);
               }

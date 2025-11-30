@@ -2010,10 +2010,10 @@ outputs = {
                                     type="primary"
                                     size="small"
                                     onClick={() => {
-                                      // 在线安装
-                                      window.open(`/manage/python-envs?openOnlineInstall=true`, '_blank');
+                                      // 在线安装，跳转到指定环境
+                                      window.open(`/manage/python-envs?id=${testResult.pythonEnvId}&openOnlineInstall=true`, '_blank');
                                       // 离线安装
-                                      // window.open(`/manage/python-envs?openPackageManagement=true`, '_blank');
+                                      // window.open(`/manage/python-envs?id=${testResult.pythonEnvId}&openPackageManagement=true`, '_blank');
                                     }}
                                   >
                                     前往Python环境管理
