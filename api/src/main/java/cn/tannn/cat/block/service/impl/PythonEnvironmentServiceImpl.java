@@ -239,9 +239,47 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "未配置site-packages路径，无法安装包");
         }
 
-        // 检查pip是否可用
-        if (!PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable())) {
-            throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
+        // 检查pip是否可用（增强提示）
+        boolean hasPip = PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable());
+        if (!hasPip) {
+            // 构建详细的错误提示
+            StringBuilder errorMsg = new StringBuilder();
+            errorMsg.append("❌ 当前Python环境不包含pip模块，无法使用在线安装功能\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("📋 环境信息\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("环境名称: ").append(environment.getName()).append("\n");
+            errorMsg.append("Python版本: ").append(environment.getPythonVersion() != null ? environment.getPythonVersion() : "未知").append("\n");
+            errorMsg.append("Python路径: ").append(environment.getPythonExecutable()).append("\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("✅ 解决方案（3种方式）\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+
+            errorMsg.append("【方案1 - 推荐】上传包含pip的Python运行时\n");
+            errorMsg.append("  1. 访问: https://github.com/astral-sh/python-build-standalone/releases\n");
+            errorMsg.append("  2. 下载对应系统的 install_only.tar.gz 文件（默认包含pip）\n");
+            errorMsg.append("  3. 在本页面点击"配置/Python运行时"上传\n\n");
+
+            errorMsg.append("【方案2】离线安装pip包\n");
+            errorMsg.append("  1. 下载pip安装包:\n");
+            errorMsg.append("     • https://pypi.org/project/pip/#files\n");
+            errorMsg.append("     • 选择 .whl 或 .tar.gz 格式（推荐: pip-24.3.1-py3-none-any.whl）\n");
+            errorMsg.append("  2. 在本页面点击"配置/离线包"上传pip包文件\n");
+            errorMsg.append("  3. 安装完成后即可使用在线安装功能\n\n");
+
+            errorMsg.append("【方案3】直接使用离线包安装依赖\n");
+            errorMsg.append("  • 下载所需Python包的 .whl 或 .tar.gz 文件\n");
+            errorMsg.append("  • 在本页面点击"配置/离线包"逐个上传安装\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("💡 提示\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("python-build-standalone 是预编译的Python运行时，\n");
+            errorMsg.append("默认包含pip、setuptools等工具，开箱即用，强烈推荐！\n");
+
+            throw new ServiceException(500, errorMsg.toString());
         }
 
         String packageName = packageDTO.getPackageName();
@@ -531,9 +569,47 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "未配置site-packages路径，无法安装包");
         }
 
-        // 检查pip是否可用
-        if (!PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable())) {
-            throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
+        // 检查pip是否可用（增强提示）
+        boolean hasPip = PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable());
+        if (!hasPip) {
+            // 构建详细的错误提示
+            StringBuilder errorMsg = new StringBuilder();
+            errorMsg.append("❌ 当前Python环境不包含pip模块，无法使用requirements.txt批量安装功能\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("📋 环境信息\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("环境名称: ").append(environment.getName()).append("\n");
+            errorMsg.append("Python版本: ").append(environment.getPythonVersion() != null ? environment.getPythonVersion() : "未知").append("\n");
+            errorMsg.append("Python路径: ").append(environment.getPythonExecutable()).append("\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("✅ 解决方案（3种方式）\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+
+            errorMsg.append("【方案1 - 推荐】上传包含pip的Python运行时\n");
+            errorMsg.append("  1. 访问: https://github.com/astral-sh/python-build-standalone/releases\n");
+            errorMsg.append("  2. 下载对应系统的 install_only.tar.gz 文件（默认包含pip）\n");
+            errorMsg.append("  3. 点击"配置/Python运行时"上传\n\n");
+
+            errorMsg.append("【方案2】离线安装pip包\n");
+            errorMsg.append("  1. 下载pip安装包:\n");
+            errorMsg.append("     • https://pypi.org/project/pip/#files\n");
+            errorMsg.append("     • 选择 .whl 或 .tar.gz 格式（推荐: pip-24.3.1-py3-none-any.whl）\n");
+            errorMsg.append("  2. 点击"配置/离线包"上传pip包文件\n");
+            errorMsg.append("  3. 安装完成后即可使用requirements.txt批量安装\n\n");
+
+            errorMsg.append("【方案3】使用离线包逐个安装依赖\n");
+            errorMsg.append("  • 下载requirements.txt中每个包的 .whl 或 .tar.gz 文件\n");
+            errorMsg.append("  • 点击"配置/离线包"逐个上传安装\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("💡 提示\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("python-build-standalone 是预编译的Python运行时，\n");
+            errorMsg.append("默认包含pip、setuptools等工具，开箱即用，强烈推荐！\n");
+
+            throw new ServiceException(500, errorMsg.toString());
         }
 
         log.info("========================================");
@@ -1528,10 +1604,36 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 在配置._pth文件后重新检测pip（可能已经可用了）
         progressLogService.sendProgress(taskId, 95, "检测pip可用性...");
         boolean hasPip = PythonEnvDetector.checkPipAvailable(pythonExecutable);
+
         if (hasPip) {
             progressLogService.sendLog(taskId, "✓ pip可用");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            progressLogService.sendLog(taskId, "✅ 可以使用在线安装功能");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         } else {
-            progressLogService.sendLog(taskId, "⚠ pip不可用，需要手动安装");
+            progressLogService.sendLog(taskId, "⚠ pip不可用");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            progressLogService.sendLog(taskId, "⚠️  pip模块检测失败");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            progressLogService.sendLog(taskId, "当前Python环境不包含pip模块，无法使用在线安装功能");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "解决方案：");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "【方案1 - 推荐】重新上传包含pip的Python运行时");
+            progressLogService.sendLog(taskId, "  • 访问: https://github.com/astral-sh/python-build-standalone/releases");
+            progressLogService.sendLog(taskId, "  • 下载 install_only.tar.gz 文件（默认包含pip）");
+            progressLogService.sendLog(taskId, "  • 重新上传该文件");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "【方案2】离线安装pip包");
+            progressLogService.sendLog(taskId, "  • 下载: https://pypi.org/project/pip/#files");
+            progressLogService.sendLog(taskId, "  • 选择 .whl 格式（如: pip-24.3.1-py3-none-any.whl）");
+            progressLogService.sendLog(taskId, "  • 在本页面点击"配置/离线包"上传");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "【方案3】继续使用离线包安装依赖");
+            progressLogService.sendLog(taskId, "  • 下载所需Python包的 .whl 或 .tar.gz 文件");
+            progressLogService.sendLog(taskId, "  • 点击"配置/离线包"逐个上传安装");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
 
         // 更新环境配置
