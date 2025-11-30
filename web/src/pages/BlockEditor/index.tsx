@@ -620,9 +620,12 @@ outputs = {
       const response = await pythonEnvApi.listAll();
       if (response.code === 200 && response.data) {
         setPythonEnvs(response.data);
+        return response.data; // 返回环境列表供后续使用
       }
+      return [];
     } catch (error) {
       console.error('加载Python环境失败', error);
+      return [];
     }
   };
 
@@ -652,6 +655,27 @@ outputs = {
         setDefinitionMode(blockData.definitionMode || 'CODE');
         setScriptCode(blockData.script || '');
 
+        // 获取Python环境列表
+        const envs = await loadPythonEnvs();
+
+        // 检查当前块的pythonEnvId是否在环境列表中
+        let finalPythonEnvId = blockData.pythonEnvId;
+        if (blockData.pythonEnvId) {
+          const envExists = envs.some((env: any) => env.id === blockData.pythonEnvId);
+          if (!envExists) {
+            // 如果环境不存在，使用默认环境
+            const defaultEnv = envs.find((env: any) => env.isDefault);
+            if (defaultEnv) {
+              finalPythonEnvId = defaultEnv.id;
+              console.log(`块的Python环境(ID: ${blockData.pythonEnvId})不存在，自动使用默认环境(ID: ${defaultEnv.id}, 名称: ${defaultEnv.name})`);
+              message.info(`原Python环境已不存在，已自动切换到默认环境: ${defaultEnv.name}`);
+            } else {
+              console.warn('未找到默认Python环境');
+              finalPythonEnvId = undefined;
+            }
+          }
+        }
+
         // 填充表单
         form.setFieldsValue({
           name: blockData.name,
@@ -660,7 +684,7 @@ outputs = {
           color: blockData.color,
           icon: blockData.icon,
           version: blockData.version,
-          pythonEnvId: blockData.pythonEnvId,
+          pythonEnvId: finalPythonEnvId, // 使用检查后的环境ID
           tags: blockData.tags || [],
           isPublic: blockData.isPublic,
         });
