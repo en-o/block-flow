@@ -30,72 +30,91 @@ export class ToolboxManager {
    * 已优化：去除重复分类，更清晰的Python专用结构
    */
   private static defaultCategories: ToolboxCategory[] = [
+    // === Python 基础分类 ===
     {
-      name: '📥 Python基础',
+      name: '📥 输入输出',
       categoryId: 'python_io',
       colour: '#1890ff',
       order: 1,
     },
     {
-      name: '🔢 变量与赋值',
+      name: '🔢 变量与运算',
       categoryId: 'python_calculation',
       colour: '#ff7a45',
       order: 2,
     },
+
+    // === Blockly 内置分类 ===
     {
-      name: '➕ 数学运算',
+      name: '➕ 数学',
       categoryId: 'math',
       colour: '#FA8C16',
       order: 3,
     },
     {
-      name: '🔀 逻辑控制',
+      name: '🔀 逻辑',
       categoryId: 'logic',
       colour: '#5C7CFA',
       order: 4,
     },
     {
-      name: '🔁 循环迭代',
+      name: '🔁 循环',
       categoryId: 'loops',
       colour: '#52C41A',
       order: 5,
     },
     {
-      name: '📝 文本处理',
+      name: '📝 文本',
       categoryId: 'text',
       colour: '#722ED1',
       order: 6,
+    },
+
+    // === Python 高级功能 ===
+    {
+      name: '🎯 字符串处理',
+      categoryId: 'python_string',
+      colour: '#9254de',
+      order: 7,
     },
     {
       name: '📦 列表/字典',
       categoryId: 'python_data',
       colour: '#52c41a',
-      order: 7,
+      order: 8,
+    },
+    {
+      name: '🛡️ 异常处理',
+      categoryId: 'python_control',
+      colour: '#fa541c',
+      order: 9,
     },
     {
       name: '📁 文件操作',
       categoryId: 'python_file',
       colour: '#13c2c2',
-      order: 8,
+      order: 10,
     },
     {
       name: '🌐 HTTP请求',
       categoryId: 'python_http',
       colour: '#fa8c16',
-      order: 9,
+      order: 11,
     },
     {
-      name: '{ } JSON操作',
+      name: '{ } JSON',
       categoryId: 'python_json',
       colour: '#722ed1',
-      order: 10,
+      order: 12,
     },
     {
       name: '🕐 日期时间',
       categoryId: 'python_datetime',
       colour: '#eb2f96',
-      order: 11,
+      order: 13,
     },
+
+    // === 自定义积木 ===
     {
       name: '⚙️ 自定义积木',
       categoryId: 'system_custom',
