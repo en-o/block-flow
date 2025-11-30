@@ -28,6 +28,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ThunderboltOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import {
   getBlocklyBlockPage,
@@ -55,9 +56,12 @@ const BlocklyBlocks: React.FC = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [form] = Form.useForm();
 
-  // 新增：创建模式（simple简单/advanced高级/code代码生成）
-  const [createMode, setCreateMode] = useState<'simple' | 'advanced' | 'code'>('simple');
+  // 新增：创建模式状态
   const [pythonCode, setPythonCode] = useState('');
+  const [showDefinitionForm, setShowDefinitionForm] = useState(false); // 是否显示定义表单
+  const [testResult, setTestResult] = useState<any>(null); // 测试结果
+  const [testing, setTesting] = useState(false); // 是否正在测试
+  const [testPassed, setTestPassed] = useState(false); // 测试是否通过
 
   const [searchParams, setSearchParams] = useState({
     name: '',
@@ -265,14 +269,56 @@ return code;`,
       isSystem: false,
     });
 
-    message.success('已生成积木块定义，请检查并保存');
-    setCreateMode('advanced');
+    message.success('已生成积木块定义，请手动调整后进行测试');
+    setShowDefinitionForm(true);
+    setTestPassed(false); // 重置测试状态
+    setTestResult(null);
+  };
+
+  /**
+   * 测试积木块定义
+   */
+  const handleTestBlock = async () => {
+    try {
+      await form.validateFields();
+      const values = form.getFieldsValue();
+
+      setTesting(true);
+      setTestResult(null);
+
+      // 调用验证API
+      const response = await validateBlocklyDefinition(
+        values.definition,
+        values.pythonGenerator
+      );
+
+      if (response.code === 200) {
+        setTestResult({ success: true, message: '✓ 积木块定义验证通过！' });
+        setTestPassed(true);
+        message.success('测试通过，可以保存了');
+      } else {
+        setTestResult({ success: false, message: response.message || '验证失败' });
+        setTestPassed(false);
+        message.error('测试失败：' + response.message);
+      }
+    } catch (error: any) {
+      if (error.errorFields) {
+        message.error('请填写必填字段');
+      } else {
+        setTestResult({ success: false, message: error.message || '测试失败' });
+        setTestPassed(false);
+        message.error('测试失败：' + (error.message || '未知错误'));
+      }
+    } finally {
+      setTesting(false);
+    }
   };
 
   const showModal = (record?: any) => {
     if (record) {
       setEditingBlock(record);
-      setCreateMode('advanced');
+      setShowDefinitionForm(true); // 编辑模式直接显示表单
+      setTestPassed(true); // 已有的块默认测试通过
       form.setFieldsValue({
         ...record,
         definition: typeof record.definition === 'string'
@@ -281,7 +327,9 @@ return code;`,
       });
     } else {
       setEditingBlock(null);
-      setCreateMode('simple');
+      setShowDefinitionForm(false); // 新建模式从代码生成开始
+      setTestPassed(false);
+      setTestResult(null);
       setPythonCode('');
       form.resetFields();
       form.setFieldsValue({
@@ -302,18 +350,13 @@ return code;`,
 
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
-
-      // 验证块定义
-      const validationResponse = await validateBlocklyDefinition(
-        values.definition,
-        values.pythonGenerator
-      );
-
-      if (validationResponse.data.code !== 200) {
-        message.error(validationResponse.data.message || '块定义验证失败');
+      // 新建模式下必须先测试通过
+      if (!editingBlock && !testPassed) {
+        message.warning('请先点击"测试积木块定义"按钮进行测试，测试通过后才能保存');
         return;
       }
+
+      const values = await form.validateFields();
 
       if (editingBlock) {
         await updateBlocklyBlock({
@@ -560,26 +603,11 @@ return code;`,
         cancelText="取消"
       >
         <Form form={form} layout="vertical">
-          {!editingBlock && (
-            <Form.Item label="创建方式">
-              <Radio.Group value={createMode} onChange={(e) => setCreateMode(e.target.value)}>
-                <Radio.Button value="simple">
-                  <ThunderboltOutlined /> 快速创建
-                </Radio.Button>
-                <Radio.Button value="code">
-                  代码生成
-                </Radio.Button>
-                <Radio.Button value="advanced">
-                  高级模式
-                </Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-          )}
-
-          {createMode === 'code' && !editingBlock && (
+          {/* 步骤1：代码生成（仅新建模式） */}
+          {!editingBlock && !showDefinitionForm && (
             <>
               <Alert
-                message="代码生成提示"
+                message="从Python代码生成积木块"
                 description={
                   <div>
                     支持以下Python代码模式自动生成积木块：
@@ -597,191 +625,152 @@ return code;`,
               />
               <Form.Item label="Python代码">
                 <TextArea
-                  rows={3}
+                  rows={5}
                   value={pythonCode}
                   onChange={(e) => setPythonCode(e.target.value)}
                   placeholder="例如：import requests"
                 />
               </Form.Item>
               <Form.Item>
-                <Button type="primary" onClick={handleCodeGenerate} block>
+                <Button type="primary" onClick={handleCodeGenerate} block size="large">
                   生成积木块定义
                 </Button>
               </Form.Item>
             </>
           )}
 
-          {createMode === 'simple' && !editingBlock && (
-            <Tabs defaultActiveKey="1">
-              <TabPane tab="基本信息" key="1">
-                <Form.Item
-                  name="type"
-                  label="积木类型（唯一标识）"
-                  rules={[{ required: true, message: '请输入积木类型' }]}
-                  extra="例如：my_block, calc_sum"
-                >
-                  <Input placeholder="my_custom_block" />
-                </Form.Item>
+          {/* 步骤2：手动调整定义（代码生成后或编辑模式） */}
+          {(editingBlock || showDefinitionForm) && (
+            <>
+              <Tabs defaultActiveKey="1">
+                <TabPane tab="基本信息" key="1">
+                  <Form.Item
+                    name="type"
+                    label="积木类型"
+                    rules={[{ required: true, message: '请输入积木类型' }]}
+                  >
+                    <Input disabled={!!editingBlock} />
+                  </Form.Item>
 
-                <Form.Item
-                  name="name"
-                  label="积木名称"
-                  rules={[{ required: true, message: '请输入积木名称' }]}
-                >
-                  <Input placeholder="我的自定义积木" />
-                </Form.Item>
+                  <Form.Item
+                    name="name"
+                    label="积木名称"
+                    rules={[{ required: true, message: '请输入积木名称' }]}
+                  >
+                    <Input />
+                  </Form.Item>
 
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Form.Item
-                      name="category"
-                      label="分类"
-                      rules={[{ required: true, message: '请选择分类' }]}
-                    >
-                      <Select
-                        placeholder="选择或输入新分类"
-                        showSearch
-                        allowClear
-                        mode="tags"
-                        maxTagCount={1}
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="category"
+                        label="分类"
+                        rules={[{ required: true, message: '请输入分类' }]}
                       >
-                        {categories.map((cat) => (
-                          <Select.Option key={cat} value={cat}>
-                            {cat}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item name="color" label="颜色" initialValue="#1890ff">
-                      <Input type="color" />
-                    </Form.Item>
-                  </Col>
-                </Row>
+                        <Select
+                          showSearch
+                          allowClear
+                          mode="tags"
+                          maxTagCount={1}
+                        >
+                          {categories.map((cat) => (
+                            <Select.Option key={cat} value={cat}>
+                              {cat}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item name="color" label="颜色">
+                        <Input placeholder="#1890ff" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
 
-                <Form.Item
-                  name="definition"
-                  label="积木定义（JSON）"
-                  rules={[{ required: true, message: '请输入积木定义' }]}
-                  extra="简单示例，更复杂的定义请切换到高级模式"
-                >
-                  <TextArea
-                    rows={8}
-                    placeholder={`{"type":"my_block","message0":"我的积木 %1","args0":[{"type":"input_value","name":"INPUT"}],"output":null,"colour":"#1890ff","tooltip":"提示文本"}`}
-                  />
-                </Form.Item>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Form.Item name="sortOrder" label="排序" initialValue={0}>
+                        <InputNumber min={0} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name="enabled" label="启用" valuePropName="checked" initialValue={true}>
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name="isSystem" label="系统块" valuePropName="checked" initialValue={false}>
+                        <Switch disabled={!!editingBlock} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
 
-                <Form.Item
-                  name="pythonGenerator"
-                  label="Python生成器"
-                  rules={[{ required: true, message: '请输入Python生成器' }]}
-                >
-                  <TextArea
-                    rows={5}
-                    placeholder={`const input = generator.valueToCode(block, 'INPUT', Order.NONE);
-const code = \`my_function(\${input})\`;
-return [code, Order.FUNCTION_CALL];`}
-                  />
-                </Form.Item>
-              </TabPane>
-            </Tabs>
-          )}
+                  <Form.Item name="description" label="描述">
+                    <TextArea rows={2} />
+                  </Form.Item>
 
-          {(createMode === 'advanced' || editingBlock) && (
-            <Tabs defaultActiveKey="1">
-              <TabPane tab="基本信息" key="1">
-                <Form.Item
-                  name="type"
-                  label="积木类型"
-                  rules={[{ required: true, message: '请输入积木类型' }]}
-                >
-                  <Input disabled={!!editingBlock} />
-                </Form.Item>
+                  <Form.Item name="example" label="示例">
+                    <TextArea rows={2} />
+                  </Form.Item>
+                </TabPane>
 
-                <Form.Item
-                  name="name"
-                  label="积木名称"
-                  rules={[{ required: true, message: '请输入积木名称' }]}
-                >
-                  <Input />
-                </Form.Item>
+                <TabPane tab="积木定义" key="2">
+                  <Form.Item
+                    name="definition"
+                    label="Blockly定义(JSON)"
+                    rules={[{ required: true, message: '请输入定义' }]}
+                  >
+                    <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
+                  </Form.Item>
+                </TabPane>
 
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Form.Item
-                      name="category"
-                      label="分类"
-                      rules={[{ required: true, message: '请输入分类' }]}
-                    >
-                      <Select
-                        showSearch
-                        allowClear
-                        mode="tags"
-                        maxTagCount={1}
-                      >
-                        {categories.map((cat) => (
-                          <Select.Option key={cat} value={cat}>
-                            {cat}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item name="color" label="颜色">
-                      <Input placeholder="#1890ff" />
-                    </Form.Item>
-                  </Col>
-                </Row>
+                <TabPane tab="Python生成器" key="3">
+                  <Form.Item
+                    name="pythonGenerator"
+                    label="Python代码生成器"
+                    rules={[{ required: true, message: '请输入生成器代码' }]}
+                  >
+                    <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
+                  </Form.Item>
+                </TabPane>
+              </Tabs>
 
-                <Row gutter={16}>
-                  <Col span={8}>
-                    <Form.Item name="sortOrder" label="排序" initialValue={0}>
-                      <InputNumber min={0} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}>
-                    <Form.Item name="enabled" label="启用" valuePropName="checked" initialValue={true}>
-                      <Switch />
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}>
-                    <Form.Item name="isSystem" label="系统块" valuePropName="checked" initialValue={false}>
-                      <Switch disabled={!!editingBlock} />
-                    </Form.Item>
-                  </Col>
-                </Row>
+              {/* 测试功能 */}
+              {!editingBlock && (
+                <div style={{ marginTop: 16 }}>
+                  <Button
+                    type="primary"
+                    onClick={handleTestBlock}
+                    loading={testing}
+                    block
+                    size="large"
+                    icon={<PlayCircleOutlined />}
+                  >
+                    {testing ? '测试中...' : '测试积木块定义'}
+                  </Button>
 
-                <Form.Item name="description" label="描述">
-                  <TextArea rows={2} />
-                </Form.Item>
+                  {testResult && (
+                    <Alert
+                      message={testResult.success ? '测试成功' : '测试失败'}
+                      description={testResult.message}
+                      type={testResult.success ? 'success' : 'error'}
+                      showIcon
+                      style={{ marginTop: 12 }}
+                    />
+                  )}
 
-                <Form.Item name="example" label="示例">
-                  <TextArea rows={2} />
-                </Form.Item>
-              </TabPane>
-
-              <TabPane tab="积木定义" key="2">
-                <Form.Item
-                  name="definition"
-                  label="Blockly定义(JSON)"
-                  rules={[{ required: true, message: '请输入定义' }]}
-                >
-                  <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
-                </Form.Item>
-              </TabPane>
-
-              <TabPane tab="Python生成器" key="3">
-                <Form.Item
-                  name="pythonGenerator"
-                  label="Python代码生成器"
-                  rules={[{ required: true, message: '请输入生成器代码' }]}
-                >
-                  <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
-                </Form.Item>
-              </TabPane>
-            </Tabs>
+                  {testPassed && (
+                    <Alert
+                      message="✓ 测试已通过，可以保存了"
+                      type="success"
+                      showIcon
+                      style={{ marginTop: 12 }}
+                    />
+                  )}
+                </div>
+              )}
+            </>
           )}
         </Form>
       </Modal>
