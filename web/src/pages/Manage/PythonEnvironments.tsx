@@ -19,6 +19,7 @@ import {
   Progress,
   Radio,
   Alert,
+  Collapse,
 } from 'antd';
 import {
   PlusOutlined,
@@ -1707,77 +1708,80 @@ const PythonEnvironments: React.FC = () => {
         ]}
       >
         {/* 下载指南（可折叠） */}
-        <Alert
-          message={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>📦 下载指南：Python运行时 & pip离线包</span>
-            </div>
-          }
-          description={
-            <div style={{ fontSize: 12 }}>
-              <div style={{ marginBottom: 12 }}>
-                <strong>🎯 推荐方案：</strong>
-                <a href="https://github.com/astral-sh/python-build-standalone/releases" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}>
-                  python-build-standalone（预编译Python，包含pip）
-                </a>
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <strong>🐧 Linux / 🐳 Docker 环境：</strong>
-                <div style={{ marginLeft: 16, marginTop: 4, fontSize: 11 }}>
-                  x86_64: <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
-                    cpython-3.10.19+...-x86_64-unknown-linux-gnu-install_only.tar.gz
-                  </code>
-                  <br />
-                  ARM64: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
-                    cpython-3.11.9+...-aarch64-unknown-linux-gnu-install_only.tar.gz
-                  </code>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <strong>🪟 Windows系统：</strong>
-                <div style={{ marginLeft: 16, marginTop: 4, fontSize: 11 }}>
-                  <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
-                    cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
-                  </code>
-                  <br />
-                  <span style={{ color: '#666', fontSize: 10 }}>
-                    或使用
-                    <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
-                      官方Windows版
-                    </a> |
-                    <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
-                      淘宝镜像
-                    </a>
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 12, padding: '8px', background: '#fff7e6', borderRadius: 4, border: '1px solid #ffd591' }}>
-                <strong>💡 关键提示：</strong>
-                <br />
-                • 文件名必须包含 <code>install_only</code>（包含pip和完整环境）
-                <br />
-                • 架构必须匹配系统（x86_64或aarch64），否则会报"Exec format error"
-                <br />
-                • Docker用户可直接使用系统Python: <code>/usr/bin/python3</code>
-              </div>
-
-              <div style={{ marginTop: 12 }}>
-                <strong>📥 pip离线包下载（如需单独安装pip）：</strong>
-                <br />
-                <a href="https://pypi.org/project/pip/#files" target="_blank" rel="noopener noreferrer">PyPI官方</a> |
-                <a href="https://pypi.tuna.tsinghua.edu.cn/simple/pip/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}>清华镜像</a>
-                <br />
-                推荐: <code>pip-24.3.1-py3-none-any.whl</code>
-              </div>
-            </div>
-          }
-          type="info"
-          showIcon
+        <Collapse
+          defaultActiveKey={[]}
           style={{ marginBottom: 16 }}
-          closable
+          items={[
+            {
+              key: 'download-guide',
+              label: (
+                <Space>
+                  <span>📦 下载指南：Python运行时 & pip离线包</span>
+                </Space>
+              ),
+              children: (
+                <div style={{ fontSize: 12 }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong>🎯 推荐方案：</strong>
+                    <a href="https://github.com/astral-sh/python-build-standalone/releases" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}>
+                      python-build-standalone（预编译Python，包含pip）
+                    </a>
+                  </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <strong>🐧 Linux / 🐳 Docker 环境：</strong>
+                    <div style={{ marginLeft: 16, marginTop: 4, fontSize: 11 }}>
+                      x86_64: <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
+                        cpython-3.10.19+...-x86_64-unknown-linux-gnu-install_only.tar.gz
+                      </code>
+                      <br />
+                      ARM64: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
+                        cpython-3.11.9+...-aarch64-unknown-linux-gnu-install_only.tar.gz
+                      </code>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <strong>🪟 Windows系统：</strong>
+                    <div style={{ marginLeft: 16, marginTop: 4, fontSize: 11 }}>
+                      <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
+                        cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
+                      </code>
+                      <br />
+                      <span style={{ color: '#666', fontSize: 10 }}>
+                        或使用
+                        <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
+                          官方Windows版
+                        </a> |
+                        <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
+                          淘宝镜像
+                        </a>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 12, padding: '8px', background: '#fff7e6', borderRadius: 4, border: '1px solid #ffd591' }}>
+                    <strong>💡 关键提示：</strong>
+                    <br />
+                    • 文件名必须包含 <code>install_only</code>（包含pip和完整环境）
+                    <br />
+                    • 架构必须匹配系统（x86_64或aarch64），否则会报"Exec format error"
+                    <br />
+                    • Docker用户可直接使用系统Python: <code>/usr/bin/python3</code>
+                  </div>
+
+                  <div style={{ marginTop: 12 }}>
+                    <strong>📥 pip离线包下载（如需单独安装pip）：</strong>
+                    <br />
+                    <a href="https://pypi.org/project/pip/#files" target="_blank" rel="noopener noreferrer">PyPI官方</a> |
+                    <a href="https://pypi.tuna.tsinghua.edu.cn/simple/pip/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}>清华镜像</a>
+                    <br />
+                    推荐: <code>pip-24.3.1-py3-none-any.whl</code>
+                  </div>
+                </div>
+              ),
+            },
+          ]}
         />
 
         <Card
@@ -1823,48 +1827,57 @@ const PythonEnvironments: React.FC = () => {
               • 系统将自动检测并配置 Python 解释器路径、版本、site-packages路径和pip版本
             </div>
             {selectedEnv?.pythonExecutable ? (
-              <Alert
-                message="当前Python配置"
-                description={
-                  <div style={{ fontSize: 13 }}>
-                    <div style={{ marginBottom: 4 }}>
-                      <strong>解释器路径：</strong>
-                      <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>
-                        {selectedEnv.pythonExecutable}
-                      </code>
-                    </div>
-                    {selectedEnv.pythonVersion && (
-                      <div style={{ marginBottom: 4 }}>
-                        <strong>Python版本：</strong>
-                        <Tag color="blue">{selectedEnv.pythonVersion}</Tag>
-                      </div>
-                    )}
-                    {selectedEnv.pipVersion ? (
-                      <div style={{ marginBottom: 4 }}>
-                        <strong>pip版本：</strong>
-                        <Tag color="green" icon={<CheckCircleOutlined />}>{selectedEnv.pipVersion}</Tag>
-                        <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用在线安装</span>
-                      </div>
-                    ) : (
-                      <div style={{ marginBottom: 4 }}>
-                        <strong>pip状态：</strong>
-                        <Tag color="orange">未安装</Tag>
-                        <span style={{ color: '#fa8c16', fontSize: 12, marginLeft: 8 }}>仅支持离线安装</span>
-                      </div>
-                    )}
-                    {selectedEnv.sitePackagesPath && (
-                      <div>
-                        <strong>site-packages：</strong>
-                        <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>
-                          {selectedEnv.sitePackagesPath}
-                        </code>
-                      </div>
-                    )}
-                  </div>
-                }
-                type="success"
-                showIcon
+              <Collapse
+                defaultActiveKey={['python-config']}
                 style={{ marginTop: 12 }}
+                items={[
+                  {
+                    key: 'python-config',
+                    label: (
+                      <Space>
+                        <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                        <span>当前Python配置</span>
+                      </Space>
+                    ),
+                    children: (
+                      <div style={{ fontSize: 13 }}>
+                        <div style={{ marginBottom: 4 }}>
+                          <strong>解释器路径：</strong>
+                          <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>
+                            {selectedEnv.pythonExecutable}
+                          </code>
+                        </div>
+                        {selectedEnv.pythonVersion && (
+                          <div style={{ marginBottom: 4 }}>
+                            <strong>Python版本：</strong>
+                            <Tag color="blue">{selectedEnv.pythonVersion}</Tag>
+                          </div>
+                        )}
+                        {selectedEnv.pipVersion ? (
+                          <div style={{ marginBottom: 4 }}>
+                            <strong>pip版本：</strong>
+                            <Tag color="green" icon={<CheckCircleOutlined />}>{selectedEnv.pipVersion}</Tag>
+                            <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用在线安装</span>
+                          </div>
+                        ) : (
+                          <div style={{ marginBottom: 4 }}>
+                            <strong>pip状态：</strong>
+                            <Tag color="orange">未安装</Tag>
+                            <span style={{ color: '#fa8c16', fontSize: 12, marginLeft: 8 }}>仅支持离线安装</span>
+                          </div>
+                        )}
+                        {selectedEnv.sitePackagesPath && (
+                          <div>
+                            <strong>site-packages：</strong>
+                            <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3, fontSize: 12 }}>
+                              {selectedEnv.sitePackagesPath}
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]}
               />
             ) : (
               <Alert
