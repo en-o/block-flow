@@ -71,8 +71,8 @@ docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306  
 - `install_only` 版本包含完整Python环境和pip，推荐使用
 
 **🐳 Docker环境用户：**
-- 系统已预装Python 3.12，路径：`/usr/bin/python3.12` 或 `/usr/bin/python3`
-- 可直接使用系统Python，或上传python-build-standalone以获得更好的隔离性
+- 系统已预装Python 3.10，路径：`/usr/bin/python3` 或 `/usr/bin/python`
+- 可直接使用系统Python（备用），推荐上传python-build-standalone以获得更好的兼容性和更新版本（如Python 3.11/3.12）
 
 ---
 

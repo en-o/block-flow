@@ -756,13 +756,15 @@ Python 官方 FTP:
 
 **推荐版本**：
 ```
+Docker容器默认:
+  Python 3.10.x  # Ubuntu 22.04 自带，稳定可靠
+
 生产环境推荐:
-  Python 3.9.x  # 稳定、广泛支持
+  Python 3.10.x # 稳定、广泛支持
+  Python 3.11.x # 性能提升
 
 开发环境可选:
-  Python 3.10.x # 新特性
-  Python 3.11.x # 性能提升
-  Python 3.12.x # 最新版本
+  Python 3.12.x # 最新版本，新特性
 
 不推荐:
   Python 2.7.x  # 已停止维护

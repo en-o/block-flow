@@ -38,6 +38,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1116,10 +1117,31 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     }
 
                     if (entry.isDirectory()) {
+                        // 处理目录
                         if (!targetFile.exists() && !targetFile.mkdirs()) {
                             throw new IOException("无法创建目录: " + targetFile);
                         }
+                    } else if (entry.isSymbolicLink()) {
+                        // 处理符号链接（关键修复：保留Python运行时中的符号链接）
+                        String linkTarget = entry.getLinkName();
+                        Path targetPath = targetFile.toPath();
+                        Path linkPath = Paths.get(linkTarget);
+
+                        // 创建父目录
+                        File parent = targetFile.getParentFile();
+                        if (!parent.exists() && !parent.mkdirs()) {
+                            throw new IOException("无法创建父目录: " + parent);
+                        }
+
+                        // 创建符号链接
+                        try {
+                            Files.createSymbolicLink(targetPath, linkPath);
+                            log.info("创建符号链接: {} -> {}", targetFile.getName(), linkTarget);
+                        } catch (FileAlreadyExistsException e) {
+                            log.warn("符号链接已存在，跳过: {}", targetFile.getName());
+                        }
                     } else {
+                        // 处理普通文件
                         File parent = targetFile.getParentFile();
                         if (!parent.exists() && !parent.mkdirs()) {
                             throw new IOException("无法创建父目录: " + parent);

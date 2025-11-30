@@ -17,13 +17,13 @@
 #   Linux/Mac: ./docker-build.sh
 #   Windows:   docker-build.bat
 #
-# 【镜像选择】
+# 【镜像选择】 Ubuntu 22.04
 # - Alpine版本（轻量）: eclipse-temurin:17-jre-alpine
-# - Debian版本（兼容）: eclipse-temurin:17-jre-jammy
+# - Debian版本（稳定可靠）: eclipse-temurin:17-jre-jammy
 # ============================================
 
 # ============================================
-# 运行时镜像 - Debian版本（推荐，兼容性更好）
+# 运行时镜像 - Ubuntu 22.04版本（稳定，兼容性好）
 # ============================================
 FROM eclipse-temurin:17-jre-jammy
 
@@ -54,19 +54,21 @@ RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/
 # RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list && \
 #     sed -i 's@http://.*security.ubuntu.com@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list
 
-# 安装固定版本的Python 3.12（系统预设）
-# 注意：建议用户使用预编译Python运行时（python-build-standalone）
+# 安装系统Python 3.10（Ubuntu 22.04默认版本，稳定可靠）
+# 注意：建议用户上传预编译Python运行时（python-build-standalone）获得更好的兼容性
 # 系统Python仅作为备用选项
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3.12-venv \
+    python3 \
+    python3-venv \
     python3-pip \
+    wget \
+    curl \
+    vim  \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/* && \
-    # 创建软链接，使python3命令可用
-    ln -sf /usr/bin/python3.12 /usr/bin/python3 && \
-    ln -sf /usr/bin/python3.12 /usr/bin/python
+    # 创建软链接，使python命令可用
+    ln -sf /usr/bin/python3 /usr/bin/python
 
 # 创建必要的目录
 RUN mkdir -p /app/data \

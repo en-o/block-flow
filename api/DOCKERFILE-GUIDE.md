@@ -23,7 +23,7 @@ Block Flow 提供两种 Docker 镜像版本：
 ### 镜像特性对比
 
 - **Debian 版本**
-  - ✅ 预装Python 3.12（系统Python）
+  - ✅ 预装Python 3.10（系统Python，Ubuntu 22.04自带）
   - ✅ 完整的系统依赖库
   - ✅ 更好的兼容性
   - ⚠️ 镜像体积较大（~500MB）
@@ -354,11 +354,11 @@ MEMORY_LIMIT=2G
 ### 1. 生产环境优化
 
 ```dockerfile
-# Debian版本已默认安装Python 3.12
-# 路径: /usr/bin/python3.12 或 /usr/bin/python3
+# Debian版本已默认安装Python 3.10（Ubuntu 22.04自带）
+# 路径: /usr/bin/python3 或 /usr/bin/python
 #
-# 如果使用预编译Python运行时（python-build-standalone），
-# 镜像已经是最优配置，无需额外优化
+# 推荐用户上传预编译Python运行时（python-build-standalone）
+# 以获得更好的兼容性和更新版本（如Python 3.11/3.12）
 ```
 
 ### 2. 多阶段构建（未来版本）

@@ -1581,13 +1581,13 @@ const PythonEnvironments: React.FC = () => {
                           <strong>如果您使用的是Docker部署：</strong>
                         </div>
                         <div style={{ marginBottom: 4 }}>
-                          • 系统已预装Python 3.12，路径为：<code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>/usr/bin/python3.12</code>
+                          • 系统已预装Python 3.10（Ubuntu 22.04自带），路径为：<code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>/usr/bin/python3</code>
                         </div>
                         <div style={{ marginBottom: 4 }}>
-                          • 或者使用符号链接：<code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>/usr/bin/python3</code>
+                          • 或使用完整路径：<code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>/usr/bin/python</code>
                         </div>
                         <div style={{ marginTop: 8, color: '#666' }}>
-                          推荐：使用预编译Python运行时（python-build-standalone）以获得最佳兼容性
+                          推荐：上传预编译Python运行时（python-build-standalone）以获得更好的兼容性和更新版本（如Python 3.11/3.12）
                         </div>
                       </div>
                     }
@@ -1702,7 +1702,7 @@ const PythonEnvironments: React.FC = () => {
                         </div>
 
                         <div style={{ marginTop: 8, padding: '6px', background: '#f0f9ff', borderRadius: 4, fontSize: 11 }}>
-                          🐳 <strong>Docker用户：</strong>系统已预装Python 3.12（<code>/usr/bin/python3.12</code>），可直接使用或上传python-build-standalone获得更好兼容性
+                          🐳 <strong>Docker用户：</strong>系统已预装Python 3.10（<code>/usr/bin/python3</code>），可直接使用或上传python-build-standalone获得更新版本
                         </div>
                       </div>
                     }
