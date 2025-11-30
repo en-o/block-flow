@@ -239,9 +239,47 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "未配置site-packages路径，无法安装包");
         }
 
-        // 检查pip是否可用
-        if (!PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable())) {
-            throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
+        // 检查pip是否可用（增强提示）
+        boolean hasPip = PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable());
+        if (!hasPip) {
+            // 构建详细的错误提示
+            StringBuilder errorMsg = new StringBuilder();
+            errorMsg.append("❌ 当前Python环境不包含pip模块，无法使用在线安装功能\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("📋 环境信息\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("环境名称: ").append(environment.getName()).append("\n");
+            errorMsg.append("Python版本: ").append(environment.getPythonVersion() != null ? environment.getPythonVersion() : "未知").append("\n");
+            errorMsg.append("Python路径: ").append(environment.getPythonExecutable()).append("\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("✅ 解决方案（3种方式）\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+
+            errorMsg.append("【方案1 - 推荐】上传包含pip的Python运行时\n");
+            errorMsg.append("  1. 访问: https://github.com/astral-sh/python-build-standalone/releases\n");
+            errorMsg.append("  2. 下载对应系统的 install_only.tar.gz 文件（默认包含pip）\n");
+            errorMsg.append("  3. 在本页面点击'配置/Python运行时'上传\n\n");
+
+            errorMsg.append("【方案2】离线安装pip包\n");
+            errorMsg.append("  1. 下载pip安装包:\n");
+            errorMsg.append("     • https://pypi.org/project/pip/#files\n");
+            errorMsg.append("     • 选择 .whl 或 .tar.gz 格式（推荐: pip-24.3.1-py3-none-any.whl）\n");
+            errorMsg.append("  2. 在本页面点击'配置/离线包'上传pip包文件\n");
+            errorMsg.append("  3. 安装完成后即可使用在线安装功能\n\n");
+
+            errorMsg.append("【方案3】直接使用离线包安装依赖\n");
+            errorMsg.append("  • 下载所需Python包的 .whl 或 .tar.gz 文件\n");
+            errorMsg.append("  • 在本页面点击'配置/离线包'逐个上传安装\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("💡 提示\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("python-build-standalone 是预编译的Python运行时，\n");
+            errorMsg.append("默认包含pip、setuptools等工具，开箱即用，强烈推荐！\n");
+
+            throw new ServiceException(500, errorMsg.toString());
         }
 
         String packageName = packageDTO.getPackageName();
@@ -345,52 +383,144 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "未配置Python解释器路径，无法卸载包");
         }
 
+        // 检查site-packages路径
+        if (environment.getSitePackagesPath() == null || environment.getSitePackagesPath().isEmpty()) {
+            throw new ServiceException(500, "未配置site-packages路径，无法卸载包");
+        }
+
         // 检查包是否在记录中
         JSONObject packages = environment.getPackages();
         if (packages == null || !packages.containsKey(packageName)) {
             throw new ServiceException(500, "包不存在: " + packageName);
         }
 
+        // 获取包信息，判断安装方式
+        Object packageInfoObj = packages.get(packageName);
+        String installMethod = "unknown";
+
+        if (packageInfoObj instanceof JSONObject packageInfo) {
+            installMethod = packageInfo.getString("installMethod");
+            if (installMethod == null) {
+                installMethod = "unknown";
+            }
+        }
+
+        log.info("开始卸载包: {}, 安装方式: {}", packageName, installMethod);
+
         try {
-            // 执行pip uninstall命令
-            ProcessBuilder pb = new ProcessBuilder(
-                    environment.getPythonExecutable(),
-                    "-m",
-                    "pip",
-                    "uninstall",
-                    "-y",  // 自动确认
-                    packageName
-            );
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            // 读取输出
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                    log.info("pip uninstall output: {}", line);
-                }
+            // 根据安装方式选择卸载方法
+            if ("pip".equals(installMethod)) {
+                // 使用pip卸载（在线安装的包）
+                uninstallViaPip(environment, packageName);
+            } else if ("offline".equals(installMethod)) {
+                // 直接删除文件（离线安装的包）
+                uninstallViaFileSystem(environment, packageName);
+            } else {
+                // 未知安装方式，尝试两种方法
+                log.warn("未知的安装方式: {}, 尝试通过文件系统卸载", installMethod);
+                uninstallViaFileSystem(environment, packageName);
             }
 
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                log.warn("pip uninstall警告，退出代码: {}, 输出: {}", exitCode, output);
-                // 即使pip uninstall失败，也继续从数据库中移除记录
-            }
+            log.info("✓ 包卸载成功: {}", packageName);
 
-            log.info("包卸载成功: {}", packageName);
-
-        } catch (IOException | InterruptedException e) {
-            log.error("卸载包失败", e);
-            // 即使命令执行失败，也继续从数据库中移除记录
+        } catch (Exception e) {
+            log.error("卸载包失败: {}", packageName, e);
+            throw new ServiceException(500, "卸载包失败: " + e.getMessage());
         }
 
         // 从数据库记录中移除
         packages.remove(packageName);
         environment.setPackages(packages);
+
+        // 如果卸载的是pip包，清空pip版本信息
+        if ("pip".equalsIgnoreCase(packageName)) {
+            log.info("检测到pip包卸载，清空pip版本信息");
+            environment.setPipVersion(null);
+        }
+
         return pythonEnvironmentRepository.save(environment);
+    }
+
+    /**
+     * 使用pip命令卸载包
+     */
+    private void uninstallViaPip(PythonEnvironment environment, String packageName)
+            throws IOException, InterruptedException {
+        log.info("使用pip卸载包: {}", packageName);
+
+        ProcessBuilder pb = new ProcessBuilder(
+                environment.getPythonExecutable(),
+                "-m",
+                "pip",
+                "uninstall",
+                "-y",  // 自动确认
+                packageName
+        );
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        // 读取输出
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+                log.info("pip uninstall: {}", line);
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            log.error("pip uninstall失败，退出代码: {}, 输出: {}", exitCode, output);
+            throw new IOException("pip uninstall命令执行失败: " + output.toString());
+        }
+    }
+
+    /**
+     * 通过直接删除文件系统目录来卸载包（用于离线安装的包）
+     */
+    private void uninstallViaFileSystem(PythonEnvironment environment, String packageName)
+            throws IOException {
+        log.info("通过文件系统卸载包: {}", packageName);
+
+        String sitePackagesPath = environment.getSitePackagesPath();
+
+        // 包目录可能的名称格式
+        String[] possibleDirNames = {
+            packageName,                              // 标准格式：pip
+            packageName.replace("-", "_"),           // 下划线格式：some_package
+            packageName.replace("_", "-"),           // 横线格式：some-package
+        };
+
+        boolean deleted = false;
+
+        for (String dirName : possibleDirNames) {
+            File packageDir = new File(sitePackagesPath, dirName);
+
+            if (packageDir.exists() && packageDir.isDirectory()) {
+                log.info("找到包目录: {}", packageDir.getAbsolutePath());
+                FileOperationUtil.deleteDirectory(packageDir);
+                log.info("✓ 已删除包目录: {}", packageDir.getAbsolutePath());
+                deleted = true;
+
+                // 删除 .dist-info 或 .egg-info 目录（如果存在）
+                String[] infoSuffixes = {".dist-info", ".egg-info"};
+                for (String suffix : infoSuffixes) {
+                    File infoDir = new File(sitePackagesPath, dirName + suffix);
+                    if (infoDir.exists()) {
+                        FileOperationUtil.deleteDirectory(infoDir);
+                        log.info("✓ 已删除元数据目录: {}", infoDir.getAbsolutePath());
+                    }
+                }
+
+                break;
+            }
+        }
+
+        if (!deleted) {
+            log.warn("未找到包目录: {}, 可能已被手动删除", packageName);
+            // 不抛出异常，因为目标已经达成（包不存在了）
+        }
     }
 
     @Override
@@ -446,9 +576,47 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "未配置site-packages路径，无法安装包");
         }
 
-        // 检查pip是否可用
-        if (!PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable())) {
-            throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
+        // 检查pip是否可用（增强提示）
+        boolean hasPip = PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable());
+        if (!hasPip) {
+            // 构建详细的错误提示
+            StringBuilder errorMsg = new StringBuilder();
+            errorMsg.append("❌ 当前Python环境不包含pip模块，无法使用requirements.txt批量安装功能\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("📋 环境信息\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("环境名称: ").append(environment.getName()).append("\n");
+            errorMsg.append("Python版本: ").append(environment.getPythonVersion() != null ? environment.getPythonVersion() : "未知").append("\n");
+            errorMsg.append("Python路径: ").append(environment.getPythonExecutable()).append("\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("✅ 解决方案（3种方式）\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+
+            errorMsg.append("【方案1 - 推荐】上传包含pip的Python运行时\n");
+            errorMsg.append("  1. 访问: https://github.com/astral-sh/python-build-standalone/releases\n");
+            errorMsg.append("  2. 下载对应系统的 install_only.tar.gz 文件（默认包含pip）\n");
+            errorMsg.append("  3. 点击'配置/Python运行时'上传\n\n");
+
+            errorMsg.append("【方案2】离线安装pip包\n");
+            errorMsg.append("  1. 下载pip安装包:\n");
+            errorMsg.append("     • https://pypi.org/project/pip/#files\n");
+            errorMsg.append("     • 选择 .whl 或 .tar.gz 格式（推荐: pip-24.3.1-py3-none-any.whl）\n");
+            errorMsg.append("  2. 点击'配置/离线包'上传pip包文件\n");
+            errorMsg.append("  3. 安装完成后即可使用requirements.txt批量安装\n\n");
+
+            errorMsg.append("【方案3】使用离线包逐个安装依赖\n");
+            errorMsg.append("  • 下载requirements.txt中每个包的 .whl 或 .tar.gz 文件\n");
+            errorMsg.append("  • 点击'配置/离线包'逐个上传安装\n\n");
+
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("💡 提示\n");
+            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            errorMsg.append("python-build-standalone 是预编译的Python运行时，\n");
+            errorMsg.append("默认包含pip、setuptools等工具，开箱即用，强烈推荐！\n");
+
+            throw new ServiceException(500, errorMsg.toString());
         }
 
         log.info("========================================");
@@ -774,12 +942,19 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             String packageName = PythonPackageParser.extractPackageName(originalFilename);
             String version = PythonPackageParser.extractPackageVersion(originalFilename);
 
-            // 如果安装的是pip包，立即配置._pth文件
+            // 如果安装的是pip包，立即配置._pth文件并更新pip版本
             if ("pip".equalsIgnoreCase(packageName)) {
                 log.info("检测到pip包安装，开始配置Python路径...");
                 if (environment.getPythonExecutable() != null && environment.getSitePackagesPath() != null) {
                     configurePythonPath(environment.getPythonExecutable(), environment.getSitePackagesPath());
                     log.info("pip安装后，._pth文件已配置");
+
+                    // 更新pip版本
+                    String pipVersion = PythonEnvDetector.getPipVersion(environment.getPythonExecutable());
+                    if (pipVersion != null) {
+                        environment.setPipVersion(pipVersion);
+                        log.info("pip版本已更新: {}", pipVersion);
+                    }
                 } else {
                     log.warn("Python路径或site-packages路径未配置，无法自动配置._pth文件");
                 }
@@ -850,12 +1025,19 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             String packageName = PythonPackageParser.extractPackageName(fileName);
             String version = PythonPackageParser.extractPackageVersion(fileName);
 
-            // 如果安装的是pip包，立即配置._pth文件
+            // 如果安装的是pip包，立即配置._pth文件并更新pip版本
             if ("pip".equalsIgnoreCase(packageName)) {
                 log.info("检测到pip包安装，开始配置Python路径...");
                 if (environment.getPythonExecutable() != null && environment.getSitePackagesPath() != null) {
                     configurePythonPath(environment.getPythonExecutable(), environment.getSitePackagesPath());
                     log.info("pip安装后，._pth文件已配置");
+
+                    // 更新pip版本
+                    String pipVersion = PythonEnvDetector.getPipVersion(environment.getPythonExecutable());
+                    if (pipVersion != null) {
+                        environment.setPipVersion(pipVersion);
+                        log.info("pip版本已更新: {}", pipVersion);
+                    }
                 } else {
                     log.warn("Python路径或site-packages路径未配置，无法自动配置._pth文件");
                 }
@@ -963,20 +1145,40 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 throw new IOException("解压后未找到包文件");
             }
 
+            // tar.gz通常解压出一个包含setup.py的目录（如pip-25.3/）
             File packageRoot = tempFiles[0];
             if (!packageRoot.isDirectory()) {
-                throw new IOException("解压后的包格式异常");
+                // 如果第一个不是目录，尝试查找第一个目录
+                for (File f : tempFiles) {
+                    if (f.isDirectory()) {
+                        packageRoot = f;
+                        break;
+                    }
+                }
             }
 
-            // 查找包的Python代码目录（通常与包名相同，或在根目录下）
-            File sourceDir = PythonPackageParser.findPackageSourceDir(packageRoot);
-            if (sourceDir == null) {
-                throw new IOException("未找到包的源代码目录");
+            log.info("找到包根目录: {}", packageRoot.getAbsolutePath());
+
+            // 查找实际的Python源代码目录
+            // tar.gz包的典型结构：
+            // pip-25.3/
+            //   ├── setup.py
+            //   ├── src/
+            //   │   └── pip/           <- 这才是真正的Python包
+            //   │       └── __init__.py
+            //   └── ...
+
+            File actualSourceDir = findActualPythonPackageDir(packageRoot);
+            if (actualSourceDir == null) {
+                throw new IOException("未找到有效的Python包目录（包含__init__.py的目录）");
             }
 
-            // 复制到site-packages
-            FileOperationUtil.copyDirectory(sourceDir, new File(sitePackagesPath, sourceDir.getName()));
-            log.info("包文件已复制到site-packages: {}", sourceDir.getName());
+            log.info("找到实际Python包目录: {}", actualSourceDir.getAbsolutePath());
+
+            // 复制到site-packages（只复制包目录，不复制setup.py等）
+            File targetDir = new File(sitePackagesPath, actualSourceDir.getName());
+            FileOperationUtil.copyDirectory(actualSourceDir, targetDir);
+            log.info("包文件已复制到site-packages: {} -> {}", actualSourceDir.getName(), targetDir.getAbsolutePath());
 
         } finally {
             // 清理临时目录
@@ -990,24 +1192,31 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
-     * 查找包的源代码目录
+     * 查找实际的Python包目录（包含__init__.py的目录）
+     *
+     * tar.gz包的典型结构：
+     * 1. src布局：package-1.0/ -> src/ -> package/ -> __init__.py
+     * 2. 传统布局：package-1.0/ -> package/ -> __init__.py
+     * 3. 单文件模块：package-1.0/ -> package.py
      */
-    private File findPackageSourceDir(File packageRoot) {
-        File[] files = packageRoot.listFiles();
-        if (files == null) {
+    private File findActualPythonPackageDir(File packageRoot) {
+        if (packageRoot == null || !packageRoot.exists() || !packageRoot.isDirectory()) {
             return null;
         }
 
-        // 1. 优先查找src目录下的Python包
+        log.debug("开始查找Python包目录，根目录: {}", packageRoot.getAbsolutePath());
+
+        // 1. 优先检查src布局（pip, setuptools等使用这种结构）
         File srcDir = new File(packageRoot, "src");
         if (srcDir.exists() && srcDir.isDirectory()) {
+            log.debug("找到src目录: {}", srcDir.getAbsolutePath());
             File[] srcFiles = srcDir.listFiles();
             if (srcFiles != null) {
                 for (File file : srcFiles) {
                     if (file.isDirectory()) {
                         File initFile = new File(file, "__init__.py");
                         if (initFile.exists()) {
-                            log.info("在src目录下找到包: {}", file.getName());
+                            log.info("在src布局中找到Python包: {}", file.getName());
                             return file;
                         }
                     }
@@ -1015,20 +1224,34 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             }
         }
 
-        // 2. 查找根目录下的Python包（包含__init__.py的目录）
-        for (File file : files) {
-            if (file.isDirectory() && !file.getName().equals("src")) {
-                File initFile = new File(file, "__init__.py");
-                if (initFile.exists()) {
-                    log.info("在根目录下找到包: {}", file.getName());
-                    return file;
+        // 2. 检查根目录下的Python包（传统布局）
+        File[] rootFiles = packageRoot.listFiles();
+        if (rootFiles != null) {
+            for (File file : rootFiles) {
+                if (file.isDirectory() && !file.getName().equals("src")) {
+                    File initFile = new File(file, "__init__.py");
+                    if (initFile.exists()) {
+                        log.info("在根目录下找到Python包: {}", file.getName());
+                        return file;
+                    }
                 }
             }
         }
 
-        // 3. 如果没有找到，检查是否有单个py文件的简单包
-        log.warn("未找到标准Python包结构，返回根目录");
-        return packageRoot;
+        // 3. 检查单文件模块（package.py）
+        if (rootFiles != null) {
+            for (File file : rootFiles) {
+                if (file.isFile() && file.getName().endsWith(".py") && !file.getName().startsWith("setup")) {
+                    log.info("找到单文件Python模块: {}", file.getName());
+                    // 单文件模块需要特殊处理：直接复制到site-packages根目录
+                    // 但这里返回文件本身，调用方需要处理
+                    return packageRoot; // 返回根目录，让调用方复制整个.py文件
+                }
+            }
+        }
+
+        log.warn("未找到有效的Python包目录: {}", packageRoot.getAbsolutePath());
+        return null;
     }
 
     @Override
@@ -1402,10 +1625,42 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 在配置._pth文件后重新检测pip（可能已经可用了）
         progressLogService.sendProgress(taskId, 95, "检测pip可用性...");
         boolean hasPip = PythonEnvDetector.checkPipAvailable(pythonExecutable);
+        String pipVersion = null;
+
         if (hasPip) {
+            // 获取pip版本号
+            pipVersion = PythonEnvDetector.getPipVersion(pythonExecutable);
             progressLogService.sendLog(taskId, "✓ pip可用");
+            if (pipVersion != null) {
+                progressLogService.sendLog(taskId, "  pip版本: " + pipVersion);
+            }
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            progressLogService.sendLog(taskId, "✅ 可以使用在线安装功能");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         } else {
-            progressLogService.sendLog(taskId, "⚠ pip不可用，需要手动安装");
+            progressLogService.sendLog(taskId, "⚠ pip不可用");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            progressLogService.sendLog(taskId, "⚠️  pip模块检测失败");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            progressLogService.sendLog(taskId, "当前Python环境不包含pip模块，无法使用在线安装功能");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "解决方案：");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "【方案1 - 推荐】重新上传包含pip的Python运行时");
+            progressLogService.sendLog(taskId, "  • 访问: https://github.com/astral-sh/python-build-standalone/releases");
+            progressLogService.sendLog(taskId, "  • 下载 install_only.tar.gz 文件（默认包含pip）");
+            progressLogService.sendLog(taskId, "  • 重新上传该文件");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "【方案2】离线安装pip包");
+            progressLogService.sendLog(taskId, "  • 下载: https://pypi.org/project/pip/#files");
+            progressLogService.sendLog(taskId, "  • 选择 .whl 格式（如: pip-24.3.1-py3-none-any.whl）");
+            progressLogService.sendLog(taskId, "  • 在本页面点击'配置/离线包'上传");
+            progressLogService.sendLog(taskId, "");
+            progressLogService.sendLog(taskId, "【方案3】继续使用离线包安装依赖");
+            progressLogService.sendLog(taskId, "  • 下载所需Python包的 .whl 或 .tar.gz 文件");
+            progressLogService.sendLog(taskId, "  • 点击'配置/离线包'逐个上传安装");
+            progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
 
         // 更新环境配置
@@ -1415,6 +1670,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
         if (sitePackagesPath != null && !sitePackagesPath.isEmpty()) {
             environment.setSitePackagesPath(sitePackagesPath);
+        }
+        if (pipVersion != null) {
+            environment.setPipVersion(pipVersion);
         }
         pythonEnvironmentRepository.save(environment);
 
@@ -1477,6 +1735,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 检测site-packages路径
         String sitePackagesPath = PythonEnvDetector.detectSitePackagesPath(environment.getEnvRootPath());
 
+        // 检测pip版本
+        String pipVersion = PythonEnvDetector.getPipVersion(pythonExecutable);
+        log.info("检测到pip版本: {}", pipVersion != null ? pipVersion : "未安装");
+
         // 更新环境配置
         environment.setPythonExecutable(pythonExecutable);
         if (pythonVersion != null && !pythonVersion.isEmpty()) {
@@ -1484,6 +1746,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
         if (sitePackagesPath != null && !sitePackagesPath.isEmpty()) {
             environment.setSitePackagesPath(sitePackagesPath);
+        }
+        if (pipVersion != null && !pipVersion.isEmpty()) {
+            environment.setPipVersion(pipVersion);
+            log.info("已保存pip版本到数据库: {}", pipVersion);
+        } else {
+            environment.setPipVersion(null);
+            log.info("环境中未检测到pip，已清空pip版本字段");
         }
 
         return pythonEnvironmentRepository.save(environment);

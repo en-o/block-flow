@@ -25,8 +25,7 @@ import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
 import { pythonEnvApi } from '../../api/pythonEnv';
 import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO, PythonEnvironment } from '../../types/api';
-import { initCustomBlocks } from '../../utils/blocklyCustomBlocks';
-import { getBlocklyToolbox } from '../../blockly';
+import { getBlocklyToolbox, initializeBlocklyWithDynamic } from '../../blockly';
 import { convertCodeToBlockly } from '../../utils/codeToBlocklyConverter';
 import './index.css';
 
@@ -417,10 +416,16 @@ outputs = {
   // 加载块类型和Python环境
   useEffect(() => {
     loadBlockTypes();
-    loadPythonEnvs();
     loadTagsStatistics();
-    // 初始化自定义Blockly块
-    initCustomBlocks();
+    // 只在新建块时加载Python环境，编辑模式会在loadBlock中加载
+    if (!id) {
+      loadPythonEnvs();
+    }
+    // 初始化自定义Blockly块（包含静态块和动态块）
+    initializeBlocklyWithDynamic().catch(error => {
+      console.error('初始化Blockly失败:', error);
+      message.error('加载Blockly块失败，部分功能可能不可用');
+    });
   }, []);
 
   // 加载块详情（编辑模式）
@@ -618,9 +623,12 @@ outputs = {
       const response = await pythonEnvApi.listAll();
       if (response.code === 200 && response.data) {
         setPythonEnvs(response.data);
+        return response.data; // 返回环境列表供后续使用
       }
+      return [];
     } catch (error) {
       console.error('加载Python环境失败', error);
+      return [];
     }
   };
 
@@ -650,6 +658,27 @@ outputs = {
         setDefinitionMode(blockData.definitionMode || 'CODE');
         setScriptCode(blockData.script || '');
 
+        // 获取Python环境列表
+        const envs = await loadPythonEnvs();
+
+        // 检查当前块的pythonEnvId是否在环境列表中
+        let finalPythonEnvId = blockData.pythonEnvId;
+        if (blockData.pythonEnvId) {
+          const envExists = envs.some((env: any) => env.id === blockData.pythonEnvId);
+          if (!envExists) {
+            // 如果环境不存在，使用默认环境
+            const defaultEnv = envs.find((env: any) => env.isDefault);
+            if (defaultEnv) {
+              finalPythonEnvId = defaultEnv.id;
+              console.log(`块的Python环境(ID: ${blockData.pythonEnvId})不存在，自动使用默认环境(ID: ${defaultEnv.id}, 名称: ${defaultEnv.name})`);
+              message.info(`原Python环境已不存在，已自动切换到默认环境: ${defaultEnv.name}`);
+            } else {
+              console.warn('未找到默认Python环境');
+              finalPythonEnvId = undefined;
+            }
+          }
+        }
+
         // 填充表单
         form.setFieldsValue({
           name: blockData.name,
@@ -658,7 +687,7 @@ outputs = {
           color: blockData.color,
           icon: blockData.icon,
           version: blockData.version,
-          pythonEnvId: blockData.pythonEnvId,
+          pythonEnvId: finalPythonEnvId, // 使用检查后的环境ID
           tags: blockData.tags || [],
           isPublic: blockData.isPublic,
         });
@@ -712,7 +741,7 @@ outputs = {
     }
   }, []);
 
-  const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
+  const handleModeChange = async (mode: 'BLOCKLY' | 'CODE') => {
     if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
       // 从Blockly切换回代码模式：恢复原始代码，不解析参数
       console.log('从可视化模式切换回代码模式，恢复原始代码');
@@ -726,11 +755,21 @@ outputs = {
       // 不修改参数配置，保持原有配置不变
       setDefinitionMode(mode);
     } else if (mode === 'BLOCKLY' && definitionMode === 'CODE') {
-      // 从代码模式切换到可视化模式：保存原始代码
+      // 从代码模式切换到可视化模式：保存原始代码并重新加载动态块
       console.log('切换到可视化模式（预览功能，不保存）');
 
       // 保存当前代码
       setOriginalScriptCode(scriptCode);
+
+      // 强制重新加载动态块（确保积木块管理页面的更新被应用）
+      try {
+        message.loading({ content: '正在加载最新的积木块...', key: 'loadBlocks' });
+        await initializeBlocklyWithDynamic([], true); // forceReload = true
+        message.success({ content: '积木块加载完成', key: 'loadBlocks', duration: 1 });
+      } catch (error) {
+        console.error('重新加载动态块失败', error);
+        message.warning({ content: '部分积木块加载失败', key: 'loadBlocks' });
+      }
 
       // 切换模式
       setDefinitionMode(mode);
@@ -962,44 +1001,30 @@ outputs = {
 
   // 打开测试弹窗
   const handleOpenTest = () => {
-    // 如果是可视化模式，先从 Blockly 工作区解析参数（仅用于测试，不覆盖原配置）
+    // 如果是可视化模式，从 Blockly 工作区解析参数（仅用于测试，不覆盖原配置）
     if (definitionMode === 'BLOCKLY' && workspaceRef.current) {
       console.log('🔍 可视化模式：从 Blockly 工作区解析输入输出参数（仅用于测试）...');
       const { inputParams: parsedInputParams, outputParams: parsedOutputParams } = parseBlocklyParameters();
 
-      if (parsedInputParams.length > 0) {
-        console.log(`✅ 解析到 ${parsedInputParams.length} 个输入参数:`, parsedInputParams);
-        // ⚠️ 重要：不更新 inputParams 状态，只用于测试
-        // 使用解析后的参数初始化测试输入值
-        const initialInputs: Record<string, any> = {};
-        parsedInputParams.forEach(param => {
-          if (param.name) {
-            initialInputs[param.name] = param.defaultValue || '';
-          }
-        });
-        setTestInputs(initialInputs);
+      console.log(`✅ 解析到 ${parsedInputParams.length} 个输入参数, ${parsedOutputParams.length} 个输出参数`);
 
-        // 临时更新 inputParamsRef 用于测试弹窗显示（不影响左侧配置）
-        inputParamsRef.current = parsedInputParams;
+      // 使用解析后的参数初始化测试输入值
+      const initialInputs: Record<string, any> = {};
+      parsedInputParams.forEach(param => {
+        if (param.name) {
+          initialInputs[param.name] = param.defaultValue || '';
+        }
+      });
+      setTestInputs(initialInputs);
+
+      // 临时更新 inputParamsRef 和 outputParamsRef 用于测试弹窗显示（不影响左侧配置）
+      inputParamsRef.current = parsedInputParams;
+      outputParamsRef.current = parsedOutputParams;
+
+      if (parsedInputParams.length > 0) {
         message.info(`可视化模式测试：检测到 ${parsedInputParams.length} 个输入参数`);
       } else {
-        // 如果没有解析到参数，使用现有配置
-        const initialInputs: Record<string, any> = {};
-        inputParams.forEach(param => {
-          if (param.name) {
-            initialInputs[param.name] = param.defaultValue || '';
-          }
-        });
-        setTestInputs(initialInputs);
-        inputParamsRef.current = inputParams;
-      }
-
-      if (parsedOutputParams.length > 0) {
-        console.log(`✅ 解析到 ${parsedOutputParams.length} 个输出参数:`, parsedOutputParams);
-        // 临时更新 outputParamsRef（不影响左侧配置）
-        outputParamsRef.current = parsedOutputParams;
-      } else {
-        outputParamsRef.current = outputParams;
+        message.info('可视化模式测试：当前工作区未检测到输入参数');
       }
     } else {
       // 代码模式：使用现有的 inputParams
@@ -1170,10 +1195,35 @@ outputs = {
         });
       }
     } catch (error: any) {
-      setTestResult({
-        success: false,
-        error: `执行失败: ${error.message || '未知错误'}`
-      });
+      const errorMessage = error.message || '未知错误';
+
+      // 检查是否是Python环境不存在的错误
+      if (errorMessage.includes('Python环境不存在')) {
+        Modal.error({
+          title: '脚本执行异常',
+          content: (
+            <div>
+              <p>Python环境不存在，请先配置Python环境。</p>
+              <p style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
+                当前块关联的Python环境可能已被删除或未正确配置。
+              </p>
+            </div>
+          ),
+          okText: '去配置Python环境',
+          onOk: () => {
+            navigate('/manage/python-envs');
+          },
+        });
+        setTestResult({
+          success: false,
+          error: `执行失败: ${errorMessage}`
+        });
+      } else {
+        setTestResult({
+          success: false,
+          error: `执行失败: ${errorMessage}`
+        });
+      }
     } finally {
       setTesting(false);
     }
@@ -2008,10 +2058,10 @@ outputs = {
                                     type="primary"
                                     size="small"
                                     onClick={() => {
-                                      // 在线安装
-                                      window.open(`/manage/python-envs?openOnlineInstall=true`, '_blank');
+                                      // 在线安装，跳转到指定环境
+                                      window.open(`/manage/python-envs?id=${testResult.pythonEnvId}&openOnlineInstall=true`, '_blank');
                                       // 离线安装
-                                      // window.open(`/manage/python-envs?openPackageManagement=true`, '_blank');
+                                      // window.open(`/manage/python-envs?id=${testResult.pythonEnvId}&openPackageManagement=true`, '_blank');
                                     }}
                                   >
                                     前往Python环境管理

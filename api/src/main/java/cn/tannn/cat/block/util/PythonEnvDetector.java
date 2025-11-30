@@ -427,6 +427,45 @@ public class PythonEnvDetector {
     }
 
     /**
+     * 获取pip版本号
+     *
+     * @param pythonExecutable Python可执行文件路径
+     * @return pip版本号，例如 "24.3.1"，未安装或检测失败返回null
+     */
+    public static String getPipVersion(String pythonExecutable) {
+        if (pythonExecutable == null || pythonExecutable.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(pythonExecutable, "-m", "pip", "--version");
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line = reader.readLine();
+                int exitCode = process.waitFor();
+
+                if (exitCode == 0 && line != null) {
+                    // 解析版本号，格式如: "pip 24.3.1 from /path/to/pip (python 3.11)"
+                    Pattern pattern = Pattern.compile("pip\\s+(\\d+\\.\\d+(?:\\.\\d+)?)");
+                    Matcher matcher = pattern.matcher(line);
+                    if (matcher.find()) {
+                        String version = matcher.group(1);
+                        log.info("检测到pip版本: {}", version);
+                        return version;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("获取pip版本失败: {}", e.getMessage());
+        }
+
+        return null;
+    }
+
+    /**
      * 验证包是否已安装
      *
      * @param pythonExecutable Python可执行文件路径
