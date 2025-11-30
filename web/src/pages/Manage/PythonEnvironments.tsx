@@ -1616,7 +1616,7 @@ const PythonEnvironments: React.FC = () => {
                             </code>
                             <br />
                             <span style={{ color: '#666', fontSize: 11, marginLeft: 8, marginTop: 4, display: 'inline-block' }}>
-                              （或使用官方Windows版：
+                              （或使用官方Windows版(python-xxx-embed-amd64.zip)：
                               <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
                                 Python官方FTP
                               </a> |
@@ -1744,7 +1744,7 @@ const PythonEnvironments: React.FC = () => {
                   </code>
                   <br />
                   <span style={{ color: '#666', fontSize: 11, marginLeft: 8 }}>
-                    （或使用官方Windows版：
+                    （或使用官方Windows版(python-xxx-embed-amd64.zip)：
                     <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
                       Python官方FTP
                     </a> |
