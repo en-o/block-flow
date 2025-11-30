@@ -233,10 +233,14 @@ export class ToolboxManager {
       }
       // 如果该分类有块（非内置分类）
       else if (blocks && blocks.length > 0) {
-        const blockContents = blocks.map(blockType => ({
-          kind: 'block',
-          type: blockType,
-        }));
+        const blockContents = blocks.map(blockType => {
+          // 注意：Blockly原生不支持在工具箱中直接显示自定义名称
+          // 块的显示名称由definition.message0决定
+          return {
+            kind: 'block',
+            type: blockType,
+          };
+        });
 
         contents.push({
           kind: 'category',
