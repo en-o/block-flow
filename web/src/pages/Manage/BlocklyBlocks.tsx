@@ -175,23 +175,95 @@ return \`from ${moduleName} import \${items}\\n\`;`,
       };
     }
 
-    // 3. 函数调用模式 func(arg1, arg2)
+    // 3. 变量赋值（包括方法链式调用）var = obj.method1().method2()
+    const assignMatch = trimmedCode.match(/^(\w+)\s*=\s*(.+)$/);
+    if (assignMatch) {
+      const varName = assignMatch[1];
+      const rightSide = assignMatch[2].trim();
+
+      // 检查右侧是否是链式调用（如 parser.parse('2024-01-15').strftime("%Y-%m-%d")）
+      const isChainCall = rightSide.includes('.') && rightSide.includes('(');
+
+      return {
+        type: `assign_${varName}`,
+        name: `${varName} = 表达式`,
+        category: 'python_variables',
+        color: '#ff7a45',
+        definition: JSON.stringify({
+          type: `assign_${varName}`,
+          message0: `${varName} = %1`,  // 这个message0会显示在工具箱中
+          args0: [
+            {
+              type: 'input_value',
+              name: 'VALUE'
+            }
+          ],
+          previousStatement: null,
+          nextStatement: null,
+          colour: '#ff7a45',
+          tooltip: `给变量${varName}赋值`,
+          helpUrl: ''
+        }, null, 2),
+        pythonGenerator: `const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 'None';
+const code = \`${varName} = \${value}\\n\`;
+return code;`,
+        description: `给变量${varName}赋值${isChainCall ? '（支持链式调用）' : ''}`,
+        example: trimmedCode
+      };
+    }
+
+    // 4. 函数调用模式 func(arg1, arg2) - 注意：这个要放在赋值匹配之后
     const funcCallMatch = trimmedCode.match(/^(\w+)\(([^)]*)\)$/);
     if (funcCallMatch) {
       const funcName = funcCallMatch[1];
-      const args = funcCallMatch[2].split(',').map(a => a.trim()).filter(a => a);
+      const argsStr = funcCallMatch[2];
+      const args = argsStr ? argsStr.split(',').map(a => a.trim()).filter(a => a) : [];
 
+      // print函数特殊处理 - 它是语句块
+      if (funcName === 'print') {
+        return {
+          type: `print_statement`,
+          name: `print语句`,
+          category: 'python_io',
+          color: '#1890ff',
+          definition: JSON.stringify({
+            type: `print_statement`,
+            message0: args.length > 0 ? `print %1` : 'print',
+            args0: args.length > 0 ? [
+              {
+                type: 'input_value',
+                name: 'VALUE'
+              }
+            ] : [],
+            previousStatement: null,
+            nextStatement: null,
+            colour: '#1890ff',
+            tooltip: '打印输出',
+            helpUrl: ''
+          }, null, 2),
+          pythonGenerator: args.length > 0
+            ? `const value = generator.valueToCode(block, 'VALUE', Order.NONE) || "''";
+const code = \`print(\${value})\\n\`;
+return code;`
+            : `return 'print()\\n';`,
+          description: `打印输出到控制台`,
+          example: trimmedCode
+        };
+      }
+
+      // 普通函数调用 - 返回值表达式
       const argsDefinition = args.map((arg, index) => ({
         type: 'input_value',
         name: `ARG${index}`,
         check: arg.startsWith('"') || arg.startsWith("'") ? 'String' : null
       }));
 
-      const message = `${funcName}(${args.map((_, i) => `%${i + 1}`).join(', ')})`;
+      const messageParts = args.map((_, i) => `%${i + 1}`).join(', ');
+      const message = args.length > 0 ? `${funcName}(${messageParts})` : `${funcName}()`;
 
       return {
         type: `func_${funcName}`,
-        name: `${funcName}函数调用`,
+        name: `${funcName}函数`,
         category: 'python_functions',
         color: '#1890ff',
         definition: JSON.stringify({
@@ -203,44 +275,14 @@ return \`from ${moduleName} import \${items}\\n\`;`,
           tooltip: `调用${funcName}函数`,
           helpUrl: ''
         }, null, 2),
-        pythonGenerator: args.map((_, i) =>
-          `const arg${i} = generator.valueToCode(block, 'ARG${i}', Order.NONE) || 'None';`
-        ).join('\n') + `\nconst code = \`${funcName}(\${${args.map((_, i) => `arg${i}`).join(', \${')}})\`;
+        pythonGenerator: args.length > 0
+          ? args.map((_, i) =>
+              `const arg${i} = generator.valueToCode(block, 'ARG${i}', Order.NONE) || 'None';`
+            ).join('\n') + `\nconst code = \`${funcName}(\${${args.map((_, i) => `arg${i}`).join(', \${')}})\`;
+return [code, Order.FUNCTION_CALL];`
+          : `const code = '${funcName}()';
 return [code, Order.FUNCTION_CALL];`,
         description: `调用${funcName}函数`,
-        example: trimmedCode
-      };
-    }
-
-    // 4. 赋值语句 var = value
-    const assignMatch = trimmedCode.match(/^(\w+)\s*=\s*(.+)$/);
-    if (assignMatch) {
-      const varName = assignMatch[1];
-
-      return {
-        type: `assign_${varName}`,
-        name: `赋值${varName}`,
-        category: 'python_variables',
-        color: '#ff7a45',
-        definition: JSON.stringify({
-          type: `assign_${varName}`,
-          message0: `${varName} = %1`,
-          args0: [
-            {
-              type: 'input_value',
-              name: 'VALUE'
-            }
-          ],
-          previousStatement: null,
-          nextStatement: null,
-          colour: '#ff7a45',
-          tooltip: `给${varName}赋值`,
-          helpUrl: ''
-        }, null, 2),
-        pythonGenerator: `const value = generator.valueToCode(block, 'VALUE', Order.NONE) || '0';
-const code = \`${varName} = \${value}\\n\`;
-return code;`,
-        description: `给变量${varName}赋值`,
         example: trimmedCode
       };
     }
@@ -271,7 +313,13 @@ return code;`,
       isSystem: false,
     });
 
-    message.success('已生成积木块定义，请手动调整后进行测试');
+    message.success('已生成积木块定义，请检查并测试');
+
+    // 如果是变量赋值，给出额外提示
+    if (blockData.type.startsWith('assign_')) {
+      message.info('提示：创建的赋值积木需要配合其他表达式积木使用。要引用这个变量，请使用Blockly内置的"变量"分类中的"获取变量"积木。', 5);
+    }
+
     setShowDefinitionForm(true);
     setTestPassed(false); // 重置测试状态
     setTestResult(null);
@@ -637,6 +685,10 @@ return code;`,
                       <li><code>print(message)</code> - 函数调用</li>
                       <li><code>result = 100</code> - 变量赋值</li>
                     </ul>
+                    <p style={{ marginTop: 8, marginBottom: 0, color: '#fa8c16' }}>
+                      <strong>⚠️ 注意：</strong>要引用变量，请使用系统内置的"变量与运算"分类中的"获取 变量名"积木，
+                      或者在Blockly工作区创建变量后使用。不要为每个变量创建单独的获取积木。
+                    </p>
                   </div>
                 }
                 type="info"
