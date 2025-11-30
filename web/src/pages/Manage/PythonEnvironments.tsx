@@ -1495,13 +1495,38 @@ const PythonEnvironments: React.FC = () => {
               </Form.Item>
 
               {configMode === 'manual' && (
-                <Form.Item
-                  label="Python解释器路径"
-                  name="pythonExecutable"
-                  rules={[{ required: true, message: '请输入Python解释器路径' }]}
-                >
-                  <Input placeholder="例如: C:\Python311\python.exe 或 /usr/bin/python3" />
-                </Form.Item>
+                <>
+                  <Form.Item
+                    label="Python解释器路径"
+                    name="pythonExecutable"
+                    rules={[{ required: true, message: '请输入Python解释器路径' }]}
+                  >
+                    <Input placeholder="例如: C:\Python311\python.exe 或 /usr/bin/python3" />
+                  </Form.Item>
+                  <Alert
+                    message="💡 Docker环境提示"
+                    description={
+                      <div style={{ fontSize: 12 }}>
+                        <div style={{ marginBottom: 8 }}>
+                          <strong>如果您使用的是Docker部署：</strong>
+                        </div>
+                        <div style={{ marginBottom: 4 }}>
+                          • 系统已预装Python 3.12，路径为：<code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>/usr/bin/python3.12</code>
+                        </div>
+                        <div style={{ marginBottom: 4 }}>
+                          • 或者使用符号链接：<code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>/usr/bin/python3</code>
+                        </div>
+                        <div style={{ marginTop: 8, color: '#666' }}>
+                          推荐：使用预编译Python运行时（python-build-standalone）以获得最佳兼容性
+                        </div>
+                      </div>
+                    }
+                    type="info"
+                    showIcon
+                    style={{ marginTop: 8 }}
+                    closable
+                  />
+                </>
               )}
 
               {configMode === 'upload' && (
@@ -1731,6 +1756,11 @@ const PythonEnvironments: React.FC = () => {
                 • <code>install_only</code> 版本包含完整的Python环境和pip，推荐使用
                 <br />
                 • 如果架构不匹配会导致 "Exec format error" 错误
+                <br />
+                <strong style={{ marginTop: 8, display: 'block' }}>🐳 Docker环境用户：</strong>
+                • 系统已预装Python 3.12，路径：<code>/usr/bin/python3.12</code> 或 <code>/usr/bin/python3</code>
+                <br />
+                • 可直接在环境中配置该路径使用系统Python（推荐上传python-build-standalone以获得更好兼容性）
               </div>
 
               <div style={{ marginTop: 8 }}>

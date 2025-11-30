@@ -49,55 +49,25 @@ docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306  
 
 ## 2. 创建Python环境并上传运行时
 
-### 方案一：预编译Python运行时（强烈推荐）⭐
+### 推荐方案：预编译Python运行时（python-build-standalone）⭐
 
 **下载地址：** https://github.com/astral-sh/python-build-standalone/releases
 
 **选择文件：**
-- **Windows**: 官方`python-3.12.5-embed-amd64.zip` /  第三方`cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`  
 - **Linux x86_64**: `cpython-3.11.9+...-x86_64-unknown-linux-gnu-install_only.tar.gz`
 - **Linux ARM64**: `cpython-3.11.9+...-aarch64-unknown-linux-gnu-install_only.tar.gz`
+- **Windows**: `cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`
 - **macOS**: `cpython-3.11.9+...-x86_64-apple-darwin-install_only.tar.gz`
 
 **优点：**
 - ✅ 上传即用，1分钟内完成配置
 - ✅ 包含完整的Python和pip
 - ✅ 无需编译，不需要系统依赖
-- ✅ 支持所有Docker镜像版本
+- ✅ 跨平台支持，适用于所有环境
 
----
-
-### 方案二：Python源代码编译（不推荐）
-
-**仅在使用Debian镜像时支持！Alpine镜像不支持源码编译！**
-
-**下载地址：** https://www.python.org/ftp/python/
-
-**选择文件：**
-- `Python-3.11.9.tgz` 或 `Python-3.12.5.tgz`
-
-**注意事项：**
-- ⏱️ 编译耗时10-30分钟
-- 💾 需要足够的磁盘空间和内存
-- ⚠️ 可能因缺少系统依赖而失败
-- ❌ Alpine镜像无法编译源代码
-- ⚠️ **编译时不会安装pip**（避免ensurepip失败）
-  - 编译完成后需要手动上传 `pip.whl` 文件
-  - pip下载地址: https://pypi.org/project/pip/#files
-
----
-
-### 方案三：Windows Embed版本（仅Windows宿主机）
-
-**下载地址：** https://www.python.org/ftp/python/3.12.5/
-
-**选择文件：**
-- `python-3.12.5-embed-amd64.zip`
-
-**限制：**
-- 仅适用于Windows宿主机
-- 不包含pip，需要手动上传pip包
-- 功能受限
+**Docker环境用户：**
+- 系统已预装Python 3.12，路径：`/usr/bin/python3.12` 或 `/usr/bin/python3`
+- 可直接使用系统Python，或上传python-build-standalone以获得更好的隔离性
 
 ---
 
