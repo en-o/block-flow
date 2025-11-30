@@ -1735,6 +1735,10 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 检测site-packages路径
         String sitePackagesPath = PythonEnvDetector.detectSitePackagesPath(environment.getEnvRootPath());
 
+        // 检测pip版本
+        String pipVersion = PythonEnvDetector.getPipVersion(pythonExecutable);
+        log.info("检测到pip版本: {}", pipVersion != null ? pipVersion : "未安装");
+
         // 更新环境配置
         environment.setPythonExecutable(pythonExecutable);
         if (pythonVersion != null && !pythonVersion.isEmpty()) {
@@ -1742,6 +1746,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
         if (sitePackagesPath != null && !sitePackagesPath.isEmpty()) {
             environment.setSitePackagesPath(sitePackagesPath);
+        }
+        if (pipVersion != null && !pipVersion.isEmpty()) {
+            environment.setPipVersion(pipVersion);
+            log.info("已保存pip版本到数据库: {}", pipVersion);
+        } else {
+            environment.setPipVersion(null);
+            log.info("环境中未检测到pip，已清空pip版本字段");
         }
 
         return pythonEnvironmentRepository.save(environment);
