@@ -1706,22 +1706,7 @@ const PythonEnvironments: React.FC = () => {
           </Button>,
         ]}
       >
-        {/* Python运行时配置区域 */}
-        <Alert
-          message="Python运行时配置"
-          description={
-            <div>
-              {selectedEnv?.pythonExecutable
-                ? "当前环境已配置Python运行时，您可以重新上传或检测以更新配置"
-                : "当前环境尚未配置Python运行时，请先上传Python环境或自动检测"}
-            </div>
-          }
-          type={selectedEnv?.pythonExecutable ? "success" : "warning"}
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-
-        {/* 合并的帮助信息（可折叠） */}
+        {/* 下载指南（可折叠） */}
         <Alert
           message={
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
