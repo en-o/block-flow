@@ -11,6 +11,9 @@ import cn.tannn.cat.block.entity.PythonEnvironment;
 import cn.tannn.cat.block.repository.PythonEnvironmentRepository;
 import cn.tannn.cat.block.service.ProgressLogService;
 import cn.tannn.cat.block.service.PythonEnvironmentService;
+import cn.tannn.cat.block.util.FileOperationUtil;
+import cn.tannn.cat.block.util.PythonEnvDetector;
+import cn.tannn.cat.block.util.PythonPackageParser;
 import cn.tannn.jdevelops.result.exception.ServiceException;
 import cn.tannn.jdevelops.util.jpa.select.EnhanceSpecification;
 import com.alibaba.fastjson2.JSONObject;
@@ -151,7 +154,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     File envDir = new File(envRootPath);
                     if (envDir.exists()) {
                         log.info("开始异步删除环境目录: {}", envRootPath);
-                        deleteDirectory(envDir);
+                        FileOperationUtil.deleteDirectory(envDir);
                         log.info("✓ 已删除环境目录: {}", envRootPath);
                     }
                 } catch (IOException e) {
@@ -237,7 +240,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
 
         // 检查pip是否可用
-        if (!checkPipAvailable(environment.getPythonExecutable())) {
+        if (!PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable())) {
             throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
         }
 
@@ -245,7 +248,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         String version = packageDTO.getVersion();
 
         // 检查包是否已存在（仅验证，不阻止安装）
-        String existingVersion = verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+        String existingVersion = PythonEnvDetector.verifyPackageInstalled(environment.getPythonExecutable(), packageName);
         if (existingVersion != null) {
             log.info("包 {} 已存在，当前版本: {}，用户请求安装版本: {}",
                     packageName, existingVersion, version != null ? version : "最新版本");
@@ -293,7 +296,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.info("包安装成功: {} {}", packageName, version);
 
             // 安装成功后，验证包是否确实安装了
-            String installedVersion = verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+            String installedVersion = PythonEnvDetector.verifyPackageInstalled(environment.getPythonExecutable(), packageName);
             if (installedVersion == null) {
                 log.warn("包安装后验证失败: {}", packageName);
                 installedVersion = version != null ? version : "unknown";
@@ -444,7 +447,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
 
         // 检查pip是否可用
-        if (!checkPipAvailable(environment.getPythonExecutable())) {
+        if (!PythonEnvDetector.checkPipAvailable(environment.getPythonExecutable())) {
             throw new ServiceException(500, "当前Python环境不包含pip模块，无法在线安装包。请使用\"配置/离线包\"功能上传.whl或.tar.gz包文件进行离线安装。");
         }
 
@@ -605,7 +608,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 }
 
                 // 验证包是否真正安装了
-                String installedVersion = verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+                String installedVersion = PythonEnvDetector.verifyPackageInstalled(environment.getPythonExecutable(), packageName);
                 if (installedVersion != null) {
                     JSONObject packageInfo = new JSONObject();
                     packageInfo.put("name", packageName);
@@ -768,8 +771,8 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.info("包离线安装成功: {}", originalFilename);
 
             // 提取包名和版本
-            String packageName = extractPackageName(originalFilename);
-            String version = extractPackageVersion(originalFilename);
+            String packageName = PythonPackageParser.extractPackageName(originalFilename);
+            String version = PythonPackageParser.extractPackageVersion(originalFilename);
 
             // 如果安装的是pip包，立即配置._pth文件
             if ("pip".equalsIgnoreCase(packageName)) {
@@ -844,8 +847,8 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.info("包离线安装成功: {}", fileName);
 
             // 提取包名和版本
-            String packageName = extractPackageName(fileName);
-            String version = extractPackageVersion(fileName);
+            String packageName = PythonPackageParser.extractPackageName(fileName);
+            String version = PythonPackageParser.extractPackageVersion(fileName);
 
             // 如果安装的是pip包，立即配置._pth文件
             if ("pip".equalsIgnoreCase(packageName)) {
@@ -890,7 +893,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         if (fileName.endsWith(".whl")) {
             // .whl文件本质是zip格式，直接解压到site-packages
             log.info("使用离线方式安装.whl包: {}", fileName);
-            extractZip(packageFilePath, sitePackagesPath);
+            FileOperationUtil.extractZip(packageFilePath, sitePackagesPath);
         } else if (fileName.endsWith(".tar.gz")) {
             // .tar.gz文件需要解压
             log.info("使用离线方式安装.tar.gz包: {}", fileName);
@@ -966,19 +969,19 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             }
 
             // 查找包的Python代码目录（通常与包名相同，或在根目录下）
-            File sourceDir = findPackageSourceDir(packageRoot);
+            File sourceDir = PythonPackageParser.findPackageSourceDir(packageRoot);
             if (sourceDir == null) {
                 throw new IOException("未找到包的源代码目录");
             }
 
             // 复制到site-packages
-            copyDirectory(sourceDir, new File(sitePackagesPath, sourceDir.getName()));
+            FileOperationUtil.copyDirectory(sourceDir, new File(sitePackagesPath, sourceDir.getName()));
             log.info("包文件已复制到site-packages: {}", sourceDir.getName());
 
         } finally {
             // 清理临时目录
             try {
-                deleteDirectory(tempDir.toFile());
+                FileOperationUtil.deleteDirectory(tempDir.toFile());
                 log.info("临时目录已清理: {}", tempDir);
             } catch (IOException e) {
                 log.warn("清理临时目录失败: {}", e.getMessage());
@@ -1028,29 +1031,6 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         return packageRoot;
     }
 
-    /**
-     * 递归复制目录
-     */
-    private void copyDirectory(File source, File destination) throws IOException {
-        if (!destination.exists()) {
-            destination.mkdirs();
-        }
-
-        File[] files = source.listFiles();
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            File destFile = new File(destination, file.getName());
-            if (file.isDirectory()) {
-                copyDirectory(file, destFile);
-            } else {
-                Files.copy(file.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            }
-        }
-    }
-
     @Override
     public List<UploadedPackageFileDTO> listUploadedPackageFiles(Integer id) {
         PythonEnvironment environment = getById(id);
@@ -1079,13 +1059,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     UploadedPackageFileDTO dto = new UploadedPackageFileDTO();
                     dto.setFileName(file.getName());
                     dto.setFileSize(file.length());
-                    dto.setFileType(getFileExtension(file.getName()));
+                    dto.setFileType(FileOperationUtil.getFileExtension(file.getName()));
                     dto.setUploadTime(file.lastModified());
 
                     // 检查是否已安装
                     boolean installed = false;
                     if (installedPackages != null) {
-                        String packageName = extractPackageName(file.getName());
+                        String packageName = PythonPackageParser.extractPackageName(file.getName());
                         installed = installedPackages.containsKey(packageName);
                     }
                     dto.setInstalled(installed);
@@ -1118,166 +1098,6 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             log.error("删除包文件失败", e);
             throw new ServiceException(500, "删除包文件失败: " + e.getMessage());
         }
-    }
-
-    /**
-     * 检查pip是否可用
-     */
-    private boolean checkPipAvailable(String pythonExecutable) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    pythonExecutable,
-                    "-m",
-                    "pip",
-                    "--version"
-            );
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode == 0) {
-                log.info("pip可用: {}", output.toString().trim());
-                return true;
-            }
-
-            log.warn("pip不可用，退出代码: {}, 输出: {}", exitCode, output);
-            return false;
-
-        } catch (IOException e) {
-            String errorMsg = e.getMessage();
-            if (errorMsg != null && (errorMsg.contains("Exec format error") ||
-                                     errorMsg.contains("error=8"))) {
-                log.error("❌ 架构不匹配：无法执行Python检查pip - {}", errorMsg);
-            } else {
-                log.warn("检查pip可用性时IO错误: {}", errorMsg);
-            }
-            return false;
-        } catch (Exception e) {
-            log.warn("检查pip可用性时出错", e);
-            return false;
-        }
-    }
-
-    /**
-     * 验证包是否已安装并获取版本
-     * 使用 python -m pip show <package> 命令
-     */
-    private String verifyPackageInstalled(String pythonExecutable, String packageName) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    pythonExecutable,
-                    "-m",
-                    "pip",
-                    "show",
-                    packageName
-            );
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode == 0) {
-                // 解析输出获取版本号
-                String[] lines = output.toString().split("\n");
-                for (String line : lines) {
-                    if (line.startsWith("Version:")) {
-                        String version = line.substring(8).trim();
-                        log.info("验证包 {} 已安装，版本: {}", packageName, version);
-                        return version;
-                    }
-                }
-            }
-
-            log.warn("包 {} 验证失败，pip show 退出代码: {}", packageName, exitCode);
-            return null;
-
-        } catch (IOException e) {
-            String errorMsg = e.getMessage();
-            if (errorMsg != null && (errorMsg.contains("Exec format error") ||
-                                     errorMsg.contains("error=8"))) {
-                log.error("❌ 架构不匹配：无法执行Python验证包 - {}", errorMsg);
-            } else {
-                log.warn("验证包 {} 时IO错误: {}", packageName, errorMsg);
-            }
-            return null;
-        } catch (Exception e) {
-            log.warn("验证包 {} 是否安装时出错", packageName, e);
-            return null;
-        }
-    }
-
-    /**
-     * 从文件名提取包名
-     * whl文件名格式: {distribution}-{version}(-{build})?-{python}-{abi}-{platform}.whl
-     * tar.gz文件名格式: {distribution}-{version}.tar.gz
-     */
-    private String extractPackageName(String fileName) {
-        String packageName = fileName;
-
-        if (fileName.endsWith(".whl")) {
-            // whl文件: 取第一个-之前的部分作为包名
-            // 例如: openpyxl-3.1.5-py2.py3-none-any.whl -> openpyxl
-            int firstDash = fileName.indexOf("-");
-            if (firstDash > 0) {
-                packageName = fileName.substring(0, firstDash);
-            }
-        } else if (fileName.endsWith(".tar.gz")) {
-            // tar.gz文件: 移除.tar.gz后取最后一个-之前的部分
-            // 例如: requests-2.32.5.tar.gz -> requests
-            packageName = fileName.replace(".tar.gz", "");
-            int lastDash = packageName.lastIndexOf("-");
-            if (lastDash > 0) {
-                packageName = packageName.substring(0, lastDash);
-            }
-        }
-
-        // 标准化包名：小写，下划线转连字符
-        return packageName.toLowerCase().replace("_", "-");
-    }
-
-    /**
-     * 从文件名提取版本号
-     */
-    private String extractPackageVersion(String fileName) {
-        String version = "";
-        if (fileName.endsWith(".whl")) {
-            String[] parts = fileName.split("-");
-            if (parts.length > 1) {
-                version = parts[1];
-            }
-        } else if (fileName.endsWith(".tar.gz")) {
-            String nameWithoutExt = fileName.replace(".tar.gz", "");
-            if (nameWithoutExt.contains("-")) {
-                version = nameWithoutExt.substring(nameWithoutExt.lastIndexOf("-") + 1);
-            }
-        }
-        return version;
-    }
-
-    /**
-     * 获取文件扩展名
-     */
-    private String getFileExtension(String fileName) {
-        if (fileName.endsWith(".tar.gz")) {
-            return "tar.gz";
-        }
-        int lastDot = fileName.lastIndexOf('.');
-        return lastDot > 0 ? fileName.substring(lastDot + 1) : "";
     }
 
     @Override
@@ -1331,7 +1151,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
             try {
                 // 删除整个runtime目录
-                deleteDirectory(runtimeDirFile);
+                FileOperationUtil.deleteDirectory(runtimeDirFile);
                 progressLogService.sendLog(taskId, "✓ 已清理旧的Python运行时");
                 log.info("✓ 成功删除旧运行时目录");
             } catch (IOException e) {
@@ -1393,16 +1213,16 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             Path extractPathObj = Paths.get(extractPath);
             if (Files.exists(extractPathObj)) {
                 log.warn("解压目录已存在（应该在前面已删除），再次删除: {}", extractPath);
-                deleteDirectory(extractPathObj.toFile());
+                FileOperationUtil.deleteDirectory(extractPathObj.toFile());
             }
             Files.createDirectories(extractPathObj);
 
             if (isZip) {
                 progressLogService.sendLog(taskId, "正在解压 ZIP 文件...");
-                extractZip(uploadPath.toString(), extractPath);
+                FileOperationUtil.extractZip(uploadPath.toString(), extractPath);
             } else {
                 progressLogService.sendLog(taskId, "正在解压 TAR.GZ 文件...");
-                extractTarGz(uploadPath.toString(), extractPath);
+                FileOperationUtil.extractTarGz(uploadPath.toString(), extractPath);
             }
 
             log.info("Python运行时解压成功: {}", extractPath);
@@ -1425,51 +1245,30 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
                 // 输出目录结构用于调试
                 log.info("Python根目录内容:");
-                logDirectoryStructure(extractDir, 0, 2);
+                FileOperationUtil.logDirectoryStructure(extractDir, 0, 2);
             } else if (subItems != null) {
                 log.info("解压后包含 {} 个项目", subItems.length);
                 progressLogService.sendLog(taskId, "解压后包含 " + subItems.length + " 个文件/目录");
             }
 
-            // 先尝试检测Python可执行文件（预编译包）
-            progressLogService.sendProgress(taskId, 50, "检测Python可执行文件...");
-            String detectedPython = detectPythonExecutableInDirectory(extractPath);
+            // 仅支持预编译Python包
+            log.info("开始设置预编译Python包权限...");
+            log.info("  Python根目录: {}", extractPath);
+            progressLogService.sendProgress(taskId, 50, "设置执行权限");
 
-            // 如果找不到Python可执行文件，再检测是否为源代码包
-            File configureFile = new File(extractDir, "configure");
-            boolean isSourcePackage = (detectedPython == null) && configureFile.exists();
+            finalExtractPath = extractPath;
 
-            if (isSourcePackage) {
-                log.info("检测到Python源代码包（包含configure文件），开始自动编译...");
-                progressLogService.sendProgress(taskId, 45, "检测到源代码包，开始编译（可能需要10-30分钟）");
-                try {
-                    finalExtractPath = compilePythonSource(extractPath, taskId);
-                    log.info("Python源代码编译完成: {}", finalExtractPath);
-                    progressLogService.sendProgress(taskId, 70, "编译完成");
-                } catch (Exception e) {
-                    log.error("编译Python源代码失败", e);
-                    progressLogService.sendError(taskId, "编译Python源代码失败: " + e.getMessage());
-                    throw new ServiceException(500, "编译Python源代码失败: " + e.getMessage());
-                }
-            } else {
-                log.info("检测到预编译Python包，开始设置执行权限...");
-                log.info("  Python根目录: {}", extractPath);
-                progressLogService.sendProgress(taskId, 55, "设置执行权限");
+            // 确保Python可执行文件和共享库有执行权限
+            FileOperationUtil.ensurePythonExecutablePermissions(extractDir);
+            // 特别处理bin/lib目录的权限（python-build-standalone需要）
+            FileOperationUtil.setBinAndLibPermissions(extractDir);
 
-                finalExtractPath = extractPath;
-
-                // 确保Python可执行文件和共享库有执行权限
-                ensurePythonExecutablePermissions(extractDir);
-                // 特别处理bin/lib目录的权限（python-build-standalone需要）
-                setBinAndLibPermissions(extractDir);
-
-                log.info("预编译Python包权限设置完成");
-                progressLogService.sendLog(taskId, "✓ 权限设置完成");
-            }
+            log.info("预编译Python包权限设置完成");
+            progressLogService.sendLog(taskId, "✓ 权限设置完成");
 
             // 输出解压后的文件结构（用于调试）
             log.info("最终Python目录结构:");
-            logDirectoryStructure(new File(finalExtractPath), 0, 3);
+            FileOperationUtil.logDirectoryStructure(new File(finalExtractPath), 0, 3);
         } catch (Exception e) {
             log.error("解压运行时文件失败", e);
             progressLogService.sendError(taskId, "解压失败: " + e.getMessage());
@@ -1478,22 +1277,22 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 自动检测Python可执行文件
         progressLogService.sendProgress(taskId, 75, "正在检测Python可执行文件...");
-        String pythonExecutable = detectPythonExecutableInDirectory(finalExtractPath);
+        String pythonExecutable = PythonEnvDetector.detectPythonExecutable(finalExtractPath);
         if (pythonExecutable == null) {
             log.error("========================================");
             log.error("未能检测到Python可执行文件！");
             log.error("========================================");
             log.error("解压目录: {}", finalExtractPath);
             log.error("目录结构:");
-            logDirectoryStructure(new File(finalExtractPath), 0, 3);
+            FileOperationUtil.logDirectoryStructure(new File(finalExtractPath), 0, 3);
 
             // 检查是否存在架构不匹配问题
-            String archMismatchHint = detectArchitectureMismatch(finalExtractPath);
+            String archMismatchHint = PythonEnvDetector.detectArchitectureMismatch(finalExtractPath);
 
             // 获取当前系统架构
             String osArch = System.getProperty("os.arch").toLowerCase();
             String osName = System.getProperty("os.name").toLowerCase();
-            String recommendedArch = getRecommendedArchitecture(osArch);
+            String recommendedArch = PythonEnvDetector.getRecommendedArchitecture(osArch);
             String downloadUrl = "https://github.com/astral-sh/python-build-standalone/releases";
 
             StringBuilder errorMsg = new StringBuilder();
@@ -1578,12 +1377,12 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 检测Python版本
         progressLogService.sendProgress(taskId, 85, "检测Python版本...");
-        String pythonVersion = detectPythonVersion(pythonExecutable);
+        String pythonVersion = PythonEnvDetector.detectPythonVersion(pythonExecutable);
         if (pythonVersion != null && !pythonVersion.isEmpty()) {
             progressLogService.sendLog(taskId, "Python版本: " + pythonVersion);
         } else {
             // 如果检测失败，尝试从文件名提取版本号
-            pythonVersion = extractPythonVersionFromFilename(originalFilename);
+            pythonVersion = PythonEnvDetector.extractPythonVersionFromFilename(originalFilename);
             if (pythonVersion != null && !pythonVersion.isEmpty()) {
                 progressLogService.sendLog(taskId, "从文件名提取Python版本: " + pythonVersion);
             } else {
@@ -1595,14 +1394,14 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
         // 检测site-packages路径（使用最终的Python目录）
         progressLogService.sendProgress(taskId, 90, "检测site-packages路径...");
-        String sitePackagesPath = detectSitePackagesPath(finalExtractPath);
+        String sitePackagesPath = PythonEnvDetector.detectSitePackagesPath(finalExtractPath);
 
         // 处理Python embed版本的._pth文件（修复pip无法使用的问题）
         configurePythonPath(pythonExecutable, sitePackagesPath);
 
         // 在配置._pth文件后重新检测pip（可能已经可用了）
         progressLogService.sendProgress(taskId, 95, "检测pip可用性...");
-        boolean hasPip = checkPipAvailable(pythonExecutable);
+        boolean hasPip = PythonEnvDetector.checkPipAvailable(pythonExecutable);
         if (hasPip) {
             progressLogService.sendLog(taskId, "✓ pip可用");
         } else {
@@ -1667,16 +1466,16 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
 
         // 检测Python可执行文件
-        String pythonExecutable = detectPythonExecutableInDirectory(environment.getEnvRootPath());
+        String pythonExecutable = PythonEnvDetector.detectPythonExecutable(environment.getEnvRootPath());
         if (pythonExecutable == null) {
             throw new ServiceException(500, "未能检测到Python可执行文件");
         }
 
         // 检测Python版本
-        String pythonVersion = detectPythonVersion(pythonExecutable);
+        String pythonVersion = PythonEnvDetector.detectPythonVersion(pythonExecutable);
 
         // 检测site-packages路径
-        String sitePackagesPath = detectSitePackagesPath(environment.getEnvRootPath());
+        String sitePackagesPath = PythonEnvDetector.detectSitePackagesPath(environment.getEnvRootPath());
 
         // 更新环境配置
         environment.setPythonExecutable(pythonExecutable);
@@ -1776,7 +1575,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                         log.info("✓ 检测到可用的Python可执行文件: {}", pythonPath);
 
                         // 尝试执行 python --version 验证是否可以运行
-                        if (verifyPythonExecutable(pythonPath)) {
+                        if (PythonEnvDetector.verifyPythonExecutable(pythonPath)) {
                             log.info("✓ Python可执行文件验证成功: {}", pythonPath);
                             return pythonPath;
                         } else {
@@ -1798,7 +1597,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 log.info("通过递归搜索检测到Python可执行文件: {}", found);
 
                 // 验证可执行文件
-                if (verifyPythonExecutable(found)) {
+                if (PythonEnvDetector.verifyPythonExecutable(found)) {
                     return found;
                 } else {
                     log.warn("递归找到的Python文件验证失败: {}", found);
@@ -2127,7 +1926,7 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                     "  - 上传了ARM架构的Python但系统是x86_64架构\n" +
                     "  - 或者上传了x86_64架构的Python但系统是ARM架构\n\n" +
                     "系统架构: " + System.getProperty("os.arch") + "\n" +
-                    "需要下载: " + getRecommendedArchitecture(System.getProperty("os.arch").toLowerCase()) + " 架构的Python\n\n" +
+                    "需要下载: " + PythonEnvDetector.getRecommendedArchitecture(System.getProperty("os.arch").toLowerCase()) + " 架构的Python\n\n" +
                     "下载地址: https://github.com/astral-sh/python-build-standalone/releases");
             }
             log.warn("检测Python版本时IO错误: {}", errorMsg, e);
@@ -2212,738 +2011,6 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         return null;
     }
 
-    /**
-     * 解压ZIP文件
-     */
-    private void extractZip(String zipFilePath, String destDirectory) throws IOException {
-        File destDir = new File(destDirectory);
-        if (!destDir.exists()) {
-            destDir.mkdirs();
-        }
-
-        try (ZipInputStream zipIn = new ZipInputStream(Files.newInputStream(Paths.get(zipFilePath)))) {
-            ZipEntry entry = zipIn.getNextEntry();
-            while (entry != null) {
-                String filePath = destDirectory + File.separator + entry.getName();
-                if (!entry.isDirectory()) {
-                    // 确保父目录存在
-                    File parent = new File(filePath).getParentFile();
-                    if (!parent.exists()) {
-                        parent.mkdirs();
-                    }
-                    // 提取文件
-                    Files.copy(zipIn, Paths.get(filePath), StandardCopyOption.REPLACE_EXISTING);
-
-                    // 在Unix/Linux系统上设置可执行权限
-                    File extractedFile = new File(filePath);
-                    String entryName = entry.getName().toLowerCase();
-                    // 对bin/Scripts目录下的文件和python可执行文件设置执行权限
-                    if (entryName.contains("/bin/") || entryName.contains("/scripts/") ||
-                            entryName.endsWith("python") || entryName.endsWith("python3") ||
-                            entryName.endsWith("python.exe") || entryName.endsWith("python3.exe") ||
-                            entryName.endsWith("pip") || entryName.endsWith("pip3") ||
-                            entryName.endsWith("pip.exe") || entryName.endsWith("pip3.exe")) {
-                        extractedFile.setExecutable(true);
-                    }
-                } else {
-                    File dir = new File(filePath);
-                    dir.mkdirs();
-                }
-                zipIn.closeEntry();
-                entry = zipIn.getNextEntry();
-            }
-        }
-    }
-
-    /**
-     * 解压tar.gz文件（使用纯Java实现，跨平台兼容）
-     */
-    private void extractTarGz(String tarGzFilePath, String destDirectory) throws IOException {
-        File destDir = new File(destDirectory);
-        if (!destDir.exists()) {
-            destDir.mkdirs();
-        }
-
-        log.info("开始解压tar.gz文件: {} 到 {}", tarGzFilePath, destDirectory);
-
-        // 使用Apache Commons Compress解压tar.gz
-        try (FileInputStream fis = new FileInputStream(tarGzFilePath);
-             BufferedInputStream bis = new BufferedInputStream(fis);
-             GzipCompressorInputStream gzis = new GzipCompressorInputStream(bis);
-             TarArchiveInputStream tis = new TarArchiveInputStream(gzis)) {
-
-            TarArchiveEntry entry;
-            while ((entry = tis.getNextTarEntry()) != null) {
-                if (!tis.canReadEntryData(entry)) {
-                    log.warn("无法读取tar entry: {}", entry.getName());
-                    continue;
-                }
-
-                File targetFile = new File(destDir, entry.getName());
-
-                // 安全检查：防止路径遍历攻击
-                if (!targetFile.toPath().normalize().startsWith(destDir.toPath())) {
-                    log.warn("检测到可疑路径，跳过: {}", entry.getName());
-                    continue;
-                }
-
-                if (entry.isDirectory()) {
-                    if (!targetFile.exists() && !targetFile.mkdirs()) {
-                        throw new IOException("无法创建目录: " + targetFile);
-                    }
-                } else {
-                    File parent = targetFile.getParentFile();
-                    if (!parent.exists() && !parent.mkdirs()) {
-                        throw new IOException("无法创建父目录: " + parent);
-                    }
-
-                    try (FileOutputStream fos = new FileOutputStream(targetFile);
-                         BufferedOutputStream bos = new BufferedOutputStream(fos)) {
-                        byte[] buffer = new byte[8192];
-                        int len;
-                        while ((len = tis.read(buffer)) != -1) {
-                            bos.write(buffer, 0, len);
-                        }
-                    }
-
-                    // 保留Unix权限
-                    if (entry.getMode() != 0) {
-                        targetFile.setExecutable((entry.getMode() & 0100) != 0);
-                        targetFile.setReadable((entry.getMode() & 0400) != 0);
-                        targetFile.setWritable((entry.getMode() & 0200) != 0);
-                    }
-                }
-            }
-        }
-
-        log.info("tar.gz解压完成: {}", destDirectory);
-
-        // 设置bin目录下的文件为可执行
-        setBinExecutable(destDir);
-    }
-
-    /**
-     * 设置bin目录下的文件为可执行
-     */
-    private void setBinExecutable(File directory) {
-        File[] files = directory.listFiles();
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                if (file.getName().equals("bin") || file.getName().equals("Scripts")) {
-                    // 设置bin或Scripts目录下所有文件为可执行
-                    File[] binFiles = file.listFiles();
-                    if (binFiles != null) {
-                        for (File binFile : binFiles) {
-                            if (binFile.isFile()) {
-                                binFile.setExecutable(true);
-                            }
-                        }
-                    }
-                } else {
-                    // 递归处理子目录
-                    setBinExecutable(file);
-                }
-            }
-        }
-    }
-
-    /**
-     * 确保目录中的Python可执行文件有执行权限（递归搜索，限制深度为3层）
-     */
-    private void ensurePythonExecutablePermissions(File directory) {
-        ensurePythonExecutablePermissionsRecursively(directory, 0, 3);
-    }
-
-    /**
-     * 编译Python源代码
-     * @param sourceDir 源代码目录
-     * @param taskId 任务ID（用于进度推送）
-     * @return 编译后的安装目录
-     */
-    private String compilePythonSource(String sourceDir, String taskId) throws IOException, InterruptedException {
-        // 检测操作系统
-        String osName = System.getProperty("os.name").toLowerCase();
-        boolean isWindows = osName.contains("win");
-
-        // Windows 不支持从源代码编译 Python
-        if (isWindows) {
-            throw new ServiceException(500,
-                "Windows系统不支持从源代码编译Python。" +
-                "请下载Windows预编译版本（如python-3.x.x-embed-amd64.zip）或完整安装版。" +
-                "下载地址: https://www.python.org/downloads/windows/");
-        }
-
-        String installDir = sourceDir + "_compiled";
-
-        log.info("========================================");
-        log.info("开始编译Python源代码");
-        log.info("========================================");
-        log.info("  操作系统: {}", osName);
-        log.info("  源代码目录: {}", sourceDir);
-        log.info("  安装目录: {}", installDir);
-        log.warn("  ⚠️  注意：编译Python需要较长时间（10-30分钟）和大量CPU/内存资源");
-        log.warn("  ⚠️  推荐使用预编译版本：https://github.com/astral-sh/python-build-standalone/releases");
-
-        // 创建安装目录
-        Files.createDirectories(Paths.get(installDir));
-
-        // 检测CPU核心数
-        int processors = Runtime.getRuntime().availableProcessors();
-        log.info("  CPU核心数: {}", processors);
-
-        // 构建编译命令（不使用 --enable-optimizations 加快编译，不安装pip避免ensurepip失败）
-        // 注意：使用 --without-ensurepip 避免因缺少某些标准库模块（如html.parser）导致make install失败
-        // 用户可以稍后通过"离线包"功能手动上传pip.whl
-        String compileCommand = String.format(
-            "cd '%s' && " +
-            "./configure --prefix='%s' --without-ensurepip 2>&1 && " +
-            "make -j%d 2>&1 && " +
-            "make install 2>&1",
-            sourceDir, installDir, processors
-        );
-
-        log.info("执行编译命令: {}", compileCommand);
-        log.info("  注意：使用 --without-ensurepip 避免ensurepip失败");
-        log.info("  提示：编译后可通过‘配置/离线包’上传pip.whl手动安装pip");
-        log.info("----------------------------------------");
-        progressLogService.sendLog(taskId, "开始执行configure配置...");
-
-        // 根据系统选择 shell
-        String shell = osName.contains("mac") || osName.contains("darwin") ? "bash" : "sh";
-        ProcessBuilder pb = new ProcessBuilder(shell, "-c", compileCommand);
-        pb.redirectErrorStream(true);
-
-        Process process = pb.start();
-        progressLogService.sendLog(taskId, "configure执行中，这可能需要几分钟...");
-
-        // 读取并输出所有编译信息
-        StringBuilder fullOutput = new StringBuilder();
-        StringBuilder errorOutput = new StringBuilder();
-        boolean hasCriticalError = false; // 标记是否有关键致命错误
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream()))) {
-            String line;
-            int lineCount = 0;
-            while ((line = reader.readLine()) != null) {
-                fullOutput.append(line).append("\n");
-                lineCount++;
-
-                // 检测关键致命错误（只检测configure阶段的错误）
-                String lowerLine = line.toLowerCase();
-
-                // 只有configure阶段的错误才是真正致命的
-                if (lowerLine.contains("configure: error:") ||
-                    lowerLine.contains("cannot find sources")) {
-                    hasCriticalError = true;
-                    log.error("[关键错误] {}", line);
-                    errorOutput.append(line).append("\n");
-                    progressLogService.sendLog(taskId, "✗ configure错误: " + line);
-                }
-
-                // 输出关键信息到日志（修复：不把gcc命令和make过程的错误当作致命错误）
-                // 真正的错误：configure阶段的错误
-                boolean isConfigureError = (lowerLine.contains("configure: error") ||
-                                           lowerLine.contains("cannot find sources"));
-
-                if (isConfigureError) {
-                    log.error("[配置错误] {}", line);
-                    errorOutput.append(line).append("\n");
-                } else if (lowerLine.contains("configure:") || lowerLine.contains("checking")) {
-                    log.info("[配置进度] {}", line);
-                    // 每隔50行configure检查输出一次进度
-                    if (lineCount % 50 == 0) {
-                        progressLogService.sendLog(taskId, "configure检查中...");
-                    }
-                } else if (lowerLine.contains("creating") || lowerLine.contains("installing") ||
-                          lowerLine.contains("successfully") || lowerLine.contains("done")) {
-                    log.info("[编译进度] {}", line);
-                } else if (lowerLine.startsWith("make[") || lowerLine.contains("gcc ") ||
-                          lowerLine.contains("ar rcs")) {
-                    // make过程的正常输出，降低日志级别
-                    log.debug("[Make] {}", line);
-                    // 每隔200行make输出一次进度
-                    if (lineCount % 200 == 0) {
-                        progressLogService.sendLog(taskId, "编译中... 已处理 " + lineCount + " 行");
-                    }
-                }
-
-                // 如果检测到关键错误（仅configure阶段），提前中断读取
-                if (hasCriticalError && lineCount > 10) {
-                    log.error("检测到configure阶段的关键错误，停止读取编译输出");
-                    progressLogService.sendError(taskId, "configure配置失败");
-                    break;
-                }
-            }
-        }
-
-        // 如果检测到关键错误，立即终止进程
-        if (hasCriticalError) {
-            log.error("检测到configure阶段的关键错误，终止编译进程");
-            process.destroy();
-            try {
-                process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
-            } catch (Exception e) {
-                process.destroyForcibly();
-            }
-        }
-
-        int exitCode = process.waitFor();
-        log.info("----------------------------------------");
-        log.info("编译命令执行完成，退出码: {}", exitCode);
-
-        if (exitCode != 0) {
-            log.error("========================================");
-            log.error("Python源代码编译失败！");
-            log.error("========================================");
-            log.error("退出码: {}", exitCode);
-            progressLogService.sendError(taskId, "编译失败，退出码: " + exitCode);
-
-            // 输出最后50行日志
-            String[] lines = fullOutput.toString().split("\n");
-            int startLine = Math.max(0, lines.length - 50);
-            log.error("最后50行编译输出:");
-            for (int i = startLine; i < lines.length; i++) {
-                log.error("  {}", lines[i]);
-            }
-
-            // 构建错误消息
-            StringBuilder errorMsg = new StringBuilder();
-            errorMsg.append("Python源代码编译失败（退出码: ").append(exitCode).append("）\n\n");
-
-            // 分析退出码
-            if (exitCode == 143) {
-                errorMsg.append("⚠️  编译进程被意外终止 (SIGTERM)\n");
-                errorMsg.append("可能原因:\n");
-                errorMsg.append("  - Docker容器内存不足被OOM Killer终止\n");
-                errorMsg.append("  - 编译超时被系统终止\n");
-                errorMsg.append("  - 手动取消了编译操作\n\n");
-            }
-
-            if (!errorOutput.isEmpty()) {
-                errorMsg.append("错误信息:\n").append(errorOutput.toString()).append("\n");
-            }
-
-            // 检查常见错误模式
-            String fullOutputStr = fullOutput.toString();
-            if (fullOutputStr.contains("can't create") || fullOutputStr.contains("No such file or directory")) {
-                errorMsg.append("\n⚠️  检测到文件创建错误\n");
-                errorMsg.append("可能原因:\n");
-                errorMsg.append("  - Docker容器磁盘空间不足\n");
-                errorMsg.append("  - 挂载的卷权限不足\n");
-                errorMsg.append("  - 临时目录空间不足\n\n");
-            }
-
-            if (fullOutputStr.contains("fatal error") && fullOutputStr.contains(".h:")) {
-                errorMsg.append("\n⚠️  检测到缺少头文件\n");
-                errorMsg.append("需要安装编译依赖:\n");
-                errorMsg.append("  - build-essential (gcc, make等)\n");
-                errorMsg.append("  - libssl-dev, zlib1g-dev, libbz2-dev\n");
-                errorMsg.append("  - libreadline-dev, libsqlite3-dev\n");
-                errorMsg.append("  - libffi-dev, liblzma-dev\n\n");
-            }
-
-            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-            errorMsg.append("【强烈推荐】使用预编译Python运行时:\n");
-            errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-            errorMsg.append("1. 下载地址: https://github.com/astral-sh/python-build-standalone/releases\n");
-            errorMsg.append("2. 选择对应平台:\n");
-            errorMsg.append("   • Linux x86_64: cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz\n");
-            errorMsg.append("   • Linux ARM64:  cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz\n");
-            errorMsg.append("3. 优点:\n");
-            errorMsg.append("   ✓ 无需编译，直接使用\n");
-            errorMsg.append("   ✓ 包含完整Python和pip\n");
-            errorMsg.append("   ✓ 无需系统依赖\n");
-            errorMsg.append("   ✓ 上传后1分钟内完成配置\n\n");
-
-            errorMsg.append("【如果必须编译源代码】\n");
-            errorMsg.append("需要在Dockerfile中添加编译依赖:\n");
-            errorMsg.append("RUN apt-get update && apt-get install -y \\\n");
-            errorMsg.append("    build-essential libssl-dev zlib1g-dev \\\n");
-            errorMsg.append("    libbz2-dev libreadline-dev libsqlite3-dev \\\n");
-            errorMsg.append("    libffi-dev liblzma-dev tk-dev\n");
-
-            throw new IOException(errorMsg.toString());
-        }
-
-        log.info("编译命令执行成功");
-        progressLogService.sendLog(taskId, "✓ Python源代码编译成功");
-        progressLogService.sendLog(taskId, "ℹ️  注意：编译时未安装pip（避免ensurepip失败）");
-        progressLogService.sendLog(taskId, "ℹ️  稍后可通过'配置/离线包'上传pip.whl手动安装pip");
-
-        // 验证编译结果 - 多级检查和自动修复
-        File binDir = new File(installDir, "bin");
-        if (!binDir.exists() || !binDir.isDirectory()) {
-            log.error("编译完成但未找到bin目录");
-            log.error("安装目录内容:");
-            logDirectoryStructure(new File(installDir), 0, 3);
-            throw new IOException("编译完成但未找到bin目录，编译可能未正确完成");
-        }
-
-        log.info("开始验证Python可执行文件...");
-        progressLogService.sendLog(taskId, "验证Python可执行文件...");
-
-        // 第一步：查找 python3 符号链接或实际文件
-        File python3 = new File(binDir, "python3");
-        File actualPythonBinary = null;
-
-        // 第二步：如果python3不存在或是空文件（0字节），查找版本化的python3.x
-        if (!python3.exists() || python3.length() == 0) {
-            log.warn("python3不存在或为空文件，尝试查找版本化的python3.x");
-            progressLogService.sendLog(taskId, "⚠ python3不存在，查找版本化二进制文件...");
-
-            // 列出bin目录下的所有文件
-            File[] binFiles = binDir.listFiles();
-            if (binFiles != null) {
-                for (File file : binFiles) {
-                    String name = file.getName();
-                    // 查找 python3.x 格式的文件（排除config文件）
-                    if (name.matches("python3\\.\\d+") && !name.contains("config") && file.length() > 0) {
-                        actualPythonBinary = file;
-                        log.info("找到版本化Python二进制: {} ({}字节)",
-                            actualPythonBinary.getName(), actualPythonBinary.length());
-                        progressLogService.sendLog(taskId,
-                            "✓ 找到: " + actualPythonBinary.getName());
-                        break;
-                    }
-                }
-            }
-
-            // 第三步：如果找到了版本化的二进制文件，创建python3符号链接
-            if (actualPythonBinary != null && actualPythonBinary.length() > 0) {
-                log.info("尝试创建python3符号链接指向: {}", actualPythonBinary.getName());
-                progressLogService.sendLog(taskId, "创建python3符号链接...");
-
-                try {
-                    // 方法1：使用Java NIO创建符号链接
-                    java.nio.file.Path linkPath = python3.toPath();
-                    java.nio.file.Path targetPath = actualPythonBinary.toPath();
-
-                    // 删除旧的空文件（如果存在）
-                    if (python3.exists()) {
-                        java.nio.file.Files.delete(linkPath);
-                        log.info("删除了旧的空python3文件");
-                    }
-
-                    // 创建符号链接
-                    java.nio.file.Files.createSymbolicLink(linkPath,
-                        binDir.toPath().relativize(targetPath));
-                    log.info("✓ 成功创建符号链接: python3 -> {}", actualPythonBinary.getName());
-                    progressLogService.sendLog(taskId,
-                        "✓ 创建符号链接: python3 -> " + actualPythonBinary.getName());
-                } catch (Exception linkError) {
-                    log.warn("Java创建符号链接失败: {}", linkError.getMessage());
-                    progressLogService.sendLog(taskId, "⚠ 符号链接创建失败，尝试使用ln命令...");
-
-                    // 方法2：使用shell命令创建符号链接
-                    try {
-                        ProcessBuilder linkPb = new ProcessBuilder("ln", "-sf",
-                            actualPythonBinary.getName(), "python3");
-                        linkPb.directory(binDir);
-                        linkPb.redirectErrorStream(true);
-                        Process linkProcess = linkPb.start();
-                        int linkExitCode = linkProcess.waitFor();
-
-                        if (linkExitCode == 0) {
-                            log.info("✓ 使用ln命令成功创建符号链接");
-                            progressLogService.sendLog(taskId, "✓ 符号链接创建成功");
-                        } else {
-                            log.error("ln命令创建符号链接失败，退出码: {}", linkExitCode);
-                        }
-                    } catch (Exception cmdError) {
-                        log.error("使用ln命令创建符号链接失败: {}", cmdError.getMessage());
-                    }
-                }
-
-                // 刷新python3文件对象
-                python3 = new File(binDir, "python3");
-            }
-        }
-
-        // 第四步：最终验证
-        if (!python3.exists()) {
-            log.error("编译完成但无法创建python3可执行文件");
-            log.error("预期位置: {}", python3.getAbsolutePath());
-            log.error("安装目录内容:");
-            logDirectoryStructure(new File(installDir), 0, 3);
-
-            throw new IOException(
-                "编译完成但未找到python3可执行文件。\n" +
-                "这通常表示编译过程未正确完成或make install失败。\n\n" +
-                "【强烈推荐】使用预编译Python运行时:\n" +
-                "  https://github.com/astral-sh/python-build-standalone/releases\n" +
-                "  下载install_only版本，无需编译，直接使用！"
-            );
-        }
-
-        // 第五步：检查文件大小（确保不是0字节的占位符）
-        if (python3.length() == 0) {
-            log.error("python3文件存在但大小为0字节");
-            log.error("这可能是一个空占位符文件");
-            log.error("bin目录内容:");
-            logDirectoryStructure(binDir, 0, 1);
-
-            throw new IOException(
-                "python3文件为空（0字节），编译可能失败。\n\n" +
-                "【强烈推荐】使用预编译Python运行时:\n" +
-                "  https://github.com/astral-sh/python-build-standalone/releases"
-            );
-        }
-
-        // 第六步：设置可执行权限
-        if (!python3.canExecute()) {
-            boolean success = python3.setExecutable(true, false);
-            if (success) {
-                log.info("✓ 已设置python3可执行权限");
-            } else {
-                log.warn("设置python3可执行权限失败");
-            }
-        }
-
-        log.info("✓ Python可执行文件验证成功: {}", python3.getAbsolutePath());
-        log.info("  文件大小: {} 字节", python3.length());
-        log.info("  可执行: {}", python3.canExecute());
-        progressLogService.sendLog(taskId, "✓ Python可执行文件验证成功");
-
-        // 删除源代码目录以节省空间
-        try {
-            deleteDirectory(new File(sourceDir));
-            log.info("✓ 已清理源代码目录");
-        } catch (Exception e) {
-            log.warn("清理源代码目录失败: {}", e.getMessage());
-        }
-
-        log.info("========================================");
-        log.info("Python源代码编译成功！");
-        log.info("========================================");
-        log.info("ℹ️  提示：编译时使用了 --without-ensurepip");
-        log.info("ℹ️  如需使用pip，请通过‘配置/离线包’上传 pip.whl");
-        log.info("ℹ️  pip下载地址: https://pypi.org/project/pip/#files");
-
-        return installDir;
-    }
-
-    /**
-     * 记录目录结构（用于调试）
-     */
-    private void logDirectoryStructure(File directory, int depth, int maxDepth) {
-        if (depth > maxDepth || !directory.exists()) {
-            return;
-        }
-
-        File[] files = directory.listFiles();
-        if (files == null) {
-            return;
-        }
-
-        String indent = "  ".repeat(depth);
-        for (File file : files) {
-            if (file.isDirectory()) {
-                log.info("{}[DIR] {}", indent, file.getName());
-                logDirectoryStructure(file, depth + 1, maxDepth);
-            } else {
-                String permissions = String.format("[%s%s%s]",
-                        file.canRead() ? "r" : "-",
-                        file.canWrite() ? "w" : "-",
-                        file.canExecute() ? "x" : "-");
-                log.info("{}[FILE] {} {} ({}bytes)", indent, file.getName(), permissions, file.length());
-            }
-        }
-    }
-
-    private void ensurePythonExecutablePermissionsRecursively(File directory, int depth, int maxDepth) {
-        if (depth > maxDepth || !directory.isDirectory()) {
-            return;
-        }
-
-        File[] files = directory.listFiles();
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            if (file.isFile()) {
-                String name = file.getName().toLowerCase();
-                // 对Python相关可执行文件设置执行权限
-                if (name.equals("python") || name.equals("python3") ||
-                        name.equals("python.exe") || name.equals("python3.exe") ||
-                        name.startsWith("python3.") ||
-                        name.equals("pip") || name.equals("pip3") ||
-                        name.equals("pip.exe") || name.equals("pip3.exe")) {
-                    boolean result = file.setExecutable(true);
-                    if (result) {
-                        log.info("设置执行权限成功: {}", file.getAbsolutePath());
-                    } else {
-                        log.warn("设置执行权限失败: {}", file.getAbsolutePath());
-                    }
-                }
-            } else if (file.isDirectory() && !file.getName().startsWith(".")) {
-                ensurePythonExecutablePermissionsRecursively(file, depth + 1, maxDepth);
-            }
-        }
-    }
-
-    /**
-     * 设置bin和lib目录的权限（针对python-build-standalone等预编译包）
-     */
-    private void setBinAndLibPermissions(File directory) {
-        if (!directory.exists() || !directory.isDirectory()) {
-            return;
-        }
-
-        File[] files = directory.listFiles();
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                String dirName = file.getName().toLowerCase();
-
-                // 处理bin目录：所有文件设置执行权限
-                if (dirName.equals("bin") || dirName.equals("scripts")) {
-                    log.info("处理{}目录，设置所有文件执行权限: {}", dirName, file.getAbsolutePath());
-                    File[] binFiles = file.listFiles();
-                    if (binFiles != null) {
-                        for (File binFile : binFiles) {
-                            if (binFile.isFile()) {
-                                boolean result = binFile.setExecutable(true);
-                                if (!result) {
-                                    log.warn("设置执行权限失败: {}", binFile.getAbsolutePath());
-                                }
-                            }
-                        }
-                    }
-                }
-                // 处理lib目录：递归设置.so/.dylib文件的执行权限（共享库需要）
-                else if (dirName.equals("lib") || dirName.equals("lib64")) {
-                    log.info("处理{}目录，设置共享库文件执行权限: {}", dirName, file.getAbsolutePath());
-                    setLibraryPermissionsRecursively(file, 0, 5);
-                }
-                // 递归处理子目录（限制深度避免过深）
-                else if (!dirName.startsWith(".")) {
-                    setBinAndLibPermissions(file);
-                }
-            }
-        }
-    }
-
-    /**
-     * 递归设置共享库文件权限
-     */
-    private void setLibraryPermissionsRecursively(File directory, int depth, int maxDepth) {
-        if (depth > maxDepth || !directory.isDirectory()) {
-            return;
-        }
-
-        File[] files = directory.listFiles();
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            if (file.isFile()) {
-                String name = file.getName().toLowerCase();
-                // 共享库文件需要执行权限
-                if (name.endsWith(".so") || name.contains(".so.") ||
-                    name.endsWith(".dylib") || name.endsWith(".dll")) {
-                    boolean result = file.setExecutable(true);
-                    if (!result) {
-                        log.debug("设置共享库执行权限失败: {}", file.getAbsolutePath());
-                    }
-                }
-            } else if (file.isDirectory() && !file.getName().startsWith(".")) {
-                setLibraryPermissionsRecursively(file, depth + 1, maxDepth);
-            }
-        }
-    }
-
-    /**
-     * 递归删除目录（增强版，支持重试和强制删除，兼容Windows Docker和卷映射）
-     */
-    private void deleteDirectory(File directory) throws IOException {
-        if (!directory.exists()) {
-            return;
-        }
-
-        if (directory.isDirectory()) {
-            File[] files = directory.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    deleteDirectory(file);
-                }
-            }
-        }
-
-        // 尝试删除文件/目录，失败时重试
-        int maxRetries = 3;  // 减少重试次数（因为是异步执行）
-        boolean deleted = false;
-
-        for (int i = 0; i < maxRetries; i++) {
-            // 先尝试使用Java API删除
-            if (directory.delete()) {
-                deleted = true;
-                break;
-            }
-
-            // Java删除失败，尝试设置权限后重试
-            if (i < maxRetries - 1) {
-                try {
-                    // 设置可写权限
-                    directory.setWritable(true, false);  // false = 所有用户
-                    directory.setReadable(true, false);
-                    directory.setExecutable(true, false);
-
-                    // 短暂延迟后重试（Docker映射目录可能需要同步时间）
-                    Thread.sleep(100);
-
-                } catch (Exception e) {
-                    log.debug("设置权限时出错 (第{}次): {}", i + 1, e.getMessage());
-                }
-            }
-        }
-
-        // 如果普通方式删除失败，尝试使用系统命令（仅最后一次尝试）
-        if (!deleted && directory.exists()) {
-            try {
-                String osName = System.getProperty("os.name").toLowerCase();
-                Process process;
-
-                if (osName.contains("win")) {
-                    // Windows命令
-                    process = Runtime.getRuntime().exec(new String[]{"cmd", "/c", "del", "/F", "/Q", directory.getAbsolutePath()});
-                } else {
-                    // Linux命令
-                    process = Runtime.getRuntime().exec(new String[]{"rm", "-rf", directory.getAbsolutePath()});
-                }
-
-                // 等待命令执行完成，最多等待5秒
-                boolean completed = process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
-
-                if (completed && !directory.exists()) {
-                    deleted = true;
-                    log.debug("使用系统命令成功删除: {}", directory.getAbsolutePath());
-                } else if (!completed) {
-                    process.destroyForcibly();
-                    log.warn("系统命令超时，强制终止: {}", directory.getAbsolutePath());
-                }
-
-            } catch (Exception e) {
-                log.debug("系统命令删除失败: {}", e.getMessage());
-            }
-        }
-
-        if (!deleted && directory.exists()) {
-            // 对于Docker映射目录，删除失败是正常的，只记录debug级别日志
-            log.debug("⚠️  无法删除: {} (已重试{}次)", directory.getAbsolutePath(), maxRetries);
-            log.debug("   可能原因: Docker卷映射导致的文件系统同步延迟或权限限制");
-            // 不抛出异常，只记录日志
-        }
-    }
 
     /**
      * 配置Python路径（处理embed版本的._pth文件）

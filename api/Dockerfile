@@ -45,8 +45,8 @@ COPY api/target/block-flow-*.jar /app/block-flow.jar
 
 # 【可选】配置国内镜像源加速（中国区用户取消注释）
 # 阿里云镜像源
- RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list && \
-     sed -i 's@http://.*security.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list
+RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list && \
+    sed -i 's@http://.*security.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list
 # 或使用腾讯云镜像源
 # RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.tencent.com@g' /etc/apt/sources.list && \
 #     sed -i 's@http://.*security.ubuntu.com@http://mirrors.tencent.com@g' /etc/apt/sources.list
@@ -54,37 +54,19 @@ COPY api/target/block-flow-*.jar /app/block-flow.jar
 # RUN sed -i 's@http://.*archive.ubuntu.com@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list && \
 #     sed -i 's@http://.*security.ubuntu.com@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list
 
-# 安装 Python 源代码编译所需的依赖（完整版）
-# 注意：
-# 1. 如果只使用预编译Python运行时（python-build-standalone），可以注释掉这些依赖
-# 2. 如果需要从源代码编译Python，必须保留这些依赖
-# 3. 这些依赖会增加约300MB的镜像大小
+# 安装固定版本的Python 3.12（系统预设）
+# 注意：建议用户使用预编译Python运行时（python-build-standalone）
+# 系统Python仅作为备用选项
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    # 基础编译工具
-    build-essential \
-    gcc \
-    g++ \
-    make \
-    # Python编译必需的库
-    libssl-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    libreadline-dev \
-    libsqlite3-dev \
-    libffi-dev \
-    liblzma-dev \
-    # 可选但推荐的库
-    libncurses5-dev \
-    libgdbm-dev \
-    libgdbm-compat-dev \
-    tk-dev \
-    uuid-dev \
-    # 工具
-    wget \
-    curl \
+    python3.12 \
+    python3.12-venv \
+    python3-pip \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* && \
+    # 创建软链接，使python3命令可用
+    ln -sf /usr/bin/python3.12 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/bin/python
 
 # 创建必要的目录
 RUN mkdir -p /app/data \

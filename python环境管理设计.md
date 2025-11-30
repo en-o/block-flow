@@ -168,27 +168,33 @@ block-flow/
 - ❌ 需要网络连接
 - ❌ 依赖系统 Python
 
-### 场景2：离线环境 - 上传 Python 运行时
+### 场景2：离线环境 - 上传 Python 运行时（推荐）
 
 **适用情况**：服务器无法访问互联网，需要完全离线部署
 
+**推荐使用预编译Python运行时（python-build-standalone）**
+
 ```
 步骤：
-1. 创建环境 → 选择"上传运行时"
-2. 上传 Python 压缩包（python-3.9.7-embed-amd64.zip）
-3. 系统自动解压、检测 Python 路径
-4. 上传 pip 的 whl 包（pip-24.0-py3-none-any.whl）
-5. 上传其他依赖的 whl 包
+1. 下载预编译Python运行时
+   - 地址: https://github.com/astral-sh/python-build-standalone/releases
+   - 推荐: cpython-3.11.9+...-install_only.tar.gz
+2. 创建环境 → 选择"上传运行时"
+3. 上传下载的压缩包
+4. 系统自动解压、检测 Python 路径和pip
+5. 如缺少pip，上传 pip 的 whl 包（pip-24.0-py3-none-any.whl）
+6. 上传其他依赖的 whl 包
 ```
 
 **优点**：
 - ✅ 完全离线可用
 - ✅ 环境独立隔离
 - ✅ 可迁移性强
+- ✅ 无需编译，即装即用
 
 **缺点**：
 - ❌ 需要手动下载所有依赖
-- ❌ 初始配置较复杂
+- ❌ 初始配置需要一定学习
 
 ### 场景3：混合模式 - 在线 + 离线
 
@@ -229,12 +235,15 @@ block-flow/
 
 #### 方式 B：上传 Python 运行时（推荐离线环境）
 
-1. 下载 Python 嵌入式版本：
-   - Windows: https://www.python.org/ftp/python/3.9.7/python-3.9.7-embed-amd64.zip
-   - 或使用淘宝镜像: https://registry.npmmirror.com/binary.html?path=python/3.9.7/
+1. **下载预编译Python运行时（python-build-standalone）**：
+   - 下载地址: https://github.com/astral-sh/python-build-standalone/releases
+   - **🐧 Linux / 🐳 Docker 环境（推荐）**：
+     - **x86_64架构（当前Docker环境）**: `cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz`
+     - **ARM架构**: `cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz`
+   - **🪟 Windows**: `cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`
 2. 创建环境时选择：**上传运行时**
-3. 选择下载的 zip 文件上传
-4. 系统自动解压并配置
+3. 选择下载的压缩包上传
+4. 系统自动解压、检测并配置
 
 ### 第二步：安装依赖包
 
@@ -574,12 +583,15 @@ pandas
 ### 4. 离线包准备清单
 
 ```bash
-# 1. 下载 Python 运行时
-python-3.9.7-embed-amd64.zip  # Windows
-# 或
-python-3.9.7-linux-x86_64.tar.gz  # Linux 需要编译
-cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz # Linux 不需要编译
+# 1. 下载预编译 Python 运行时（python-build-standalone，推荐）
 # https://github.com/astral-sh/python-build-standalone/releases
+
+# 🐧 Linux / 🐳 Docker 环境（推荐）
+cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz  # x86_64架构（当前Docker环境）
+cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz  # ARM架构
+
+# 🪟 Windows
+cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
 
 # 2. 下载 pip
 pip-24.0-py3-none-any.whl
@@ -1840,27 +1852,32 @@ python -c "import sys; print('site' in sys.modules)"
 
 ### A. Python 运行时下载地址
 
-#### Windows
+#### 推荐：python-build-standalone（预编译Python，跨平台）
 
 ```
-Python 3.9.7 (嵌入式版本):
-  官方: https://www.python.org/ftp/python/3.9.7/python-3.9.7-embed-amd64.zip
-  淘宝: https://registry.npmmirror.com/binary.html?path=python/3.9.7/
+下载地址:
+  https://github.com/astral-sh/python-build-standalone/releases
 
-Python 3.11.7:
-  官方: https://www.python.org/ftp/python/3.11.7/python-3.11.7-embed-amd64.zip
-```
+🐧 Linux / 🐳 Docker 环境（推荐）:
+  cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz  # x86_64架构（当前Docker环境）
+  cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz  # ARM架构
+  cpython-3.12.5+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz   # 其他版本
 
-#### Linux
+🪟 Windows:
+  cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
 
-```
-Python 源代码:
-  https://www.python.org/ftp/python/3.9.7/Python-3.9.7.tgz
+🍎 macOS:
+  cpython-3.11.9+...-x86_64-apple-darwin-install_only.tar.gz
 
-编译方法:
-  ./configure --prefix=/opt/python39
-  make
-  make install
+优点:
+  ✅ 无需编译，解压即用
+  ✅ 包含完整Python和pip
+  ✅ 跨平台支持
+  ✅ 无需系统依赖
+
+💡 提示:
+  • 文件名中的版本号（如3.10.19、3.11.9）可以根据需要选择
+  • install_only 版本包含完整环境，推荐使用
 ```
 
 ### B. pip 下载地址

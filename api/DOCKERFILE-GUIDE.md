@@ -23,16 +23,16 @@ Block Flow 提供两种 Docker 镜像版本：
 ### 镜像特性对比
 
 - **Debian 版本**
-  - ✅ Python 编译兼容性更好
+  - ✅ 预装Python 3.12（系统Python）
   - ✅ 完整的系统依赖库
-  - ✅ 更少的兼容性问题
+  - ✅ 更好的兼容性
   - ⚠️ 镜像体积较大（~500MB）
 
 - **Alpine 版本**
   - ✅ 镜像体积小（~300MB）
   - ✅ 启动速度快
-  - ⚠️ Python 源码编译可能遇到问题
   - ⚠️ 某些依赖库可能不兼容
+  - ⚠️ 推荐使用预编译Python运行时（python-build-standalone）
 
 ---
 
@@ -354,9 +354,11 @@ MEMORY_LIMIT=2G
 ### 1. 生产环境优化
 
 ```dockerfile
-# 如果只使用预编译 Python 运行时，可删除编译依赖
-# 注释掉 Dockerfile 中的 build-essential、gcc、g++ 等依赖
-# 可减少约 300MB 镜像大小
+# Debian版本已默认安装Python 3.12
+# 路径: /usr/bin/python3.12 或 /usr/bin/python3
+#
+# 如果使用预编译Python运行时（python-build-standalone），
+# 镜像已经是最优配置，无需额外优化
 ```
 
 ### 2. 多阶段构建（未来版本）
