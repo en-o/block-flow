@@ -512,9 +512,36 @@ const PythonEnvironments: React.FC = () => {
     }
   };
 
-  const handleManagePackages = (record: PythonEnvironment) => {
+  const handleManagePackages = async (record: PythonEnvironment) => {
     setSelectedEnv(record);
+    setPipDetected(false); // 重置检测状态
     setPackagesModalVisible(true);
+
+    // 如果有Python路径但没有pip版本，先自动检测一次
+    if (record.pythonExecutable && !record.pipVersion) {
+      setPipDetecting(true);
+      try {
+        const response = await pythonEnvApi.detectPythonExecutable(record.id);
+        if (response.code === 200 && response.data) {
+          // 更新selectedEnv以显示最新的pip信息
+          setSelectedEnv(response.data);
+
+          // 刷新环境列表
+          await fetchEnvironments();
+
+          if (response.data.pipVersion) {
+            message.success(`检测到pip版本: ${response.data.pipVersion}`);
+          }
+        }
+      } catch (error: any) {
+        console.error('自动检测pip失败:', error);
+      } finally {
+        setPipDetecting(false);
+        setPipDetected(true);
+      }
+    } else {
+      setPipDetected(true); // 已有pip或没有python路径，无需检测
+    }
   };
 
   const handleInstallPackage = async () => {
@@ -919,12 +946,39 @@ const PythonEnvironments: React.FC = () => {
 
   const handleShowUploadedFiles = async (env: PythonEnvironment) => {
     setSelectedEnv(env);
+    setPipDetected(false); // 重置检测状态
     try {
       const response = await pythonEnvApi.listUploadedPackageFiles(env.id);
       if (response.code === 200 && response.data) {
         setUploadedFiles(response.data);
       }
       setUploadedFilesModalVisible(true);
+
+      // 如果有Python路径但没有pip版本，先自动检测一次
+      if (env.pythonExecutable && !env.pipVersion) {
+        setPipDetecting(true);
+        try {
+          const detectResponse = await pythonEnvApi.detectPythonExecutable(env.id);
+          if (detectResponse.code === 200 && detectResponse.data) {
+            // 更新selectedEnv以显示最新的pip信息
+            setSelectedEnv(detectResponse.data);
+
+            // 刷新环境列表
+            await fetchEnvironments();
+
+            if (detectResponse.data.pipVersion) {
+              message.success(`检测到pip版本: ${detectResponse.data.pipVersion}`);
+            }
+          }
+        } catch (error: any) {
+          console.error('自动检测pip失败:', error);
+        } finally {
+          setPipDetecting(false);
+          setPipDetected(true);
+        }
+      } else {
+        setPipDetected(true); // 已有pip或没有python路径，无需检测
+      }
     } catch (error: any) {
       message.error(error.message || '获取包列表失败');
     }
@@ -1855,17 +1909,29 @@ const PythonEnvironments: React.FC = () => {
                             <Tag color="blue">{selectedEnv.pythonVersion}</Tag>
                           </div>
                         )}
-                        {selectedEnv.pipVersion ? (
+                        {pipDetecting ? (
+                          <div style={{ marginBottom: 4 }}>
+                            <strong>pip状态：</strong>
+                            <Tag color="blue">检测中...</Tag>
+                            <span style={{ color: '#1890ff', fontSize: 12, marginLeft: 8 }}>正在自动检测pip...</span>
+                          </div>
+                        ) : selectedEnv.pipVersion ? (
                           <div style={{ marginBottom: 4 }}>
                             <strong>pip版本：</strong>
                             <Tag color="green" icon={<CheckCircleOutlined />}>{selectedEnv.pipVersion}</Tag>
                             <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用在线安装</span>
                           </div>
-                        ) : (
+                        ) : pipDetected ? (
                           <div style={{ marginBottom: 4 }}>
                             <strong>pip状态：</strong>
                             <Tag color="orange">未安装</Tag>
                             <span style={{ color: '#fa8c16', fontSize: 12, marginLeft: 8 }}>仅支持离线安装</span>
+                          </div>
+                        ) : (
+                          <div style={{ marginBottom: 4 }}>
+                            <strong>pip状态：</strong>
+                            <Tag color="default">待检测</Tag>
+                            <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>打开弹窗时自动检测</span>
                           </div>
                         )}
                         {selectedEnv.sitePackagesPath && (
@@ -2024,7 +2090,13 @@ const PythonEnvironments: React.FC = () => {
                 {selectedEnv.pythonVersion && (
                   <div><strong>Python版本:</strong> {selectedEnv.pythonVersion}</div>
                 )}
-                {selectedEnv.pipVersion ? (
+                {pipDetecting ? (
+                  <div>
+                    <strong>pip状态：</strong>
+                    <Tag color="blue" style={{ marginLeft: 4 }}>检测中...</Tag>
+                    <span style={{ color: '#1890ff', fontSize: 12, marginLeft: 8 }}>正在自动检测pip...</span>
+                  </div>
+                ) : selectedEnv.pipVersion ? (
                   <div>
                     <strong>pip版本：</strong>
                     <Tag color="green" icon={<CheckCircleOutlined />} style={{ marginLeft: 4 }}>
@@ -2032,11 +2104,17 @@ const PythonEnvironments: React.FC = () => {
                     </Tag>
                     <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用在线安装</span>
                   </div>
-                ) : (
+                ) : pipDetected ? (
                   <div>
                     <strong>pip状态：</strong>
                     <Tag color="orange" style={{ marginLeft: 4 }}>未安装</Tag>
                     <span style={{ color: '#fa8c16', fontSize: 12, marginLeft: 8 }}>仅支持离线安装</span>
+                  </div>
+                ) : (
+                  <div>
+                    <strong>pip状态：</strong>
+                    <Tag color="default" style={{ marginLeft: 4 }}>待检测</Tag>
+                    <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>打开弹窗时自动检测</span>
                   </div>
                 )}
               </div>
