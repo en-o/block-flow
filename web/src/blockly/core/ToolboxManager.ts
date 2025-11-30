@@ -97,7 +97,7 @@ export class ToolboxManager {
       order: 11,
     },
     {
-      name: '⚙️ 系统设置',
+      name: '⚙️ 自定义积木',
       categoryId: 'system_custom',
       colour: '#9C27B0',
       order: 100,
