@@ -71,4 +71,9 @@ public class PythonEnvironment extends EntityPfield {
     @Schema(description = "site-packages目录路径")
     private String sitePackagesPath;
 
+    @Column(length = 20)
+    @Comment("pip版本")
+    @Schema(description = "pip版本，例如: 24.3.1")
+    private String pipVersion;
+
 }
