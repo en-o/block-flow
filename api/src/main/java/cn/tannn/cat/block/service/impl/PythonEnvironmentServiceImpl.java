@@ -345,52 +345,137 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             throw new ServiceException(500, "未配置Python解释器路径，无法卸载包");
         }
 
+        // 检查site-packages路径
+        if (environment.getSitePackagesPath() == null || environment.getSitePackagesPath().isEmpty()) {
+            throw new ServiceException(500, "未配置site-packages路径，无法卸载包");
+        }
+
         // 检查包是否在记录中
         JSONObject packages = environment.getPackages();
         if (packages == null || !packages.containsKey(packageName)) {
             throw new ServiceException(500, "包不存在: " + packageName);
         }
 
+        // 获取包信息，判断安装方式
+        Object packageInfoObj = packages.get(packageName);
+        String installMethod = "unknown";
+
+        if (packageInfoObj instanceof JSONObject packageInfo) {
+            installMethod = packageInfo.getString("installMethod");
+            if (installMethod == null) {
+                installMethod = "unknown";
+            }
+        }
+
+        log.info("开始卸载包: {}, 安装方式: {}", packageName, installMethod);
+
         try {
-            // 执行pip uninstall命令
-            ProcessBuilder pb = new ProcessBuilder(
-                    environment.getPythonExecutable(),
-                    "-m",
-                    "pip",
-                    "uninstall",
-                    "-y",  // 自动确认
-                    packageName
-            );
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            // 读取输出
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                    log.info("pip uninstall output: {}", line);
-                }
+            // 根据安装方式选择卸载方法
+            if ("pip".equals(installMethod)) {
+                // 使用pip卸载（在线安装的包）
+                uninstallViaPip(environment, packageName);
+            } else if ("offline".equals(installMethod)) {
+                // 直接删除文件（离线安装的包）
+                uninstallViaFileSystem(environment, packageName);
+            } else {
+                // 未知安装方式，尝试两种方法
+                log.warn("未知的安装方式: {}, 尝试通过文件系统卸载", installMethod);
+                uninstallViaFileSystem(environment, packageName);
             }
 
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                log.warn("pip uninstall警告，退出代码: {}, 输出: {}", exitCode, output);
-                // 即使pip uninstall失败，也继续从数据库中移除记录
-            }
+            log.info("✓ 包卸载成功: {}", packageName);
 
-            log.info("包卸载成功: {}", packageName);
-
-        } catch (IOException | InterruptedException e) {
-            log.error("卸载包失败", e);
-            // 即使命令执行失败，也继续从数据库中移除记录
+        } catch (Exception e) {
+            log.error("卸载包失败: {}", packageName, e);
+            throw new ServiceException(500, "卸载包失败: " + e.getMessage());
         }
 
         // 从数据库记录中移除
         packages.remove(packageName);
         environment.setPackages(packages);
         return pythonEnvironmentRepository.save(environment);
+    }
+
+    /**
+     * 使用pip命令卸载包
+     */
+    private void uninstallViaPip(PythonEnvironment environment, String packageName)
+            throws IOException, InterruptedException {
+        log.info("使用pip卸载包: {}", packageName);
+
+        ProcessBuilder pb = new ProcessBuilder(
+                environment.getPythonExecutable(),
+                "-m",
+                "pip",
+                "uninstall",
+                "-y",  // 自动确认
+                packageName
+        );
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        // 读取输出
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+                log.info("pip uninstall: {}", line);
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            log.error("pip uninstall失败，退出代码: {}, 输出: {}", exitCode, output);
+            throw new IOException("pip uninstall命令执行失败: " + output.toString());
+        }
+    }
+
+    /**
+     * 通过直接删除文件系统目录来卸载包（用于离线安装的包）
+     */
+    private void uninstallViaFileSystem(PythonEnvironment environment, String packageName)
+            throws IOException {
+        log.info("通过文件系统卸载包: {}", packageName);
+
+        String sitePackagesPath = environment.getSitePackagesPath();
+
+        // 包目录可能的名称格式
+        String[] possibleDirNames = {
+            packageName,                              // 标准格式：pip
+            packageName.replace("-", "_"),           // 下划线格式：some_package
+            packageName.replace("_", "-"),           // 横线格式：some-package
+        };
+
+        boolean deleted = false;
+
+        for (String dirName : possibleDirNames) {
+            File packageDir = new File(sitePackagesPath, dirName);
+
+            if (packageDir.exists() && packageDir.isDirectory()) {
+                log.info("找到包目录: {}", packageDir.getAbsolutePath());
+                FileOperationUtil.deleteDirectory(packageDir);
+                log.info("✓ 已删除包目录: {}", packageDir.getAbsolutePath());
+                deleted = true;
+
+                // 删除 .dist-info 或 .egg-info 目录（如果存在）
+                String[] infoSuffixes = {".dist-info", ".egg-info"};
+                for (String suffix : infoSuffixes) {
+                    File infoDir = new File(sitePackagesPath, dirName + suffix);
+                    if (infoDir.exists()) {
+                        FileOperationUtil.deleteDirectory(infoDir);
+                        log.info("✓ 已删除元数据目录: {}", infoDir.getAbsolutePath());
+                    }
+                }
+
+                break;
+            }
+        }
+
+        if (!deleted) {
+            log.warn("未找到包目录: {}, 可能已被手动删除", packageName);
+            // 不抛出异常，因为目标已经达成（包不存在了）
+        }
     }
 
     @Override
