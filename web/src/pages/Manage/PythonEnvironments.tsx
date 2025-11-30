@@ -1751,7 +1751,7 @@ const PythonEnvironments: React.FC = () => {
                       <span style={{ color: '#666', fontSize: 10 }}>
                         或使用
                         <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
-                          官方Windows版
+                          官方Windows版(python-xxx-embed-amd64.zip)
                         </a> |
                         <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
                           淘宝镜像
