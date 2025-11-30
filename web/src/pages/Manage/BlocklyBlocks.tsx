@@ -757,8 +757,23 @@ return code;`,
                   key="2"
                 >
                   <Alert
-                    message="积木定义说明"
-                    description="此JSON定义了积木块在Blockly编辑器中的可视化外观，包括：积木块类型(type)、显示文本(message0)、输入字段(args0)、颜色(colour)、连接点(previousStatement/nextStatement)等属性。"
+                    message="📋 积木定义说明"
+                    description={
+                      <div>
+                        <p style={{ marginBottom: 8 }}>此JSON定义了积木块的可视化外观和连接方式：</p>
+                        <ul style={{ marginBottom: 8, paddingLeft: 20 }}>
+                          <li><code>type</code> - 积木块唯一标识符（必填）</li>
+                          <li><code>message0</code> - 积木块显示文本（必填）</li>
+                          <li><code>args0</code> - 输入字段配置（可选）</li>
+                          <li><code>colour</code> - 积木块颜色（必填）</li>
+                        </ul>
+                        <p style={{ marginBottom: 8, fontWeight: 'bold', color: '#fa8c16' }}>⚠️ 重要：选择积木类型</p>
+                        <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+                          <li><strong>语句块</strong>（赋值、print等）：添加 <code>"previousStatement": null, "nextStatement": null</code></li>
+                          <li><strong>表达式块</strong>（返回值的函数）：添加 <code>"output": "String"</code> 或其他类型</li>
+                        </ul>
+                      </div>
+                    }
                     type="info"
                     showIcon
                     style={{ marginBottom: 12 }}
@@ -768,7 +783,11 @@ return code;`,
                     label="Blockly定义(JSON)"
                     rules={[{ required: true, message: '请输入定义' }]}
                   >
-                    <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
+                    <TextArea
+                      rows={15}
+                      style={{ fontFamily: 'monospace' }}
+                      placeholder={`{\n  "type": "my_block",\n  "message0": "我的积木块 %1",\n  "args0": [{\n    "type": "input_value",\n    "name": "VALUE"\n  }],\n  "previousStatement": null,\n  "nextStatement": null,\n  "colour": "#1890ff",\n  "tooltip": "积木块说明",\n  "helpUrl": ""\n}`}
+                    />
                   </Form.Item>
                 </TabPane>
 
@@ -784,8 +803,40 @@ return code;`,
                   key="3"
                 >
                   <Alert
-                    message="Python代码生成器说明"
-                    description="此JavaScript函数定义了如何将Blockly积木块转换为Python代码。函数接收block、generator、Blockly、Order参数，需要返回生成的Python代码字符串。例如：return 'import requests\n';"
+                    message="🐍 Python代码生成器说明"
+                    description={
+                      <div>
+                        <p style={{ marginBottom: 8 }}>这是一个JavaScript函数，用于将积木块转换为Python代码。</p>
+                        <p style={{ marginBottom: 8, fontWeight: 'bold', color: '#fa8c16' }}>⚠️ 关键：根据积木类型选择返回格式</p>
+
+                        <div style={{ marginBottom: 12, padding: 12, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4 }}>
+                          <strong>✅ 语句块</strong>（有 previousStatement/nextStatement）
+                          <pre style={{ marginTop: 8, marginBottom: 0, background: '#fff', padding: 8, borderRadius: 4 }}>
+{`// 示例：赋值语句
+const value = generator.valueToCode(block, 'VALUE', Order.NONE) || "''";
+const code = \`myvar = \${value}\\n\`;
+return code;  // 只返回字符串`}
+                          </pre>
+                        </div>
+
+                        <div style={{ marginBottom: 12, padding: 12, background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: 4 }}>
+                          <strong>✅ 表达式块</strong>（有 output）
+                          <pre style={{ marginTop: 8, marginBottom: 0, background: '#fff', padding: 8, borderRadius: 4 }}>
+{`// 示例：函数调用（返回值）
+const value = generator.valueToCode(block, 'VALUE', Order.NONE) || "''";
+const code = \`len(\${value})\`;
+return [code, Order.FUNCTION_CALL];  // 返回数组`}
+                          </pre>
+                        </div>
+
+                        <p style={{ marginBottom: 0 }}><strong>常用方法：</strong></p>
+                        <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+                          <li><code>generator.valueToCode(block, '字段名', Order.NONE)</code> - 获取输入值</li>
+                          <li><code>block.getFieldValue('字段名')</code> - 获取文本字段的值</li>
+                          <li>代码末尾加 <code>\n</code> - 语句块需要换行</li>
+                        </ul>
+                      </div>
+                    }
                     type="info"
                     showIcon
                     style={{ marginBottom: 12 }}
@@ -795,7 +846,11 @@ return code;`,
                     label="Python代码生成器"
                     rules={[{ required: true, message: '请输入生成器代码' }]}
                   >
-                    <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
+                    <TextArea
+                      rows={15}
+                      style={{ fontFamily: 'monospace' }}
+                      placeholder={`// 语句块示例：\nconst value = generator.valueToCode(block, 'VALUE', Order.NONE) || "''";\nconst code = \`myvar = \${value}\\n\`;\nreturn code;\n\n// 表达式块示例：\n// const value = generator.valueToCode(block, 'VALUE', Order.NONE) || "''";\n// const code = \`len(\${value})\`;\n// return [code, Order.FUNCTION_CALL];`}
+                    />
                   </Form.Item>
                 </TabPane>
               </Tabs>
