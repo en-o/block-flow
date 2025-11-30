@@ -101,9 +101,6 @@ export class BlocklyInitializer {
         const blocks = response.data || [];
         console.log(`📦 加载到 ${blocks.length} 个动态块`);
 
-        // 用于收集新的分类
-        const newCategories = new Set<string>();
-
         // 逐个注册动态块
         for (const blockData of blocks) {
           try {
@@ -120,9 +117,10 @@ export class BlocklyInitializer {
             };
 
             // 创建Python代码生成器函数
+            let generatorFunc: any;
             try {
               // 创建生成器函数，需要正确绑定参数
-              const generatorFunc = new Function(
+              generatorFunc = new Function(
                 'block',
                 'generator',
                 'Blockly',
@@ -135,38 +133,39 @@ export class BlocklyInitializer {
               };
             } catch (generatorError) {
               console.error(`❌ 块 ${definition.type} 的Python生成器创建失败:`, generatorError);
+              // 使用默认生成器
+              generatorFunc = () => '';
             }
 
-            // 收集分类信息
-            if (blockData.category) {
-              newCategories.add(blockData.category);
-            }
+            // 注册到BlockRegistry，统一分类为 system_custom
+            // 创建一个简单的BlockDefinition包装类
+            const dynamicBlockDef = {
+              type: definition.type,
+              category: 'system_custom',
+              definition: definition,
+              generator: (block: any) => {
+                return generatorFunc(block, pythonGenerator, Blockly, Order.ATOMIC);
+              },
+              register: function() {
+                // 已经在上面注册过Blockly.Blocks和pythonGenerator了，这里不需要重复注册
+              },
+              getDefinition: function() {
+                return definition;
+              }
+            };
 
-            console.log(`✅ 动态块已注册: ${definition.type} (分类: ${blockData.category})`);
+            BlockRegistry.registerBlock(dynamicBlockDef as any);
+
+            console.log(`✅ 动态块已注册到系统设置分类: ${definition.type}`);
           } catch (error) {
             console.error(`❌ 注册动态块失败: ${blockData.type}`, error);
           }
         }
 
-        // 为新分类注册到ToolboxManager
-        newCategories.forEach(categoryId => {
-          // 检查分类是否已存在
-          if (!ToolboxManager.getCategory(categoryId)) {
-            // 注册新分类
-            ToolboxManager.registerCategory({
-              name: categoryId,
-              categoryId: categoryId,
-              colour: '#9C27B0', // 默认紫色
-              order: 100 + Array.from(newCategories).indexOf(categoryId), // 动态分类排在后面
-            });
-            console.log(`📁 注册新分类: ${categoryId}`);
-          }
-        });
-
         this.dynamicBlocksLoaded = true;
         console.log('✅ 动态块加载完成！');
       } else {
-        console.error('❌ 加载动态块失败:', response.data.message);
+        console.error('❌ 加载动态块失败:', response.message);
       }
     } catch (error) {
       console.error('❌ 从API加载动态块时出错:', error);

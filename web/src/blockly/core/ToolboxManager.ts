@@ -96,6 +96,12 @@ export class ToolboxManager {
       colour: '#eb2f96',
       order: 11,
     },
+    {
+      name: '⚙️ 系统设置',
+      categoryId: 'system_custom',
+      colour: '#9C27B0',
+      order: 100,
+    },
   ];
 
   /**
