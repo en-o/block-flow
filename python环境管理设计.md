@@ -237,9 +237,10 @@ block-flow/
 
 1. **下载预编译Python运行时（python-build-standalone）**：
    - 下载地址: https://github.com/astral-sh/python-build-standalone/releases
-   - **Linux x86_64**: `cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz`
-   - **Linux ARM64**: `cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz`
-   - **Windows**: `cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`
+   - **🐧 Linux / 🐳 Docker 环境（推荐）**：
+     - **x86_64架构（当前Docker环境）**: `cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz`
+     - **ARM架构**: `cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz`
+   - **🪟 Windows**: `cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`
 2. 创建环境时选择：**上传运行时**
 3. 选择下载的压缩包上传
 4. 系统自动解压、检测并配置
@@ -584,9 +585,13 @@ pandas
 ```bash
 # 1. 下载预编译 Python 运行时（python-build-standalone，推荐）
 # https://github.com/astral-sh/python-build-standalone/releases
-cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz  # Linux x86_64
-cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz # Linux ARM64
-cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz  # Windows
+
+# 🐧 Linux / 🐳 Docker 环境（推荐）
+cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz  # x86_64架构（当前Docker环境）
+cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz  # ARM架构
+
+# 🪟 Windows
+cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
 
 # 2. 下载 pip
 pip-24.0-py3-none-any.whl
@@ -1853,17 +1858,15 @@ python -c "import sys; print('site' in sys.modules)"
 下载地址:
   https://github.com/astral-sh/python-build-standalone/releases
 
-Linux x86_64:
-  cpython-3.11.9+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
-  cpython-3.12.5+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz
+🐧 Linux / 🐳 Docker 环境（推荐）:
+  cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz  # x86_64架构（当前Docker环境）
+  cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz  # ARM架构
+  cpython-3.12.5+20240726-x86_64-unknown-linux-gnu-install_only.tar.gz   # 其他版本
 
-Linux ARM64:
-  cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz
-
-Windows:
+🪟 Windows:
   cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
 
-macOS:
+🍎 macOS:
   cpython-3.11.9+...-x86_64-apple-darwin-install_only.tar.gz
 
 优点:
@@ -1871,6 +1874,10 @@ macOS:
   ✅ 包含完整Python和pip
   ✅ 跨平台支持
   ✅ 无需系统依赖
+
+💡 提示:
+  • 文件名中的版本号（如3.10.19、3.11.9）可以根据需要选择
+  • install_only 版本包含完整环境，推荐使用
 ```
 
 ### B. pip 下载地址

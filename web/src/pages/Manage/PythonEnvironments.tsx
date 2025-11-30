@@ -1592,30 +1592,47 @@ const PythonEnvironments: React.FC = () => {
                           </a>
                         </div>
 
-                        <div style={{ marginBottom: 6 }}>
-                          <strong>🐳 Docker环境：</strong>
+                        <div style={{ marginBottom: 8 }}>
+                          <strong>🐧 Linux / 🐳 Docker 环境（推荐）：</strong>
                           <div style={{ marginLeft: 16, marginTop: 4 }}>
-                            <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
+                            • <strong>x86_64架构（当前Docker环境）：</strong>
+                            <br />
+                            <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
                               cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
                             </code>
-                            <div style={{ marginTop: 8, padding: '6px', background: '#fff7e6', borderRadius: 4, fontSize: 11 }}>
-                              💡 选择 <code>install_only</code> 版本，包含完整Python环境和pip
-                            </div>
+                            <br />
+                            • <strong>ARM架构：</strong>
+                            <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
+                              cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz
+                            </code>
                           </div>
                         </div>
 
                         <div style={{ marginBottom: 6 }}>
-                          <strong>🐧 Linux：</strong>
-                          <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
-                            x86_64 / aarch64
-                          </code>
+                          <strong>🪟 Windows：</strong>
+                          <div style={{ marginLeft: 16, marginTop: 4 }}>
+                            <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
+                              cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
+                            </code>
+                            <br />
+                            <span style={{ color: '#666', fontSize: 11, marginLeft: 8, marginTop: 4, display: 'inline-block' }}>
+                              （或使用官方Windows版：
+                              <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
+                                Python官方FTP
+                              </a> |
+                              <a href="https://registry.npmmirror.com/binary.html?path=python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
+                                淘宝镜像
+                              </a>）
+                            </span>
+                          </div>
                         </div>
 
-                        <div style={{ marginBottom: 6 }}>
-                          <strong>🪟 Windows：</strong>
-                          <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
-                            python-3.12.5-embed-amd64
-                          </code>
+                        <div style={{ marginTop: 8, padding: '6px', background: '#fff7e6', borderRadius: 4, fontSize: 11 }}>
+                          💡 <strong>提示：</strong>选择 <code>install_only</code> 版本，包含完整Python环境和pip，版本号可根据需要选择
+                        </div>
+
+                        <div style={{ marginTop: 8, padding: '6px', background: '#f0f9ff', borderRadius: 4, fontSize: 11 }}>
+                          🐳 <strong>Docker用户：</strong>系统已预装Python 3.12（<code>/usr/bin/python3.12</code>），可直接使用或上传python-build-standalone获得更好兼容性
                         </div>
                       </div>
                     }
@@ -1704,40 +1721,30 @@ const PythonEnvironments: React.FC = () => {
               </div>
 
               <div style={{ marginBottom: 8 }}>
-                <strong>🐳 Docker环境：</strong>
+                <strong>🐧 Linux / 🐳 Docker 环境（推荐）：</strong>
                 <div style={{ marginLeft: 16, marginTop: 4 }}>
-                  • <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3 }}>
+                  • <strong>x86_64架构（当前Docker环境）：</strong>
+                  <br />
+                  <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
                     cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
                   </code>
                   <br />
-                  <span style={{ color: '#666', fontSize: 11 }}>
-                    （适用于x86_64 Linux Docker环境，如果您的Docker运行在ARM架构上，请选择aarch64版本）
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 8 }}>
-                <strong>🐧 Linux系统支持的包：</strong>
-                <div style={{ marginLeft: 16, marginTop: 4 }}>
-                  • x86_64架构: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
-                      cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
-                  </code>
-                  <br />
-                  • ARM架构: <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3 }}>
+                  • <strong>ARM架构：</strong>
+                  <code style={{ background: '#e6f7ff', padding: '2px 6px', borderRadius: 3, marginLeft: 8 }}>
                     cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz
                   </code>
                 </div>
               </div>
 
               <div style={{ marginBottom: 8 }}>
-                <strong>🪟 Windows系统支持的包：</strong>
+                <strong>🪟 Windows系统：</strong>
                 <div style={{ marginLeft: 16, marginTop: 4 }}>
                   • <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
-                  python-3.12.5-embed-amd64
+                    cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz
                   </code>
                   <br />
-                  <span style={{ color: '#666', fontSize: 11 }}>
-                    （或使用官方安装包：
+                  <span style={{ color: '#666', fontSize: 11, marginLeft: 8 }}>
+                    （或使用官方Windows版：
                     <a href="https://www.python.org/ftp/python/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 4 }}>
                       Python官方FTP
                     </a> |
@@ -1751,7 +1758,7 @@ const PythonEnvironments: React.FC = () => {
               <div style={{ marginTop: 12, padding: '8px', background: '#fff7e6', borderRadius: 4, border: '1px solid #ffd591' }}>
                 <strong>💡 提示：</strong>
                 <br />
-                • 文件名中的版本号（如3.11.9）可以根据需要选择其他版本
+                • 文件名中的版本号（如3.10.19、3.11.9）可以根据需要选择其他版本
                 <br />
                 • <code>install_only</code> 版本包含完整的Python环境和pip，推荐使用
                 <br />

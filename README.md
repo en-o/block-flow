@@ -54,10 +54,11 @@ docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306  
 **下载地址：** https://github.com/astral-sh/python-build-standalone/releases
 
 **选择文件：**
-- **Linux x86_64**: `cpython-3.11.9+...-x86_64-unknown-linux-gnu-install_only.tar.gz`
-- **Linux ARM64**: `cpython-3.11.9+...-aarch64-unknown-linux-gnu-install_only.tar.gz`
-- **Windows**: `cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`
-- **macOS**: `cpython-3.11.9+...-x86_64-apple-darwin-install_only.tar.gz`
+- **🐧 Linux / 🐳 Docker 环境（推荐）：**
+  - **x86_64架构（当前Docker环境）：** `cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz`
+  - **ARM架构：** `cpython-3.11.9+20240726-aarch64-unknown-linux-gnu-install_only.tar.gz`
+- **🪟 Windows：** `cpython-3.11.9+...-x86_64-pc-windows-msvc-shared-install_only.tar.gz`
+- **🍎 macOS：** `cpython-3.11.9+...-x86_64-apple-darwin-install_only.tar.gz`
 
 **优点：**
 - ✅ 上传即用，1分钟内完成配置
@@ -65,7 +66,11 @@ docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306  
 - ✅ 无需编译，不需要系统依赖
 - ✅ 跨平台支持，适用于所有环境
 
-**Docker环境用户：**
+**💡 提示：**
+- 文件名中的版本号（如3.10.19、3.11.9）可以根据需要选择其他版本
+- `install_only` 版本包含完整Python环境和pip，推荐使用
+
+**🐳 Docker环境用户：**
 - 系统已预装Python 3.12，路径：`/usr/bin/python3.12` 或 `/usr/bin/python3`
 - 可直接使用系统Python，或上传python-build-standalone以获得更好的隔离性
 
