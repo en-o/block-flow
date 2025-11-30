@@ -25,8 +25,7 @@ import { blockApi } from '../../api/block';
 import { blockTypeApi } from '../../api/blockType';
 import { pythonEnvApi } from '../../api/pythonEnv';
 import type { Block, BlockType, BlockCreateDTO, BlockUpdateDTO, PythonEnvironment } from '../../types/api';
-import { initCustomBlocks } from '../../utils/blocklyCustomBlocks';
-import { getBlocklyToolbox } from '../../blockly';
+import { getBlocklyToolbox, initializeBlocklyWithDynamic } from '../../blockly';
 import { convertCodeToBlockly } from '../../utils/codeToBlocklyConverter';
 import './index.css';
 
@@ -419,8 +418,11 @@ outputs = {
     loadBlockTypes();
     loadPythonEnvs();
     loadTagsStatistics();
-    // 初始化自定义Blockly块
-    initCustomBlocks();
+    // 初始化自定义Blockly块（包含静态块和动态块）
+    initializeBlocklyWithDynamic().catch(error => {
+      console.error('初始化Blockly失败:', error);
+      message.error('加载Blockly块失败，部分功能可能不可用');
+    });
   }, []);
 
   // 加载块详情（编辑模式）

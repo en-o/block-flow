@@ -11,6 +11,7 @@ import {
   TeamOutlined,
   DownOutlined,
   FolderOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { authUtils } from '../../utils/auth';
@@ -36,6 +37,11 @@ const Manage: React.FC = () => {
       key: '/manage/block-types',
       icon: <AppstoreOutlined />,
       label: '块类型管理',
+    },
+    {
+      key: '/manage/blockly-blocks',
+      icon: <CodeOutlined />,
+      label: 'Blockly块管理',
     },
     {
       key: '/manage/workflow-categories',

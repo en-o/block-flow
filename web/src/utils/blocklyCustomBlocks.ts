@@ -8,7 +8,7 @@
  */
 import * as Blockly from 'blockly';
 import { pythonGenerator, Order } from 'blockly/python';
-import { initializeBlockly } from '../blockly';
+import { initializeBlocklyWithDynamic } from '../blockly';
 
 // 确保生成器已初始化
 if (!pythonGenerator) {
@@ -19,14 +19,14 @@ if (!pythonGenerator) {
  * 初始化所有自定义块
  *
  * ⚠️ 已迁移到新架构：使用 /src/blockly 模块
- * 此函数现在调用新的初始化系统
+ * 此函数现在调用新的初始化系统（包含动态块）
  */
-export function initCustomBlocks() {
+export async function initCustomBlocks() {
   try {
-    console.log('🔄 使用新的Blockly模块化架构初始化...');
+    console.log('🔄 使用新的Blockly模块化架构初始化（静态 + 动态）...');
 
-    // 使用新架构初始化
-    initializeBlockly();
+    // 使用新架构初始化（包含动态块）
+    await initializeBlocklyWithDynamic();
 
     // 修复数学运算符生成器（使用 * / 而非 × ÷）
     fixMathArithmeticGenerator();
