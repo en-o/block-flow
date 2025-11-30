@@ -431,6 +431,13 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 从数据库记录中移除
         packages.remove(packageName);
         environment.setPackages(packages);
+
+        // 如果卸载的是pip包，清空pip版本信息
+        if ("pip".equalsIgnoreCase(packageName)) {
+            log.info("检测到pip包卸载，清空pip版本信息");
+            environment.setPipVersion(null);
+        }
+
         return pythonEnvironmentRepository.save(environment);
     }
 
