@@ -1001,44 +1001,30 @@ outputs = {
 
   // 打开测试弹窗
   const handleOpenTest = () => {
-    // 如果是可视化模式，先从 Blockly 工作区解析参数（仅用于测试，不覆盖原配置）
+    // 如果是可视化模式，从 Blockly 工作区解析参数（仅用于测试，不覆盖原配置）
     if (definitionMode === 'BLOCKLY' && workspaceRef.current) {
       console.log('🔍 可视化模式：从 Blockly 工作区解析输入输出参数（仅用于测试）...');
       const { inputParams: parsedInputParams, outputParams: parsedOutputParams } = parseBlocklyParameters();
 
-      if (parsedInputParams.length > 0) {
-        console.log(`✅ 解析到 ${parsedInputParams.length} 个输入参数:`, parsedInputParams);
-        // ⚠️ 重要：不更新 inputParams 状态，只用于测试
-        // 使用解析后的参数初始化测试输入值
-        const initialInputs: Record<string, any> = {};
-        parsedInputParams.forEach(param => {
-          if (param.name) {
-            initialInputs[param.name] = param.defaultValue || '';
-          }
-        });
-        setTestInputs(initialInputs);
+      console.log(`✅ 解析到 ${parsedInputParams.length} 个输入参数, ${parsedOutputParams.length} 个输出参数`);
 
-        // 临时更新 inputParamsRef 用于测试弹窗显示（不影响左侧配置）
-        inputParamsRef.current = parsedInputParams;
+      // 使用解析后的参数初始化测试输入值
+      const initialInputs: Record<string, any> = {};
+      parsedInputParams.forEach(param => {
+        if (param.name) {
+          initialInputs[param.name] = param.defaultValue || '';
+        }
+      });
+      setTestInputs(initialInputs);
+
+      // 临时更新 inputParamsRef 和 outputParamsRef 用于测试弹窗显示（不影响左侧配置）
+      inputParamsRef.current = parsedInputParams;
+      outputParamsRef.current = parsedOutputParams;
+
+      if (parsedInputParams.length > 0) {
         message.info(`可视化模式测试：检测到 ${parsedInputParams.length} 个输入参数`);
       } else {
-        // 如果没有解析到参数，使用现有配置
-        const initialInputs: Record<string, any> = {};
-        inputParams.forEach(param => {
-          if (param.name) {
-            initialInputs[param.name] = param.defaultValue || '';
-          }
-        });
-        setTestInputs(initialInputs);
-        inputParamsRef.current = inputParams;
-      }
-
-      if (parsedOutputParams.length > 0) {
-        console.log(`✅ 解析到 ${parsedOutputParams.length} 个输出参数:`, parsedOutputParams);
-        // 临时更新 outputParamsRef（不影响左侧配置）
-        outputParamsRef.current = parsedOutputParams;
-      } else {
-        outputParamsRef.current = outputParams;
+        message.info('可视化模式测试：当前工作区未检测到输入参数');
       }
     } else {
       // 代码模式：使用现有的 inputParams
