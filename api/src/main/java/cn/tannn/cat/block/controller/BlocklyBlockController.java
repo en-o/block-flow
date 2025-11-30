@@ -1,10 +1,12 @@
 package cn.tannn.cat.block.controller;
 
+import cn.tannn.cat.block.contansts.JpaPageResult;
 import cn.tannn.cat.block.controller.dto.blocklyblock.BlocklyBlockCreateDTO;
 import cn.tannn.cat.block.controller.dto.blocklyblock.BlocklyBlockPage;
 import cn.tannn.cat.block.controller.dto.blocklyblock.BlocklyBlockUpdateDTO;
 import cn.tannn.cat.block.entity.BlocklyBlock;
 import cn.tannn.cat.block.service.BlocklyBlockService;
+import cn.tannn.jdevelops.result.response.ResultPageVO;
 import cn.tannn.jdevelops.result.response.ResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -85,8 +87,8 @@ public class BlocklyBlockController {
      */
     @PostMapping("/page")
     @Operation(summary = "分页查询", description = "分页查询Blockly块列表")
-    public ResultVO<Page<BlocklyBlock>> findPage(@RequestBody BlocklyBlockPage where) {
-        return ResultVO.success(blocklyBlockService.findPage(where));
+    public ResultPageVO<BlocklyBlock, JpaPageResult<BlocklyBlock>>  findPage(@RequestBody BlocklyBlockPage where) {
+        return ResultPageVO.success(JpaPageResult.toPage(blocklyBlockService.findPage(where)));
     }
 
     /**
