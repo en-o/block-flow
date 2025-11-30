@@ -17,6 +17,8 @@ import {
   Row,
   Col,
   Tabs,
+  Radio,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,6 +27,7 @@ import {
   EyeOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
   getBlocklyBlockPage,
@@ -52,6 +55,10 @@ const BlocklyBlocks: React.FC = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [form] = Form.useForm();
 
+  // 新增：创建模式（simple简单/advanced高级/code代码生成）
+  const [createMode, setCreateMode] = useState<'simple' | 'advanced' | 'code'>('simple');
+  const [pythonCode, setPythonCode] = useState('');
+
   const [searchParams, setSearchParams] = useState({
     name: '',
     category: '',
@@ -63,9 +70,6 @@ const BlocklyBlocks: React.FC = () => {
     fetchCategories();
   }, [currentPage, pageSize, searchParams]);
 
-  /**
-   * 获取分类列表
-   */
   const fetchCategories = async () => {
     try {
       const response = await getBlocklyCategories();
@@ -77,9 +81,6 @@ const BlocklyBlocks: React.FC = () => {
     }
   };
 
-  /**
-   * 获取Blockly块列表
-   */
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -104,42 +105,200 @@ const BlocklyBlocks: React.FC = () => {
   };
 
   /**
-   * 显示新增/编辑弹窗
+   * Python代码反编译为积木块定义
    */
+  const parseCodeToBlock = (code: string) => {
+    const trimmedCode = code.trim();
+
+    // 1. import xxx 模式
+    const importMatch = trimmedCode.match(/^import\s+(\w+)$/);
+    if (importMatch) {
+      const moduleName = importMatch[1];
+      return {
+        type: `import_${moduleName}`,
+        name: `导入${moduleName}库`,
+        category: 'python_imports',
+        color: '#52c41a',
+        definition: JSON.stringify({
+          type: `import_${moduleName}`,
+          message0: `import ${moduleName}`,
+          previousStatement: null,
+          nextStatement: null,
+          colour: '#52c41a',
+          tooltip: `导入${moduleName}库`,
+          helpUrl: ''
+        }, null, 2),
+        pythonGenerator: `return 'import ${moduleName}\\n';`,
+        description: `导入Python的${moduleName}库`,
+        example: `import ${moduleName}`
+      };
+    }
+
+    // 2. from xxx import yyy 模式
+    const fromImportMatch = trimmedCode.match(/^from\s+([\w.]+)\s+import\s+(.+)$/);
+    if (fromImportMatch) {
+      const moduleName = fromImportMatch[1];
+      const importItems = fromImportMatch[2].trim();
+      return {
+        type: `from_${moduleName.replace(/\./g, '_')}_import`,
+        name: `从${moduleName}导入`,
+        category: 'python_imports',
+        color: '#52c41a',
+        definition: JSON.stringify({
+          type: `from_${moduleName.replace(/\./g, '_')}_import`,
+          message0: `from ${moduleName} import %1`,
+          args0: [
+            {
+              type: 'field_input',
+              name: 'ITEMS',
+              text: importItems
+            }
+          ],
+          previousStatement: null,
+          nextStatement: null,
+          colour: '#52c41a',
+          tooltip: `从${moduleName}导入指定内容`,
+          helpUrl: ''
+        }, null, 2),
+        pythonGenerator: `const items = block.getFieldValue('ITEMS');
+return \`from ${moduleName} import \${items}\\n\`;`,
+        description: `从${moduleName}模块导入指定的类或函数`,
+        example: `from ${moduleName} import ${importItems}`
+      };
+    }
+
+    // 3. 函数调用模式 func(arg1, arg2)
+    const funcCallMatch = trimmedCode.match(/^(\w+)\(([^)]*)\)$/);
+    if (funcCallMatch) {
+      const funcName = funcCallMatch[1];
+      const args = funcCallMatch[2].split(',').map(a => a.trim()).filter(a => a);
+
+      const argsDefinition = args.map((arg, index) => ({
+        type: 'input_value',
+        name: `ARG${index}`,
+        check: arg.startsWith('"') || arg.startsWith("'") ? 'String' : null
+      }));
+
+      const message = `${funcName}(${args.map((_, i) => `%${i + 1}`).join(', ')})`;
+
+      return {
+        type: `func_${funcName}`,
+        name: `${funcName}函数调用`,
+        category: 'python_functions',
+        color: '#1890ff',
+        definition: JSON.stringify({
+          type: `func_${funcName}`,
+          message0: message,
+          args0: argsDefinition,
+          output: null,
+          colour: '#1890ff',
+          tooltip: `调用${funcName}函数`,
+          helpUrl: ''
+        }, null, 2),
+        pythonGenerator: args.map((_, i) =>
+          `const arg${i} = generator.valueToCode(block, 'ARG${i}', Order.NONE) || 'None';`
+        ).join('\n') + `\nconst code = \`${funcName}(\${${args.map((_, i) => `arg${i}`).join(', \${')}})\`;
+return [code, Order.FUNCTION_CALL];`,
+        description: `调用${funcName}函数`,
+        example: trimmedCode
+      };
+    }
+
+    // 4. 赋值语句 var = value
+    const assignMatch = trimmedCode.match(/^(\w+)\s*=\s*(.+)$/);
+    if (assignMatch) {
+      const varName = assignMatch[1];
+      const value = assignMatch[2].trim();
+
+      return {
+        type: `assign_${varName}`,
+        name: `赋值${varName}`,
+        category: 'python_variables',
+        color: '#ff7a45',
+        definition: JSON.stringify({
+          type: `assign_${varName}`,
+          message0: `${varName} = %1`,
+          args0: [
+            {
+              type: 'input_value',
+              name: 'VALUE'
+            }
+          ],
+          previousStatement: null,
+          nextStatement: null,
+          colour: '#ff7a45',
+          tooltip: `给${varName}赋值`,
+          helpUrl: ''
+        }, null, 2),
+        pythonGenerator: `const value = generator.valueToCode(block, 'VALUE', Order.NONE) || '0';
+const code = \`${varName} = \${value}\\n\`;
+return code;`,
+        description: `给变量${varName}赋值`,
+        example: trimmedCode
+      };
+    }
+
+    return null;
+  };
+
+  /**
+   * 从Python代码生成积木块
+   */
+  const handleCodeGenerate = () => {
+    if (!pythonCode.trim()) {
+      message.warning('请输入Python代码');
+      return;
+    }
+
+    const blockData = parseCodeToBlock(pythonCode);
+    if (!blockData) {
+      message.error('无法识别的代码模式，支持：import、from...import、函数调用、赋值语句');
+      return;
+    }
+
+    // 填充表单
+    form.setFieldsValue({
+      ...blockData,
+      enabled: true,
+      sortOrder: 0,
+      isSystem: false,
+    });
+
+    message.success('已生成积木块定义，请检查并保存');
+    setCreateMode('advanced');
+  };
+
   const showModal = (record?: any) => {
     if (record) {
       setEditingBlock(record);
+      setCreateMode('advanced');
       form.setFieldsValue({
         ...record,
-        // 格式化JSON用于显示
         definition: typeof record.definition === 'string'
           ? JSON.stringify(JSON.parse(record.definition), null, 2)
           : JSON.stringify(record.definition, null, 2),
       });
     } else {
       setEditingBlock(null);
+      setCreateMode('simple');
+      setPythonCode('');
       form.resetFields();
-      // 设置默认值
       form.setFieldsValue({
         enabled: true,
         sortOrder: 0,
         isSystem: false,
+        color: '#1890ff',
+        category: 'custom',
       });
     }
     setModalVisible(true);
   };
 
-  /**
-   * 显示详情弹窗
-   */
   const showViewModal = (record: any) => {
     setViewingBlock(record);
     setViewModalVisible(true);
   };
 
-  /**
-   * 提交表单
-   */
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -155,7 +314,6 @@ const BlocklyBlocks: React.FC = () => {
         return;
       }
 
-      // 提交数据
       if (editingBlock) {
         await updateBlocklyBlock({
           ...values,
@@ -169,7 +327,7 @@ const BlocklyBlocks: React.FC = () => {
 
       setModalVisible(false);
       fetchData();
-      fetchCategories(); // 刷新分类列表
+      fetchCategories();
     } catch (error: any) {
       if (error.response?.data?.message) {
         message.error(error.response.data.message);
@@ -181,9 +339,6 @@ const BlocklyBlocks: React.FC = () => {
     }
   };
 
-  /**
-   * 删除块
-   */
   const handleDelete = async (id: number) => {
     try {
       await deleteBlocklyBlock(id);
@@ -194,9 +349,6 @@ const BlocklyBlocks: React.FC = () => {
     }
   };
 
-  /**
-   * 切换启用状态
-   */
   const handleToggleEnabled = async (id: number, enabled: boolean) => {
     try {
       await toggleBlocklyBlock(id, enabled);
@@ -207,9 +359,6 @@ const BlocklyBlocks: React.FC = () => {
     }
   };
 
-  /**
-   * 表格列定义
-   */
   const columns = [
     {
       title: 'ID',
@@ -218,14 +367,14 @@ const BlocklyBlocks: React.FC = () => {
       width: 60,
     },
     {
-      title: '块类型',
+      title: '积木类型',
       dataIndex: 'type',
       key: 'type',
       width: 150,
       render: (text: string) => <code>{text}</code>,
     },
     {
-      title: '块名称',
+      title: '积木名称',
       dataIndex: 'name',
       key: 'name',
       width: 150,
@@ -316,7 +465,7 @@ const BlocklyBlocks: React.FC = () => {
           {!record.isSystem && (
             <Tooltip title="删除">
               <Popconfirm
-                title="确定要删除这个块吗？"
+                title="确定要删除这个积木块吗？"
                 onConfirm={() => handleDelete(record.id)}
                 okText="确定"
                 cancelText="取消"
@@ -332,11 +481,11 @@ const BlocklyBlocks: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Card title="Blockly块管理" style={{ marginBottom: 16 }}>
+      <Card title="积木块管理" style={{ marginBottom: 16 }}>
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={6}>
             <Input
-              placeholder="搜索块名称"
+              placeholder="搜索积木名称"
               value={searchParams.name}
               onChange={(e) => setSearchParams({ ...searchParams, name: e.target.value })}
               allowClear
@@ -371,7 +520,7 @@ const BlocklyBlocks: React.FC = () => {
           </Col>
           <Col span={6}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal()}>
-              新增Blockly块
+              新增积木块
             </Button>
           </Col>
         </Row>
@@ -401,168 +550,244 @@ const BlocklyBlocks: React.FC = () => {
 
       {/* 新增/编辑弹窗 */}
       <Modal
-        title={editingBlock ? '编辑Blockly块' : '新增Blockly块'}
+        title={editingBlock ? '编辑积木块' : '新增积木块'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={800}
-        okText="提交"
+        width={900}
+        okText="保存"
         cancelText="取消"
       >
         <Form form={form} layout="vertical">
-          <Tabs defaultActiveKey="1">
-            <TabPane tab="基本信息" key="1">
-              <Form.Item
-                name="type"
-                label="块类型（唯一标识）"
-                rules={[{ required: true, message: '请输入块类型' }]}
-                extra="例如：calculation_add, http_request"
-              >
-                <Input placeholder="例如：my_custom_block" disabled={!!editingBlock} />
-              </Form.Item>
+          {!editingBlock && (
+            <Form.Item label="创建方式">
+              <Radio.Group value={createMode} onChange={(e) => setCreateMode(e.target.value)}>
+                <Radio.Button value="simple">
+                  <ThunderboltOutlined /> 快速创建
+                </Radio.Button>
+                <Radio.Button value="code">
+                  代码生成
+                </Radio.Button>
+                <Radio.Button value="advanced">
+                  高级模式
+                </Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+          )}
 
-              <Form.Item
-                name="name"
-                label="块名称"
-                rules={[{ required: true, message: '请输入块名称' }]}
-              >
-                <Input placeholder="例如：我的自定义块" />
+          {createMode === 'code' && !editingBlock && (
+            <>
+              <Alert
+                message="代码生成提示"
+                description={
+                  <div>
+                    支持以下Python代码模式自动生成积木块：
+                    <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                      <li><code>import requests</code> - 导入库</li>
+                      <li><code>from datetime import datetime</code> - 从模块导入</li>
+                      <li><code>print(message)</code> - 函数调用</li>
+                      <li><code>result = 100</code> - 变量赋值</li>
+                    </ul>
+                  </div>
+                }
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+              <Form.Item label="Python代码">
+                <TextArea
+                  rows={3}
+                  value={pythonCode}
+                  onChange={(e) => setPythonCode(e.target.value)}
+                  placeholder="例如：import requests"
+                />
               </Form.Item>
+              <Form.Item>
+                <Button type="primary" onClick={handleCodeGenerate} block>
+                  生成积木块定义
+                </Button>
+              </Form.Item>
+            </>
+          )}
 
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="category"
-                    label="块分类"
-                    rules={[{ required: true, message: '请输入分类' }]}
-                    extra="用于在工具箱中分组"
-                  >
-                    <Select
-                      placeholder="选择或输入新分类"
-                      showSearch
-                      allowClear
-                      mode="tags"
-                      maxTagCount={1}
+          {createMode === 'simple' && !editingBlock && (
+            <Tabs defaultActiveKey="1">
+              <TabPane tab="基本信息" key="1">
+                <Form.Item
+                  name="type"
+                  label="积木类型（唯一标识）"
+                  rules={[{ required: true, message: '请输入积木类型' }]}
+                  extra="例如：my_block, calc_sum"
+                >
+                  <Input placeholder="my_custom_block" />
+                </Form.Item>
+
+                <Form.Item
+                  name="name"
+                  label="积木名称"
+                  rules={[{ required: true, message: '请输入积木名称' }]}
+                >
+                  <Input placeholder="我的自定义积木" />
+                </Form.Item>
+
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      name="category"
+                      label="分类"
+                      rules={[{ required: true, message: '请选择分类' }]}
                     >
-                      {categories.map((cat) => (
-                        <Select.Option key={cat} value={cat}>
-                          {cat}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="color"
-                    label="块颜色"
-                    extra="16进制色值，例如：#5B80A5"
-                  >
-                    <Input placeholder="#5B80A5" />
-                  </Form.Item>
-                </Col>
-              </Row>
+                      <Select
+                        placeholder="选择或输入新分类"
+                        showSearch
+                        allowClear
+                        mode="tags"
+                        maxTagCount={1}
+                      >
+                        {categories.map((cat) => (
+                          <Select.Option key={cat} value={cat}>
+                            {cat}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item name="color" label="颜色" initialValue="#1890ff">
+                      <Input type="color" />
+                    </Form.Item>
+                  </Col>
+                </Row>
 
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item name="sortOrder" label="排序顺序" initialValue={0}>
-                    <InputNumber min={0} style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="enabled" label="是否启用" valuePropName="checked" initialValue={true}>
-                    <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="isSystem" label="系统块" valuePropName="checked" initialValue={false}>
-                    <Switch checkedChildren="是" unCheckedChildren="否" disabled={!!editingBlock} />
-                  </Form.Item>
-                </Col>
-              </Row>
+                <Form.Item
+                  name="definition"
+                  label="积木定义（JSON）"
+                  rules={[{ required: true, message: '请输入积木定义' }]}
+                  extra="简单示例，更复杂的定义请切换到高级模式"
+                >
+                  <TextArea
+                    rows={8}
+                    placeholder={`{"type":"my_block","message0":"我的积木 %1","args0":[{"type":"input_value","name":"INPUT"}],"output":null,"colour":"#1890ff","tooltip":"提示文本"}`}
+                  />
+                </Form.Item>
 
-              <Form.Item name="description" label="块描述">
-                <TextArea rows={3} placeholder="详细说明此块的功能、用途等" />
-              </Form.Item>
+                <Form.Item
+                  name="pythonGenerator"
+                  label="Python生成器"
+                  rules={[{ required: true, message: '请输入Python生成器' }]}
+                >
+                  <TextArea
+                    rows={5}
+                    placeholder={`const input = generator.valueToCode(block, 'INPUT', Order.NONE);
+const code = \`my_function(\${input})\`;
+return [code, Order.FUNCTION_CALL];`}
+                  />
+                </Form.Item>
+              </TabPane>
+            </Tabs>
+          )}
 
-              <Form.Item name="example" label="使用示例">
-                <TextArea rows={3} placeholder="展示如何使用此块的示例" />
-              </Form.Item>
-            </TabPane>
+          {(createMode === 'advanced' || editingBlock) && (
+            <Tabs defaultActiveKey="1">
+              <TabPane tab="基本信息" key="1">
+                <Form.Item
+                  name="type"
+                  label="积木类型"
+                  rules={[{ required: true, message: '请输入积木类型' }]}
+                >
+                  <Input disabled={!!editingBlock} />
+                </Form.Item>
 
-            <TabPane tab="块定义(JSON)" key="2">
-              <Form.Item
-                name="definition"
-                label="Blockly块定义"
-                rules={[{ required: true, message: '请输入块定义' }]}
-                extra={
-                  <div>
-                    <p>JSON格式的Blockly块定义，必需字段：</p>
-                    <ul style={{ paddingLeft: 20, margin: 0 }}>
-                      <li>type: 块类型</li>
-                      <li>message0/message: 显示文本（支持%1, %2等占位符）</li>
-                      <li>args0: 输入参数定义数组</li>
-                      <li>colour: 块颜色（数字或字符串）</li>
-                      <li>output/previousStatement/nextStatement: 块连接类型</li>
-                    </ul>
-                  </div>
-                }
-              >
-                <TextArea
-                  rows={12}
-                  placeholder={`示例：
-{
-  "type": "calculation_add",
-  "message0": "计算 %1 + %2",
-  "args0": [
-    {"type": "input_value", "name": "A", "check": "Number"},
-    {"type": "input_value", "name": "B", "check": "Number"}
-  ],
-  "output": "Number",
-  "colour": 230,
-  "tooltip": "返回两数之和",
-  "helpUrl": ""
-}`}
-                  style={{ fontFamily: 'monospace' }}
-                />
-              </Form.Item>
-            </TabPane>
+                <Form.Item
+                  name="name"
+                  label="积木名称"
+                  rules={[{ required: true, message: '请输入积木名称' }]}
+                >
+                  <Input />
+                </Form.Item>
 
-            <TabPane tab="Python生成器" key="3">
-              <Form.Item
-                name="pythonGenerator"
-                label="Python代码生成器"
-                rules={[{ required: true, message: '请输入Python生成器代码' }]}
-                extra={
-                  <div>
-                    <p>JavaScript函数体代码，用于生成Python代码：</p>
-                    <ul style={{ paddingLeft: 20, margin: 0 }}>
-                      <li>使用 Blockly.Python.valueToCode(block, 'NAME', order) 获取输入值</li>
-                      <li>使用 Blockly.Python.statementToCode(block, 'NAME') 获取语句</li>
-                      <li>返回 [code, order] 数组或 code 字符串</li>
-                      <li>order 使用 Blockly.Python.ORDER_* 常量</li>
-                    </ul>
-                  </div>
-                }
-              >
-                <TextArea
-                  rows={12}
-                  placeholder={`示例：
-const value_a = Blockly.Python.valueToCode(block, 'A', Blockly.Python.ORDER_ATOMIC);
-const value_b = Blockly.Python.valueToCode(block, 'B', Blockly.Python.ORDER_ATOMIC);
-const code = \`(\${value_a} + \${value_b})\`;
-return [code, Blockly.Python.ORDER_ADDITION];`}
-                  style={{ fontFamily: 'monospace' }}
-                />
-              </Form.Item>
-            </TabPane>
-          </Tabs>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      name="category"
+                      label="分类"
+                      rules={[{ required: true, message: '请输入分类' }]}
+                    >
+                      <Select
+                        showSearch
+                        allowClear
+                        mode="tags"
+                        maxTagCount={1}
+                      >
+                        {categories.map((cat) => (
+                          <Select.Option key={cat} value={cat}>
+                            {cat}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item name="color" label="颜色">
+                      <Input placeholder="#1890ff" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Form.Item name="sortOrder" label="排序" initialValue={0}>
+                      <InputNumber min={0} style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="enabled" label="启用" valuePropName="checked" initialValue={true}>
+                      <Switch />
+                    </Form.Item>
+                  </Col>
+                  <Col span={8}>
+                    <Form.Item name="isSystem" label="系统块" valuePropName="checked" initialValue={false}>
+                      <Switch disabled={!!editingBlock} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Form.Item name="description" label="描述">
+                  <TextArea rows={2} />
+                </Form.Item>
+
+                <Form.Item name="example" label="示例">
+                  <TextArea rows={2} />
+                </Form.Item>
+              </TabPane>
+
+              <TabPane tab="积木定义" key="2">
+                <Form.Item
+                  name="definition"
+                  label="Blockly定义(JSON)"
+                  rules={[{ required: true, message: '请输入定义' }]}
+                >
+                  <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
+                </Form.Item>
+              </TabPane>
+
+              <TabPane tab="Python生成器" key="3">
+                <Form.Item
+                  name="pythonGenerator"
+                  label="Python代码生成器"
+                  rules={[{ required: true, message: '请输入生成器代码' }]}
+                >
+                  <TextArea rows={15} style={{ fontFamily: 'monospace' }} />
+                </Form.Item>
+              </TabPane>
+            </Tabs>
+          )}
         </Form>
       </Modal>
 
       {/* 查看详情弹窗 */}
       <Modal
-        title="Blockly块详情"
+        title="积木块详情"
         open={viewModalVisible}
         onCancel={() => setViewModalVisible(false)}
         footer={[
@@ -576,8 +801,8 @@ return [code, Blockly.Python.ORDER_ADDITION];`}
           <Tabs defaultActiveKey="1">
             <TabPane tab="基本信息" key="1">
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <div><strong>块类型:</strong> <code>{viewingBlock.type}</code></div>
-                <div><strong>块名称:</strong> {viewingBlock.name}</div>
+                <div><strong>积木类型:</strong> <code>{viewingBlock.type}</code></div>
+                <div><strong>积木名称:</strong> {viewingBlock.name}</div>
                 <div><strong>分类:</strong> <Tag color="blue">{viewingBlock.category}</Tag></div>
                 <div><strong>颜色:</strong> {viewingBlock.color || '-'}</div>
                 <div>
@@ -596,7 +821,7 @@ return [code, Blockly.Python.ORDER_ADDITION];`}
                     <Tag color="green">自定义块</Tag>
                   )}
                 </div>
-                <div><strong>排序顺序:</strong> {viewingBlock.sortOrder}</div>
+                <div><strong>排序:</strong> {viewingBlock.sortOrder}</div>
                 <div><strong>版本:</strong> v{viewingBlock.version}</div>
                 {viewingBlock.description && (
                   <div>
@@ -617,7 +842,7 @@ return [code, Blockly.Python.ORDER_ADDITION];`}
               </Space>
             </TabPane>
 
-            <TabPane tab="块定义" key="2">
+            <TabPane tab="积木定义" key="2">
               <pre style={{
                 background: '#f5f5f5',
                 padding: 12,

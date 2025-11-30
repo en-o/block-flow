@@ -41,7 +41,7 @@ const Manage: React.FC = () => {
     {
       key: '/manage/blockly-blocks',
       icon: <CodeOutlined />,
-      label: 'Blockly块管理',
+      label: '积木块管理',
     },
     {
       key: '/manage/workflow-categories',
