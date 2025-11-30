@@ -201,7 +201,37 @@ export class ToolboxManager {
           custom: category.custom,
         });
       }
-      // 如果该分类有块
+      // 对于内置Blockly分类（logic, loops, math, text），需要同时包含自定义块和标准块
+      else if (this.isBuiltInCategory(category.categoryId)) {
+        const blockContents: any[] = [];
+
+        // 先添加自定义块
+        if (blocks && blocks.length > 0) {
+          blocks.forEach(blockType => {
+            blockContents.push({
+              kind: 'block',
+              type: blockType,
+            });
+          });
+        }
+
+        // 再添加标准块
+        const builtInBlocks = this.getBuiltInCategoryBlocks(category.categoryId);
+        if (builtInBlocks.length > 0) {
+          blockContents.push(...builtInBlocks);
+        }
+
+        // 只有当有块时才添加分类
+        if (blockContents.length > 0) {
+          contents.push({
+            kind: 'category',
+            name: category.name,
+            colour: category.colour,
+            contents: blockContents,
+          });
+        }
+      }
+      // 如果该分类有块（非内置分类）
       else if (blocks && blocks.length > 0) {
         const blockContents = blocks.map(blockType => ({
           kind: 'block',
@@ -214,18 +244,6 @@ export class ToolboxManager {
           colour: category.colour,
           contents: blockContents,
         });
-      }
-      // 对于内置Blockly分类（logic, loops, math, text, lists），添加标准块
-      else if (this.isBuiltInCategory(category.categoryId)) {
-        const builtInBlocks = this.getBuiltInCategoryBlocks(category.categoryId);
-        if (builtInBlocks.length > 0) {
-          contents.push({
-            kind: 'category',
-            name: category.name,
-            colour: category.colour,
-            contents: builtInBlocks,
-          });
-        }
       }
     });
 
@@ -309,7 +327,39 @@ export class ToolboxManager {
           colour: category.colour,
           custom: category.custom,
         });
-      } else if (blocks.length > 0) {
+      }
+      // 对于内置Blockly分类，需要同时包含自定义块和标准块
+      else if (this.isBuiltInCategory(categoryId)) {
+        const blockContents: any[] = [];
+
+        // 先添加自定义块
+        if (blocks.length > 0) {
+          blocks.forEach(block => {
+            blockContents.push({
+              kind: 'block',
+              type: block.type,
+            });
+          });
+        }
+
+        // 再添加标准块
+        const builtInBlocks = this.getBuiltInCategoryBlocks(categoryId);
+        if (builtInBlocks.length > 0) {
+          blockContents.push(...builtInBlocks);
+        }
+
+        // 只有当有块时才添加分类
+        if (blockContents.length > 0) {
+          contents.push({
+            kind: 'category',
+            name: category.name,
+            colour: category.colour,
+            contents: blockContents,
+          });
+        }
+      }
+      // 非内置分类，只包含自定义块
+      else if (blocks.length > 0) {
         const blockContents = blocks.map(block => ({
           kind: 'block',
           type: block.type,
@@ -321,16 +371,6 @@ export class ToolboxManager {
           colour: category.colour,
           contents: blockContents,
         });
-      } else if (this.isBuiltInCategory(categoryId)) {
-        const builtInBlocks = this.getBuiltInCategoryBlocks(categoryId);
-        if (builtInBlocks.length > 0) {
-          contents.push({
-            kind: 'category',
-            name: category.name,
-            colour: category.colour,
-            contents: builtInBlocks,
-          });
-        }
       }
     });
 
