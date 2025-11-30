@@ -87,14 +87,15 @@ const BlocklyBlocks: React.FC = () => {
       const response = await getBlocklyBlockPage({
         ...searchParams,
         page: {
-          page: currentPage - 1,
-          size: pageSize,
+          pageNum: currentPage - 1,
+          pageSize: pageSize,
         },
       });
 
       if (response.data.code === 200) {
-        setData(response.data.data.content || []);
-        setTotal(response.data.data.totalElements || 0);
+        // 修复：使用正确的字段名 rows 和 total
+        setData(response.data.data.rows || []);
+        setTotal(response.data.data.total || 0);
       }
     } catch (error) {
       message.error('获取数据失败');
