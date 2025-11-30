@@ -416,8 +416,11 @@ outputs = {
   // 加载块类型和Python环境
   useEffect(() => {
     loadBlockTypes();
-    loadPythonEnvs();
     loadTagsStatistics();
+    // 只在新建块时加载Python环境，编辑模式会在loadBlock中加载
+    if (!id) {
+      loadPythonEnvs();
+    }
     // 初始化自定义Blockly块（包含静态块和动态块）
     initializeBlocklyWithDynamic().catch(error => {
       console.error('初始化Blockly失败:', error);
