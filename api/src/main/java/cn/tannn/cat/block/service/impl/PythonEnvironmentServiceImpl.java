@@ -963,20 +963,40 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
                 throw new IOException("解压后未找到包文件");
             }
 
+            // tar.gz通常解压出一个包含setup.py的目录（如pip-25.3/）
             File packageRoot = tempFiles[0];
             if (!packageRoot.isDirectory()) {
-                throw new IOException("解压后的包格式异常");
+                // 如果第一个不是目录，尝试查找第一个目录
+                for (File f : tempFiles) {
+                    if (f.isDirectory()) {
+                        packageRoot = f;
+                        break;
+                    }
+                }
             }
 
-            // 查找包的Python代码目录（通常与包名相同，或在根目录下）
-            File sourceDir = PythonPackageParser.findPackageSourceDir(packageRoot);
-            if (sourceDir == null) {
-                throw new IOException("未找到包的源代码目录");
+            log.info("找到包根目录: {}", packageRoot.getAbsolutePath());
+
+            // 查找实际的Python源代码目录
+            // tar.gz包的典型结构：
+            // pip-25.3/
+            //   ├── setup.py
+            //   ├── src/
+            //   │   └── pip/           <- 这才是真正的Python包
+            //   │       └── __init__.py
+            //   └── ...
+
+            File actualSourceDir = findActualPythonPackageDir(packageRoot);
+            if (actualSourceDir == null) {
+                throw new IOException("未找到有效的Python包目录（包含__init__.py的目录）");
             }
 
-            // 复制到site-packages
-            FileOperationUtil.copyDirectory(sourceDir, new File(sitePackagesPath, sourceDir.getName()));
-            log.info("包文件已复制到site-packages: {}", sourceDir.getName());
+            log.info("找到实际Python包目录: {}", actualSourceDir.getAbsolutePath());
+
+            // 复制到site-packages（只复制包目录，不复制setup.py等）
+            File targetDir = new File(sitePackagesPath, actualSourceDir.getName());
+            FileOperationUtil.copyDirectory(actualSourceDir, targetDir);
+            log.info("包文件已复制到site-packages: {} -> {}", actualSourceDir.getName(), targetDir.getAbsolutePath());
 
         } finally {
             // 清理临时目录
@@ -990,24 +1010,31 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
     }
 
     /**
-     * 查找包的源代码目录
+     * 查找实际的Python包目录（包含__init__.py的目录）
+     *
+     * tar.gz包的典型结构：
+     * 1. src布局：package-1.0/ -> src/ -> package/ -> __init__.py
+     * 2. 传统布局：package-1.0/ -> package/ -> __init__.py
+     * 3. 单文件模块：package-1.0/ -> package.py
      */
-    private File findPackageSourceDir(File packageRoot) {
-        File[] files = packageRoot.listFiles();
-        if (files == null) {
+    private File findActualPythonPackageDir(File packageRoot) {
+        if (packageRoot == null || !packageRoot.exists() || !packageRoot.isDirectory()) {
             return null;
         }
 
-        // 1. 优先查找src目录下的Python包
+        log.debug("开始查找Python包目录，根目录: {}", packageRoot.getAbsolutePath());
+
+        // 1. 优先检查src布局（pip, setuptools等使用这种结构）
         File srcDir = new File(packageRoot, "src");
         if (srcDir.exists() && srcDir.isDirectory()) {
+            log.debug("找到src目录: {}", srcDir.getAbsolutePath());
             File[] srcFiles = srcDir.listFiles();
             if (srcFiles != null) {
                 for (File file : srcFiles) {
                     if (file.isDirectory()) {
                         File initFile = new File(file, "__init__.py");
                         if (initFile.exists()) {
-                            log.info("在src目录下找到包: {}", file.getName());
+                            log.info("在src布局中找到Python包: {}", file.getName());
                             return file;
                         }
                     }
@@ -1015,20 +1042,34 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             }
         }
 
-        // 2. 查找根目录下的Python包（包含__init__.py的目录）
-        for (File file : files) {
-            if (file.isDirectory() && !file.getName().equals("src")) {
-                File initFile = new File(file, "__init__.py");
-                if (initFile.exists()) {
-                    log.info("在根目录下找到包: {}", file.getName());
-                    return file;
+        // 2. 检查根目录下的Python包（传统布局）
+        File[] rootFiles = packageRoot.listFiles();
+        if (rootFiles != null) {
+            for (File file : rootFiles) {
+                if (file.isDirectory() && !file.getName().equals("src")) {
+                    File initFile = new File(file, "__init__.py");
+                    if (initFile.exists()) {
+                        log.info("在根目录下找到Python包: {}", file.getName());
+                        return file;
+                    }
                 }
             }
         }
 
-        // 3. 如果没有找到，检查是否有单个py文件的简单包
-        log.warn("未找到标准Python包结构，返回根目录");
-        return packageRoot;
+        // 3. 检查单文件模块（package.py）
+        if (rootFiles != null) {
+            for (File file : rootFiles) {
+                if (file.isFile() && file.getName().endsWith(".py") && !file.getName().startsWith("setup")) {
+                    log.info("找到单文件Python模块: {}", file.getName());
+                    // 单文件模块需要特殊处理：直接复制到site-packages根目录
+                    // 但这里返回文件本身，调用方需要处理
+                    return packageRoot; // 返回根目录，让调用方复制整个.py文件
+                }
+            }
+        }
+
+        log.warn("未找到有效的Python包目录: {}", packageRoot.getAbsolutePath());
+        return null;
     }
 
     @Override
