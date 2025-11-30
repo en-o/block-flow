@@ -373,6 +373,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         command.add("-m");
         command.add("pip");
         command.add("install");
+        // 使用清华镜像源加速下载
+        command.add("-i");
+        command.add("https://pypi.tuna.tsinghua.edu.cn/simple");
         command.add("--target");
         command.add(environment.getSitePackagesPath());
 
@@ -748,6 +751,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             command.add("-m");
             command.add("pip");
             command.add("install");
+            // 使用清华镜像源加速下载
+            command.add("-i");
+            command.add("https://pypi.tuna.tsinghua.edu.cn/simple");
             command.add("-r");
             command.add(tempRequirementsPath);
             command.add("--target");
