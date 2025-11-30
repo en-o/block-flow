@@ -4,6 +4,9 @@ import { BlockRegistry } from './core/BlockRegistry';
 import { ToolboxManager } from './core/ToolboxManager';
 import { getEnabledBlocklyBlocks } from '../api/blocklyBlock';
 
+// 导入 Blockly 标准块（必须导入才能在工具箱中使用）
+import 'blockly/blocks';
+
 // 导入所有块定义
 import {
   // Python IO块
