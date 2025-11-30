@@ -84,20 +84,21 @@ export class BlocklyInitializer {
   /**
    * 从数据库动态加载块定义
    * 这会从后端API获取启用的Blockly块并注册到Blockly
+   * @param forceReload 是否强制重新加载（忽略缓存）
    */
-  static async loadDynamicBlocks(): Promise<void> {
-    if (this.dynamicBlocksLoaded) {
+  static async loadDynamicBlocks(forceReload: boolean = false): Promise<void> {
+    if (this.dynamicBlocksLoaded && !forceReload) {
       console.log('⏭️  动态块已经加载过了，跳过');
       return;
     }
 
-    console.log('🔄 正在从后端API加载动态Blockly块...');
+    console.log(forceReload ? '🔄 强制重新加载动态Blockly块...' : '🔄 正在从后端API加载动态Blockly块...');
 
     try {
-      const response = await getEnabledBlocklyBlocks();
+      const response: any = await getEnabledBlocklyBlocks();
 
-      if (response.data.code === 200) {
-        const blocks = response.data.data || [];
+      if (response.code === 200) {
+        const blocks = response.data || [];
         console.log(`📦 加载到 ${blocks.length} 个动态块`);
 
         // 用于收集新的分类
@@ -289,13 +290,15 @@ export class BlocklyInitializer {
   /**
    * 初始化所有块（静态 + 动态）
    * 推荐使用此方法来完整初始化Blockly
+   * @param customBlocks 额外的自定义块
+   * @param forceReloadDynamic 是否强制重新加载动态块
    */
-  static async initializeAll(customBlocks: any[] = []): Promise<void> {
+  static async initializeAll(customBlocks: any[] = [], forceReloadDynamic: boolean = false): Promise<void> {
     // 先初始化静态块
     this.initialize(customBlocks);
 
     // 再加载动态块
-    await this.loadDynamicBlocks();
+    await this.loadDynamicBlocks(forceReloadDynamic);
 
     console.log('✅ Blockly完整初始化完成（静态块 + 动态块）！');
   }
@@ -362,9 +365,11 @@ export function initializeBlockly(customBlocks: any[] = []): void {
 /**
  * 初始化Blockly（包含静态块和动态块）
  * 推荐使用此函数来完整初始化Blockly
+ * @param customBlocks 额外的自定义块
+ * @param forceReloadDynamic 是否强制重新加载动态块（用于刷新积木块管理页面的更新）
  */
-export async function initializeBlocklyWithDynamic(customBlocks: any[] = []): Promise<void> {
-  await BlocklyInitializer.initializeAll(customBlocks);
+export async function initializeBlocklyWithDynamic(customBlocks: any[] = [], forceReloadDynamic: boolean = false): Promise<void> {
+  await BlocklyInitializer.initializeAll(customBlocks, forceReloadDynamic);
 }
 
 /**

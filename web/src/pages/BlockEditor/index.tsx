@@ -741,7 +741,7 @@ outputs = {
     }
   }, []);
 
-  const handleModeChange = (mode: 'BLOCKLY' | 'CODE') => {
+  const handleModeChange = async (mode: 'BLOCKLY' | 'CODE') => {
     if (mode === 'CODE' && definitionMode === 'BLOCKLY') {
       // 从Blockly切换回代码模式：恢复原始代码，不解析参数
       console.log('从可视化模式切换回代码模式，恢复原始代码');
@@ -755,11 +755,21 @@ outputs = {
       // 不修改参数配置，保持原有配置不变
       setDefinitionMode(mode);
     } else if (mode === 'BLOCKLY' && definitionMode === 'CODE') {
-      // 从代码模式切换到可视化模式：保存原始代码
+      // 从代码模式切换到可视化模式：保存原始代码并重新加载动态块
       console.log('切换到可视化模式（预览功能，不保存）');
 
       // 保存当前代码
       setOriginalScriptCode(scriptCode);
+
+      // 强制重新加载动态块（确保积木块管理页面的更新被应用）
+      try {
+        message.loading({ content: '正在加载最新的积木块...', key: 'loadBlocks' });
+        await initializeBlocklyWithDynamic([], true); // forceReload = true
+        message.success({ content: '积木块加载完成', key: 'loadBlocks', duration: 1 });
+      } catch (error) {
+        console.error('重新加载动态块失败', error);
+        message.warning({ content: '部分积木块加载失败', key: 'loadBlocks' });
+      }
 
       // 切换模式
       setDefinitionMode(mode);

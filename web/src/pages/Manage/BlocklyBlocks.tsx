@@ -27,6 +27,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   PlayCircleOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import {
   getBlocklyBlockPage,
@@ -60,6 +61,10 @@ const BlocklyBlocks: React.FC = () => {
   const [testResult, setTestResult] = useState<any>(null); // 测试结果
   const [testing, setTesting] = useState(false); // 是否正在测试
   const [testPassed, setTestPassed] = useState(false); // 测试是否通过
+
+  // 标签页查看状态（用于控制测试按钮显示）
+  const [viewedDefinitionTab, setViewedDefinitionTab] = useState(false); // 是否查看过积木定义
+  const [viewedGeneratorTab, setViewedGeneratorTab] = useState(false); // 是否查看过Python生成器
 
   const [searchParams, setSearchParams] = useState({
     name: '',
@@ -277,8 +282,22 @@ return code;`,
    */
   const handleTestBlock = async () => {
     try {
-      await form.validateFields();
+      // 先获取表单所有字段值（不进行验证）
       const values = form.getFieldsValue();
+
+      // 手动检查必填字段
+      if (!values.definition || values.definition.trim() === '') {
+        message.error('积木定义不能为空，请先生成定义');
+        return;
+      }
+
+      if (!values.pythonGenerator || values.pythonGenerator.trim() === '') {
+        message.error('Python代码生成器不能为空，请先生成定义');
+        return;
+      }
+
+      // 验证其他必填字段
+      await form.validateFields(['type', 'name', 'category']);
 
       setTesting(true);
       setTestResult(null);
@@ -316,6 +335,8 @@ return code;`,
       setEditingBlock(record);
       setShowDefinitionForm(true); // 编辑模式直接显示表单
       setTestPassed(true); // 已有的块默认测试通过
+      setViewedDefinitionTab(true); // 编辑模式默认已查看
+      setViewedGeneratorTab(true); // 编辑模式默认已查看
       form.setFieldsValue({
         ...record,
         definition: typeof record.definition === 'string'
@@ -328,6 +349,8 @@ return code;`,
       setTestPassed(false);
       setTestResult(null);
       setPythonCode('');
+      setViewedDefinitionTab(false); // 重置查看状态
+      setViewedGeneratorTab(false); // 重置查看状态
       form.resetFields();
       form.setFieldsValue({
         enabled: true,
@@ -639,7 +662,17 @@ return code;`,
           {/* 步骤2：手动调整定义（代码生成后或编辑模式） */}
           {(editingBlock || showDefinitionForm) && (
             <>
-              <Tabs defaultActiveKey="1">
+              <Tabs
+                defaultActiveKey="1"
+                onChange={(activeKey) => {
+                  // 记录用户查看过的标签页
+                  if (activeKey === '2') {
+                    setViewedDefinitionTab(true);
+                  } else if (activeKey === '3') {
+                    setViewedGeneratorTab(true);
+                  }
+                }}
+              >
                 <TabPane tab="基本信息" key="1">
                   <Form.Item
                     name="type"
@@ -712,7 +745,24 @@ return code;`,
                   </Form.Item>
                 </TabPane>
 
-                <TabPane tab="积木定义" key="2">
+                <TabPane
+                  tab={
+                    <span>
+                      积木定义
+                      <Tooltip title="定义积木块的外观、字段、连接点等可视化属性，使用JSON格式描述Blockly块的结构">
+                        <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
+                      </Tooltip>
+                    </span>
+                  }
+                  key="2"
+                >
+                  <Alert
+                    message="积木定义说明"
+                    description="此JSON定义了积木块在Blockly编辑器中的可视化外观，包括：积木块类型(type)、显示文本(message0)、输入字段(args0)、颜色(colour)、连接点(previousStatement/nextStatement)等属性。"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 12 }}
+                  />
                   <Form.Item
                     name="definition"
                     label="Blockly定义(JSON)"
@@ -722,7 +772,24 @@ return code;`,
                   </Form.Item>
                 </TabPane>
 
-                <TabPane tab="Python生成器" key="3">
+                <TabPane
+                  tab={
+                    <span>
+                      Python生成器
+                      <Tooltip title="定义如何将积木块转换为Python代码，当用户使用此积木块时会调用此生成器函数生成对应的Python代码">
+                        <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
+                      </Tooltip>
+                    </span>
+                  }
+                  key="3"
+                >
+                  <Alert
+                    message="Python代码生成器说明"
+                    description="此JavaScript函数定义了如何将Blockly积木块转换为Python代码。函数接收block、generator、Blockly、Order参数，需要返回生成的Python代码字符串。例如：return 'import requests\n';"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 12 }}
+                  />
                   <Form.Item
                     name="pythonGenerator"
                     label="Python代码生成器"
@@ -736,34 +803,61 @@ return code;`,
               {/* 测试功能 */}
               {!editingBlock && (
                 <div style={{ marginTop: 16 }}>
-                  <Button
-                    type="primary"
-                    onClick={handleTestBlock}
-                    loading={testing}
-                    block
-                    size="large"
-                    icon={<PlayCircleOutlined />}
-                  >
-                    {testing ? '测试中...' : '测试积木块定义'}
-                  </Button>
-
-                  {testResult && (
+                  {/* 提示用户需要查看标签页 */}
+                  {(!viewedDefinitionTab || !viewedGeneratorTab) && (
                     <Alert
-                      message={testResult.success ? '测试成功' : '测试失败'}
-                      description={testResult.message}
-                      type={testResult.success ? 'success' : 'error'}
+                      message="请先查看积木定义和Python生成器"
+                      description={
+                        <div>
+                          请依次点击查看以下标签页后，测试按钮才会显示：
+                          <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+                            <li style={{ color: viewedDefinitionTab ? '#52c41a' : '#ff4d4f' }}>
+                              {viewedDefinitionTab ? '✓' : '○'} 积木定义
+                            </li>
+                            <li style={{ color: viewedGeneratorTab ? '#52c41a' : '#ff4d4f' }}>
+                              {viewedGeneratorTab ? '✓' : '○'} Python生成器
+                            </li>
+                          </ul>
+                        </div>
+                      }
+                      type="warning"
                       showIcon
-                      style={{ marginTop: 12 }}
                     />
                   )}
 
-                  {testPassed && (
-                    <Alert
-                      message="✓ 测试已通过，可以保存了"
-                      type="success"
-                      showIcon
-                      style={{ marginTop: 12 }}
-                    />
+                  {/* 只有查看过两个标签页后才显示测试按钮 */}
+                  {viewedDefinitionTab && viewedGeneratorTab && (
+                    <>
+                      <Button
+                        type="primary"
+                        onClick={handleTestBlock}
+                        loading={testing}
+                        block
+                        size="large"
+                        icon={<PlayCircleOutlined />}
+                      >
+                        {testing ? '测试中...' : '测试积木块定义'}
+                      </Button>
+
+                      {testResult && (
+                        <Alert
+                          message={testResult.success ? '测试成功' : '测试失败'}
+                          description={testResult.message}
+                          type={testResult.success ? 'success' : 'error'}
+                          showIcon
+                          style={{ marginTop: 12 }}
+                        />
+                      )}
+
+                      {testPassed && (
+                        <Alert
+                          message="✓ 测试已通过，可以保存了"
+                          type="success"
+                          showIcon
+                          style={{ marginTop: 12 }}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               )}
