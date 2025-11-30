@@ -123,6 +123,7 @@ export class BlocklyInitializer {
             let generatorFunc: any;
             try {
               // 创建生成器函数，需要正确绑定参数
+              // 注意：将Order对象传入，而不是Order.ATOMIC
               generatorFunc = new Function(
                 'block',
                 'generator',
@@ -132,7 +133,8 @@ export class BlocklyInitializer {
               );
 
               pythonGenerator.forBlock[definition.type] = function(block: any) {
-                return generatorFunc(block, pythonGenerator, Blockly, Order.ATOMIC);
+                // 传递完整的Order对象，让生成器代码自己选择优先级
+                return generatorFunc(block, pythonGenerator, Blockly, Order);
               };
             } catch (generatorError) {
               console.error(`❌ 块 ${definition.type} 的Python生成器创建失败:`, generatorError);
@@ -147,7 +149,7 @@ export class BlocklyInitializer {
               category: 'system_custom',
               definition: definition,
               generator: (block: any) => {
-                return generatorFunc(block, pythonGenerator, Blockly, Order.ATOMIC);
+                return generatorFunc(block, pythonGenerator, Blockly, Order);
               },
               register: function() {
                 // 已经在上面注册过Blockly.Blocks和pythonGenerator了，这里不需要重复注册
