@@ -17,7 +17,6 @@ import {
   Row,
   Col,
   Tabs,
-  Radio,
   Alert,
 } from 'antd';
 import {
@@ -27,7 +26,6 @@ import {
   EyeOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ThunderboltOutlined,
   PlayCircleOutlined,
 } from '@ant-design/icons';
 import {
@@ -76,7 +74,7 @@ const BlocklyBlocks: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await getBlocklyCategories();
+      const response: any = await getBlocklyCategories();
       if (response.code === 200) {
         setCategories(response.data || []);
       }
@@ -88,7 +86,7 @@ const BlocklyBlocks: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await getBlocklyBlockPage({
+      const response: any = await getBlocklyBlockPage({
         ...searchParams,
         page: {
           pageNum: currentPage - 1,
@@ -213,7 +211,6 @@ return [code, Order.FUNCTION_CALL];`,
     const assignMatch = trimmedCode.match(/^(\w+)\s*=\s*(.+)$/);
     if (assignMatch) {
       const varName = assignMatch[1];
-      const value = assignMatch[2].trim();
 
       return {
         type: `assign_${varName}`,
@@ -287,7 +284,7 @@ return code;`,
       setTestResult(null);
 
       // 调用验证API
-      const response = await validateBlocklyDefinition(
+      const response: any = await validateBlocklyDefinition(
         values.definition,
         values.pythonGenerator
       );

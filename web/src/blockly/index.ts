@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { pythonGenerator } from 'blockly/python';
+import { pythonGenerator, Order } from 'blockly/python';
 import { BlockRegistry } from './core/BlockRegistry';
 import { ToolboxManager } from './core/ToolboxManager';
 import { getEnabledBlocklyBlocks } from '../api/blocklyBlock';
@@ -130,7 +130,7 @@ export class BlocklyInitializer {
               );
 
               pythonGenerator.forBlock[definition.type] = function(block: any) {
-                return generatorFunc(block, pythonGenerator, Blockly, pythonGenerator.ORDER_ATOMIC);
+                return generatorFunc(block, pythonGenerator, Blockly, Order.ATOMIC);
               };
             } catch (generatorError) {
               console.error(`❌ 块 ${definition.type} 的Python生成器创建失败:`, generatorError);
