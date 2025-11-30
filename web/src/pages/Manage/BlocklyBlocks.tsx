@@ -181,35 +181,60 @@ return \`from ${moduleName} import \${items}\\n\`;`,
       const varName = assignMatch[1];
       const rightSide = assignMatch[2].trim();
 
-      // 检查右侧是否是链式调用（如 parser.parse('2024-01-15').strftime("%Y-%m-%d")）
-      const isChainCall = rightSide.includes('.') && rightSide.includes('(');
+      // 检查右侧是否是复杂表达式（包含函数调用、链式调用等）
+      const isComplexExpression = rightSide.includes('(') || rightSide.includes('.') || rightSide.includes('[');
 
-      return {
-        type: `assign_${varName}`,
-        name: `${varName} = 表达式`,
-        category: 'python_variables',
-        color: '#ff7a45',
-        definition: JSON.stringify({
+      // 如果是复杂表达式，创建固定的完整积木（无输入口）
+      if (isComplexExpression) {
+        return {
+          type: `assign_${varName}_fixed`,
+          name: `${varName} = ${rightSide.substring(0, 30)}${rightSide.length > 30 ? '...' : ''}`,
+          category: 'python_variables',
+          color: '#ff7a45',
+          definition: JSON.stringify({
+            type: `assign_${varName}_fixed`,
+            message0: `${varName} = ${rightSide}`,  // 完整的赋值语句
+            previousStatement: null,
+            nextStatement: null,
+            colour: '#ff7a45',
+            tooltip: `给变量${varName}赋值：${rightSide}`,
+            helpUrl: ''
+          }, null, 2),
+          pythonGenerator: `const code = \`${trimmedCode}\\n\`;
+return code;`,
+          description: `给变量${varName}赋值（固定表达式）`,
+          example: trimmedCode
+        };
+      }
+      // 简单表达式，创建通用赋值积木（有输入口）
+      else {
+        return {
           type: `assign_${varName}`,
-          message0: `${varName} = %1`,  // 这个message0会显示在工具箱中
-          args0: [
-            {
-              type: 'input_value',
-              name: 'VALUE'
-            }
-          ],
-          previousStatement: null,
-          nextStatement: null,
-          colour: '#ff7a45',
-          tooltip: `给变量${varName}赋值`,
-          helpUrl: ''
-        }, null, 2),
-        pythonGenerator: `const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 'None';
+          name: `${varName} = 表达式`,
+          category: 'python_variables',
+          color: '#ff7a45',
+          definition: JSON.stringify({
+            type: `assign_${varName}`,
+            message0: `${varName} = %1`,
+            args0: [
+              {
+                type: 'input_value',
+                name: 'VALUE'
+              }
+            ],
+            previousStatement: null,
+            nextStatement: null,
+            colour: '#ff7a45',
+            tooltip: `给变量${varName}赋值`,
+            helpUrl: ''
+          }, null, 2),
+          pythonGenerator: `const value = generator.valueToCode(block, 'VALUE', Order.NONE) || 'None';
 const code = \`${varName} = \${value}\\n\`;
 return code;`,
-        description: `给变量${varName}赋值${isChainCall ? '（支持链式调用）' : ''}`,
-        example: trimmedCode
-      };
+          description: `给变量${varName}赋值（通用）`,
+          example: trimmedCode
+        };
+      }
     }
 
     // 4. 函数调用模式 func(arg1, arg2) - 注意：这个要放在赋值匹配之后
