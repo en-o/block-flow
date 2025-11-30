@@ -6,7 +6,10 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 import java.io.*;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -75,6 +78,40 @@ public class FileOperationUtil {
 
                 if (entry.isDirectory()) {
                     outputFile.mkdirs();
+                } else if (entry.isSymbolicLink()) {
+                    // 处理符号链接（关键修复：保留Python运行时中的符号链接）
+                    // 注意：Windows环境可能不支持符号链接或需要管理员权限
+                    String linkTarget = entry.getLinkName();
+                    Path targetPath = outputFile.toPath();
+                    Path linkPath = Paths.get(linkTarget);
+
+                    // 创建父目录
+                    File parent = outputFile.getParentFile();
+                    if (parent != null && !parent.exists()) {
+                        parent.mkdirs();
+                    }
+
+                    // 尝试创建符号链接（Linux/Mac支持，Windows可能失败）
+                    try {
+                        Files.createSymbolicLink(targetPath, linkPath);
+                        log.info("创建符号链接: {} -> {}", outputFile.getName(), linkTarget);
+                    } catch (FileAlreadyExistsException e) {
+                        log.warn("符号链接已存在，跳过: {}", outputFile.getName());
+                    } catch (UnsupportedOperationException | IOException e) {
+                        // Windows环境可能不支持符号链接，或需要管理员权限
+                        String osName = System.getProperty("os.name").toLowerCase();
+                        if (osName.contains("win")) {
+                            log.warn("Windows环境下创建符号链接失败（这是正常的）: {} -> {}", outputFile.getName(), linkTarget);
+                            log.warn("Windows用户：符号链接在Windows上需要管理员权限或开发者模式");
+                            log.warn("解决方案：使用完整的python3.10路径，或在编辑环境时手动配置pythonExecutable字段");
+                            // Windows环境下创建空文件作为占位符，避免中断解压
+                            outputFile.createNewFile();
+                        } else {
+                            // Linux/Mac环境下符号链接创建失败是异常情况
+                            log.error("创建符号链接失败: {} -> {}", outputFile.getName(), linkTarget, e);
+                            throw new IOException("创建符号链接失败: " + outputFile.getName(), e);
+                        }
+                    }
                 } else {
                     File parent = outputFile.getParentFile();
                     if (parent != null && !parent.exists()) {
