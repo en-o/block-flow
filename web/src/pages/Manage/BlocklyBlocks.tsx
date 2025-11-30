@@ -184,27 +184,95 @@ return \`from ${moduleName} import \${items}\\n\`;`,
       // 检查右侧是否是复杂表达式（包含函数调用、链式调用等）
       const isComplexExpression = rightSide.includes('(') || rightSide.includes('.') || rightSide.includes('[');
 
-      // 如果是复杂表达式，创建固定的完整积木（无输入口）
+      // 如果是复杂表达式，智能提取参数
       if (isComplexExpression) {
-        return {
-          type: `assign_${varName}_fixed`,
-          name: `${varName} = ${rightSide.substring(0, 30)}${rightSide.length > 30 ? '...' : ''}`,
-          category: 'python_variables',
-          color: '#ff7a45',
-          definition: JSON.stringify({
+        // 提取字符串字面量和数字作为参数
+        const params: { value: string, placeholder: string, type: string }[] = [];
+        let message = `${varName} = ${rightSide}`;
+        let generatorCode = `const code = \`${varName} = ${rightSide}`;
+
+        // 提取所有字符串字面量（单引号和双引号）
+        const stringMatches = [...rightSide.matchAll(/(['"])(?:(?=(\\?))\2.)*?\1/g)];
+
+        if (stringMatches.length > 0) {
+          // 有字符串参数，创建可配置的输入字段
+          let paramIndex = 0;
+          stringMatches.forEach((match) => {
+            const stringValue = match[0];
+            const stringContent = stringValue.slice(1, -1); // 去掉引号
+            params.push({
+              value: stringContent,
+              placeholder: `%${paramIndex + 1}`,
+              type: 'String'
+            });
+            // 替换message中的字符串为占位符
+            message = message.replace(stringValue, `%${paramIndex + 1}`);
+            paramIndex++;
+          });
+
+          // 生成args0
+          const args0 = params.map((param, idx) => ({
+            type: 'input_value',
+            name: `PARAM${idx}`,
+            check: param.type
+          }));
+
+          // 生成Python代码生成器
+          const paramGetters = params.map((_, idx) =>
+            `const param${idx} = generator.valueToCode(block, 'PARAM${idx}', Order.NONE) || "''";`
+          ).join('\n');
+
+          let codeTemplate = rightSide;
+          stringMatches.forEach((match, idx) => {
+            codeTemplate = codeTemplate.replace(match[0], `\${param${idx}}`);
+          });
+
+          generatorCode = `${paramGetters}
+const code = \`${varName} = ${codeTemplate}\\n\`;
+return code;`;
+
+          return {
+            type: `assign_${varName}_params`,
+            name: `${varName} = ${rightSide.substring(0, 30)}${rightSide.length > 30 ? '...' : ''}`,
+            category: 'python_variables',
+            color: '#ff7a45',
+            definition: JSON.stringify({
+              type: `assign_${varName}_params`,
+              message0: message,
+              args0: args0,
+              previousStatement: null,
+              nextStatement: null,
+              colour: '#ff7a45',
+              tooltip: `给变量${varName}赋值（可配置参数）`,
+              helpUrl: '',
+              inputsInline: false
+            }, null, 2),
+            pythonGenerator: generatorCode,
+            description: `给变量${varName}赋值（可配置参数）`,
+            example: trimmedCode
+          };
+        } else {
+          // 没有字符串参数，创建固定积木
+          return {
             type: `assign_${varName}_fixed`,
-            message0: `${varName} = ${rightSide}`,  // 完整的赋值语句
-            previousStatement: null,
-            nextStatement: null,
-            colour: '#ff7a45',
-            tooltip: `给变量${varName}赋值：${rightSide}`,
-            helpUrl: ''
-          }, null, 2),
-          pythonGenerator: `const code = \`${trimmedCode}\\n\`;
+            name: `${varName} = ${rightSide.substring(0, 30)}${rightSide.length > 30 ? '...' : ''}`,
+            category: 'python_variables',
+            color: '#ff7a45',
+            definition: JSON.stringify({
+              type: `assign_${varName}_fixed`,
+              message0: `${varName} = ${rightSide}`,
+              previousStatement: null,
+              nextStatement: null,
+              colour: '#ff7a45',
+              tooltip: `给变量${varName}赋值：${rightSide}`,
+              helpUrl: ''
+            }, null, 2),
+            pythonGenerator: `const code = \`${trimmedCode}\\n\`;
 return code;`,
-          description: `给变量${varName}赋值（固定表达式）`,
-          example: trimmedCode
-        };
+            description: `给变量${varName}赋值（固定表达式）`,
+            example: trimmedCode
+          };
+        }
       }
       // 简单表达式，创建通用赋值积木（有输入口）
       else {
