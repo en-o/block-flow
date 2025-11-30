@@ -316,6 +316,7 @@ export interface PythonEnvironment {
   pythonExecutable?: string;
   envRootPath?: string;
   sitePackagesPath?: string;
+  pipVersion?: string; // pip版本号
   createTime?: string;
   updateTime?: string;
 }

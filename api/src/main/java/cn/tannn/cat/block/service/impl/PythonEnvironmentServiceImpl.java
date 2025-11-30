@@ -260,18 +260,18 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             errorMsg.append("【方案1 - 推荐】上传包含pip的Python运行时\n");
             errorMsg.append("  1. 访问: https://github.com/astral-sh/python-build-standalone/releases\n");
             errorMsg.append("  2. 下载对应系统的 install_only.tar.gz 文件（默认包含pip）\n");
-            errorMsg.append("  3. 在本页面点击"配置/Python运行时"上传\n\n");
+            errorMsg.append("  3. 在本页面点击'配置/Python运行时'上传\n\n");
 
             errorMsg.append("【方案2】离线安装pip包\n");
             errorMsg.append("  1. 下载pip安装包:\n");
             errorMsg.append("     • https://pypi.org/project/pip/#files\n");
             errorMsg.append("     • 选择 .whl 或 .tar.gz 格式（推荐: pip-24.3.1-py3-none-any.whl）\n");
-            errorMsg.append("  2. 在本页面点击"配置/离线包"上传pip包文件\n");
+            errorMsg.append("  2. 在本页面点击'配置/离线包'上传pip包文件\n");
             errorMsg.append("  3. 安装完成后即可使用在线安装功能\n\n");
 
             errorMsg.append("【方案3】直接使用离线包安装依赖\n");
             errorMsg.append("  • 下载所需Python包的 .whl 或 .tar.gz 文件\n");
-            errorMsg.append("  • 在本页面点击"配置/离线包"逐个上传安装\n\n");
+            errorMsg.append("  • 在本页面点击'配置/离线包'逐个上传安装\n\n");
 
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             errorMsg.append("💡 提示\n");
@@ -590,18 +590,18 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             errorMsg.append("【方案1 - 推荐】上传包含pip的Python运行时\n");
             errorMsg.append("  1. 访问: https://github.com/astral-sh/python-build-standalone/releases\n");
             errorMsg.append("  2. 下载对应系统的 install_only.tar.gz 文件（默认包含pip）\n");
-            errorMsg.append("  3. 点击"配置/Python运行时"上传\n\n");
+            errorMsg.append("  3. 点击'配置/Python运行时'上传\n\n");
 
             errorMsg.append("【方案2】离线安装pip包\n");
             errorMsg.append("  1. 下载pip安装包:\n");
             errorMsg.append("     • https://pypi.org/project/pip/#files\n");
             errorMsg.append("     • 选择 .whl 或 .tar.gz 格式（推荐: pip-24.3.1-py3-none-any.whl）\n");
-            errorMsg.append("  2. 点击"配置/离线包"上传pip包文件\n");
+            errorMsg.append("  2. 点击'配置/离线包'上传pip包文件\n");
             errorMsg.append("  3. 安装完成后即可使用requirements.txt批量安装\n\n");
 
             errorMsg.append("【方案3】使用离线包逐个安装依赖\n");
             errorMsg.append("  • 下载requirements.txt中每个包的 .whl 或 .tar.gz 文件\n");
-            errorMsg.append("  • 点击"配置/离线包"逐个上传安装\n\n");
+            errorMsg.append("  • 点击'配置/离线包'逐个上传安装\n\n");
 
             errorMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             errorMsg.append("💡 提示\n");
@@ -935,12 +935,19 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             String packageName = PythonPackageParser.extractPackageName(originalFilename);
             String version = PythonPackageParser.extractPackageVersion(originalFilename);
 
-            // 如果安装的是pip包，立即配置._pth文件
+            // 如果安装的是pip包，立即配置._pth文件并更新pip版本
             if ("pip".equalsIgnoreCase(packageName)) {
                 log.info("检测到pip包安装，开始配置Python路径...");
                 if (environment.getPythonExecutable() != null && environment.getSitePackagesPath() != null) {
                     configurePythonPath(environment.getPythonExecutable(), environment.getSitePackagesPath());
                     log.info("pip安装后，._pth文件已配置");
+
+                    // 更新pip版本
+                    String pipVersion = PythonEnvDetector.getPipVersion(environment.getPythonExecutable());
+                    if (pipVersion != null) {
+                        environment.setPipVersion(pipVersion);
+                        log.info("pip版本已更新: {}", pipVersion);
+                    }
                 } else {
                     log.warn("Python路径或site-packages路径未配置，无法自动配置._pth文件");
                 }
@@ -1011,12 +1018,19 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             String packageName = PythonPackageParser.extractPackageName(fileName);
             String version = PythonPackageParser.extractPackageVersion(fileName);
 
-            // 如果安装的是pip包，立即配置._pth文件
+            // 如果安装的是pip包，立即配置._pth文件并更新pip版本
             if ("pip".equalsIgnoreCase(packageName)) {
                 log.info("检测到pip包安装，开始配置Python路径...");
                 if (environment.getPythonExecutable() != null && environment.getSitePackagesPath() != null) {
                     configurePythonPath(environment.getPythonExecutable(), environment.getSitePackagesPath());
                     log.info("pip安装后，._pth文件已配置");
+
+                    // 更新pip版本
+                    String pipVersion = PythonEnvDetector.getPipVersion(environment.getPythonExecutable());
+                    if (pipVersion != null) {
+                        environment.setPipVersion(pipVersion);
+                        log.info("pip版本已更新: {}", pipVersion);
+                    }
                 } else {
                     log.warn("Python路径或site-packages路径未配置，无法自动配置._pth文件");
                 }
@@ -1604,9 +1618,15 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         // 在配置._pth文件后重新检测pip（可能已经可用了）
         progressLogService.sendProgress(taskId, 95, "检测pip可用性...");
         boolean hasPip = PythonEnvDetector.checkPipAvailable(pythonExecutable);
+        String pipVersion = null;
 
         if (hasPip) {
+            // 获取pip版本号
+            pipVersion = PythonEnvDetector.getPipVersion(pythonExecutable);
             progressLogService.sendLog(taskId, "✓ pip可用");
+            if (pipVersion != null) {
+                progressLogService.sendLog(taskId, "  pip版本: " + pipVersion);
+            }
             progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             progressLogService.sendLog(taskId, "✅ 可以使用在线安装功能");
             progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -1628,11 +1648,11 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
             progressLogService.sendLog(taskId, "【方案2】离线安装pip包");
             progressLogService.sendLog(taskId, "  • 下载: https://pypi.org/project/pip/#files");
             progressLogService.sendLog(taskId, "  • 选择 .whl 格式（如: pip-24.3.1-py3-none-any.whl）");
-            progressLogService.sendLog(taskId, "  • 在本页面点击"配置/离线包"上传");
+            progressLogService.sendLog(taskId, "  • 在本页面点击'配置/离线包'上传");
             progressLogService.sendLog(taskId, "");
             progressLogService.sendLog(taskId, "【方案3】继续使用离线包安装依赖");
             progressLogService.sendLog(taskId, "  • 下载所需Python包的 .whl 或 .tar.gz 文件");
-            progressLogService.sendLog(taskId, "  • 点击"配置/离线包"逐个上传安装");
+            progressLogService.sendLog(taskId, "  • 点击'配置/离线包'逐个上传安装");
             progressLogService.sendLog(taskId, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
 
@@ -1643,6 +1663,9 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         }
         if (sitePackagesPath != null && !sitePackagesPath.isEmpty()) {
             environment.setSitePackagesPath(sitePackagesPath);
+        }
+        if (pipVersion != null) {
+            environment.setPipVersion(pipVersion);
         }
         pythonEnvironmentRepository.save(environment);
 
