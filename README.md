@@ -25,6 +25,8 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
 Docker参数说明：[README-build.md](README-build.md)
 当前docker python环境使用：cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
 ```shell
+## MYSQL_UNM=root
+## MYSQL_PWD=root
 # 运行容器
 docker run -d -p 1250:1250 \
   --name block-flow \
