@@ -71,11 +71,12 @@ RUN apt-get update && \
     ln -sf /usr/bin/python3 /usr/bin/python
 
 # 创建必要的目录
-RUN mkdir -p /app/data \
-             /app/logs \
-             /app/python-envs && \
-    useradd -m -u 1000 -s /bin/bash appuser && \
-    chown -R appuser:appuser /app
+RUN mkdir -p /app/data /app/logs /app/python-envs
+#RUN mkdir -p /app/data \
+#             /app/logs \
+#             /app/python-envs && \
+#    useradd -m -u 1000 -s /bin/bash appuser && \
+#    chown -R appuser:appuser /app
 
 # 暴露端口
 EXPOSE 1250
