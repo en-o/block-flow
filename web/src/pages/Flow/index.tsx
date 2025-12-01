@@ -80,6 +80,14 @@ const Flow: React.FC = () => {
   const [executeModalVisible, setExecuteModalVisible] = useState(false);
   const [workflowTimeout, setWorkflowTimeout] = useState<number>(60); // 默认60秒
 
+  // 节点测试相关状态
+  const [nodeTestModalVisible, setNodeTestModalVisible] = useState(false);
+  const [testingNode, setTestingNode] = useState<Node<BlockNodeData> | null>(null);
+  const [nodeTestInputs, setNodeTestInputs] = useState<Record<string, any>>({});
+  const [nodeTestResult, setNodeTestResult] = useState<any>(null);
+  const [nodeTestLoading, setNodeTestLoading] = useState(false);
+  const [nodeTestOutputs, setNodeTestOutputs] = useState<Record<string, any>>({}); // 存储每个节点的测试输出
+
   // 加载块库和流程分类
   useEffect(() => {
     loadBlocks();
@@ -1167,6 +1175,91 @@ const Flow: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  // 打开节点测试弹窗
+  const handleOpenNodeTest = (node: Node<BlockNodeData>) => {
+    setTestingNode(node);
+
+    // 初始化测试输入值
+    const initialInputs: Record<string, any> = {};
+    if (node.data.inputs) {
+      Object.entries(node.data.inputs).forEach(([name, param]: [string, any]) => {
+        // 优先使用节点配置的输入值
+        if (node.data.inputValues && node.data.inputValues[name] !== undefined) {
+          initialInputs[name] = node.data.inputValues[name];
+        } else {
+          initialInputs[name] = param.defaultValue || '';
+        }
+      });
+    }
+    setNodeTestInputs(initialInputs);
+    setNodeTestResult(null);
+    setNodeTestModalVisible(true);
+  };
+
+  // 执行节点测试
+  const handleNodeTest = async () => {
+    if (!testingNode || !testingNode.data.blockId) {
+      message.warning('节点信息不完整');
+      return;
+    }
+
+    setNodeTestLoading(true);
+    setNodeTestResult(null);
+
+    try {
+      // 过滤空值参数
+      const filteredInputs: Record<string, any> = {};
+      Object.entries(nodeTestInputs).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          filteredInputs[key] = value;
+        }
+      });
+
+      // 使用节点快照中的脚本进行测试
+      const tempScript = testingNode.data.blockSnapshot?.script;
+
+      const response = await blockApi.test(testingNode.data.blockId, {
+        inputs: filteredInputs,
+        tempScript: tempScript,
+        timeoutSeconds: 60,
+      });
+
+      if (response.code === 200) {
+        try {
+          const resultData = typeof response.data === 'string'
+            ? JSON.parse(response.data)
+            : response.data;
+          setNodeTestResult(resultData);
+
+          // 保存节点的测试输出，用于提示
+          setNodeTestOutputs(prev => ({
+            ...prev,
+            [testingNode.id]: resultData.output || resultData,
+          }));
+
+          message.success('测试成功');
+        } catch (e) {
+          setNodeTestResult({
+            success: true,
+            output: response.data || '执行成功，无输出'
+          });
+        }
+      } else {
+        setNodeTestResult({
+          success: false,
+          error: `错误: ${response.message || '未知错误'}`
+        });
+      }
+    } catch (error: any) {
+      setNodeTestResult({
+        success: false,
+        error: `执行失败: ${error.message || '未知错误'}`
+      });
+    } finally {
+      setNodeTestLoading(false);
+    }
+  };
+
   // 格式化日志详情：检测并格式化JSON数据
   const formatLogDetail = useCallback((logText: string) => {
     if (!logText) return logText;
@@ -1559,6 +1652,17 @@ const Flow: React.FC = () => {
                     disabled
                   />
                 </Form.Item>
+                {/* 测试节点按钮 */}
+                <Form.Item>
+                  <Button
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    onClick={() => handleOpenNodeTest(selectedNode)}
+                    block
+                  >
+                    测试此节点
+                  </Button>
+                </Form.Item>
                 {/* Python运行环境选择 */}
                 <Form.Item
                   label="Python运行环境"
@@ -1716,6 +1820,28 @@ const Flow: React.FC = () => {
                 <Form.Item label="目标输入">
                   <Input value={selectedEdge.targetHandle ? selectedEdge.targetHandle.replace('input-', '') : '默认输入'} disabled />
                 </Form.Item>
+                {/* 显示源节点测试输出（如果有） */}
+                {selectedEdge.source && nodeTestOutputs[selectedEdge.source] && (
+                  <Form.Item label="源节点测试输出">
+                    <div
+                      style={{
+                        background: '#f0f5ff',
+                        padding: '12px',
+                        borderRadius: '4px',
+                        border: '1px solid #adc6ff',
+                        maxHeight: '200px',
+                        overflowY: 'auto'
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', color: '#1890ff', marginBottom: 8 }}>
+                        💡 提示：这是源节点最后一次测试的输出，可用于配置下方的 JSON 路径提取
+                      </div>
+                      <pre style={{ margin: 0, fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {JSON.stringify(nodeTestOutputs[selectedEdge.source], null, 2)}
+                      </pre>
+                    </div>
+                  </Form.Item>
+                )}
                 {/* JSON 路径提取配置 */}
                 <Form.Item
                   label={
@@ -1736,7 +1862,9 @@ const Flow: React.FC = () => {
                       </Tooltip>
                     </span>
                   }
-                  extra="留空则传递完整的输出数据，填写路径则只传递指定字段的值"
+                  extra={selectedEdge.source && nodeTestOutputs[selectedEdge.source]
+                    ? "💡 参考上方的源节点测试输出来配置提取路径"
+                    : "留空则传递完整的输出数据，填写路径则只传递指定字段的值"}
                 >
                   <Input
                     placeholder="例如: fullUrl.projects 或 items[0].name"
@@ -1926,6 +2054,131 @@ const Flow: React.FC = () => {
           <p style={{ fontSize: '12px', color: '#8c8c8c', marginTop: 12 }}>
             注意：超时时间适用于流程中的所有块执行
           </p>
+        </div>
+      </Modal>
+
+      {/* 节点测试弹窗 */}
+      <Modal
+        title={`测试节点 - ${testingNode?.data.blockName || ''}`}
+        open={nodeTestModalVisible}
+        onOk={handleNodeTest}
+        onCancel={() => {
+          setNodeTestModalVisible(false);
+          setTestingNode(null);
+          setNodeTestResult(null);
+        }}
+        okText="运行测试"
+        cancelText="关闭"
+        width={700}
+        confirmLoading={nodeTestLoading}
+      >
+        <div>
+          {/* 输入参数 */}
+          {testingNode && testingNode.data.inputs && Object.keys(testingNode.data.inputs).length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ marginBottom: 12 }}>输入参数</h4>
+              <Form layout="vertical">
+                {Object.entries(testingNode.data.inputs).map(([name, param]: [string, any]) => (
+                  <Form.Item
+                    key={name}
+                    label={
+                      <span>
+                        <strong>{name}</strong>
+                        <span style={{ marginLeft: 8, fontSize: '12px', color: '#8c8c8c' }}>
+                          ({param.type})
+                        </span>
+                        {param.required && (
+                          <span style={{ marginLeft: 4, fontSize: '11px', color: '#ff4d4f' }}>
+                            *必填
+                          </span>
+                        )}
+                      </span>
+                    }
+                  >
+                    {param.type === 'boolean' ? (
+                      <Select
+                        value={nodeTestInputs[name]}
+                        onChange={(value) => setNodeTestInputs(prev => ({ ...prev, [name]: value }))}
+                        placeholder="选择布尔值"
+                      >
+                        <Select.Option value={true}>true</Select.Option>
+                        <Select.Option value={false}>false</Select.Option>
+                      </Select>
+                    ) : param.type === 'number' ? (
+                      <InputNumber
+                        value={nodeTestInputs[name]}
+                        onChange={(value) => setNodeTestInputs(prev => ({ ...prev, [name]: value }))}
+                        placeholder={param.description || `请输入${name}`}
+                        style={{ width: '100%' }}
+                      />
+                    ) : param.type === 'object' || param.type === 'array' ? (
+                      <Input.TextArea
+                        value={typeof nodeTestInputs[name] === 'object'
+                          ? JSON.stringify(nodeTestInputs[name], null, 2)
+                          : nodeTestInputs[name]}
+                        onChange={(e) => setNodeTestInputs(prev => ({ ...prev, [name]: e.target.value }))}
+                        placeholder={`请输入JSON格式的${param.type}`}
+                        rows={4}
+                        style={{ fontFamily: 'monospace' }}
+                      />
+                    ) : (
+                      <Input
+                        value={nodeTestInputs[name]}
+                        onChange={(e) => setNodeTestInputs(prev => ({ ...prev, [name]: e.target.value }))}
+                        placeholder={param.description || `请输入${name}`}
+                      />
+                    )}
+                    {param.description && (
+                      <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: 4 }}>
+                        {param.description}
+                      </div>
+                    )}
+                  </Form.Item>
+                ))}
+              </Form>
+            </div>
+          )}
+
+          {/* 测试结果 */}
+          {nodeTestResult && (
+            <div style={{ marginTop: 20 }}>
+              <h4 style={{ marginBottom: 12 }}>测试结果</h4>
+              {nodeTestResult.success !== false ? (
+                <div>
+                  <Tag color="success" style={{ marginBottom: 12 }}>执行成功</Tag>
+                  <div
+                    style={{
+                      background: '#f5f5f5',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      maxHeight: '300px',
+                      overflowY: 'auto'
+                    }}
+                  >
+                    <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {JSON.stringify(nodeTestResult.output || nodeTestResult, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <Tag color="error" style={{ marginBottom: 12 }}>执行失败</Tag>
+                  <div
+                    style={{
+                      background: '#fff2f0',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      border: '1px solid #ffccc7'
+                    }}
+                  >
+                    <div style={{ fontSize: '13px', color: '#cf1322' }}>
+                      {nodeTestResult.error || '未知错误'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Modal>
 
