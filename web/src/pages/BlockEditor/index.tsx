@@ -69,35 +69,20 @@ const BlockEditor: React.FC = () => {
 # - **重要**: inputs中的所有值都是字符串或对象，数字需要转换
 # - **重要**: 空字符串会导致类型转换失败，使用安全转换函数
 
-# ========== 安全类型转换函数（处理空值、None、类型错误） ==========
+# ========== 🎉 安全类型转换函数（已内置，无需手动编写） ==========
 
-def safe_int(value, default=0):
-    """安全地转换为整数，处理空字符串、None和无效值"""
-    if value is None or value == '':
-        return default
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
+# 系统已自动注入以下函数，可直接使用：
 
-def safe_float(value, default=0.0):
-    """安全地转换为浮点数，处理空字符串、None和无效值"""
-    if value is None or value == '':
-        return default
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
+# safe_int(value, default=0)
+# - 安全地转换为整数，处理空字符串、None和无效值
 
-def safe_bool(value, default=False):
-    """安全地转换为布尔值"""
-    if value is None or value == '':
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.lower() in ['true', '1', 'yes', 'on']
-    return bool(value)
+# safe_float(value, default=0.0)
+# - 安全地转换为浮点数，处理空字符串、None和无效值
+
+# safe_bool(value, default=False)
+# - 安全地转换为布尔值
+# - 支持字符串: 'true', '1', 'yes', 'on' → True
+# - 其他值 → False
 
 # ========== 获取输入参数 ==========
 
@@ -2249,6 +2234,15 @@ outputs = {
             <strong>编辑器已启用智能代码提示！</strong>
             <br />
             <br />
+            <strong>🎉 内置函数提示（NEW!）</strong>
+            <br />
+            • 输入 <code>safe_</code> 后会自动提示已内置的三个安全转换函数
+            <br />
+            • <code>safe_int()</code>, <code>safe_float()</code>, <code>safe_bool()</code> 已内置到系统中
+            <br />
+            • 直接使用即可，无需手动定义这些函数
+            <br />
+            <br />
             <strong>1. 输入参数提示</strong>
             <br />
             • 输入 <code>inputs.get(</code> 后按 <code>Ctrl+Space</code> 会自动提示已配置的输入参数
@@ -2307,38 +2301,27 @@ a = int(inputs.get('a', 2))  # ❌ 如果a=""，会报错
 
           <h3>✅ 正确的写法（推荐使用安全转换函数）</h3>
           <pre style={{ background: '#f6ffed', padding: 12, borderRadius: 4, border: '1px solid #b7eb8f' }}>
-{`def safe_int(value, default=0):
-    """安全地转换为整数，处理空字符串、None和无效值"""
-    if value is None or value == '':
-        return default
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
-
-def safe_float(value, default=0.0):
-    """安全地转换为浮点数，处理空字符串、None和无效值"""
-    if value is None or value == '':
-        return default
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
-
-def safe_bool(value, default=False):
-    """安全地转换为布尔值"""
-    if value is None or value == '':
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.lower() in ['true', '1', 'yes', 'on']
-    return bool(value)
+{`🎉 这些函数已内置到系统中，可直接使用，无需手动定义！
 
 # 使用示例：
 a = safe_int(inputs.get('a'), 2)      # ✅ 空字符串返回默认值
 b = safe_int(inputs.get('b'), 0)      # ✅ 无论输入是什么，都能正确处理
-product = a * b                        # ✅ 正确：两个整数相乘`}
+product = a * b                        # ✅ 正确：两个整数相乘
+
+# 函数定义（系统已自动注入，无需手动编写）：
+# def safe_int(value, default=0):
+#     if value is None or value == '':
+#         return default
+#     try:
+#         return int(value)
+#     except (ValueError, TypeError):
+#         return default
+#
+# def safe_float(value, default=0.0):
+#     # 同样的逻辑，处理浮点数
+#
+# def safe_bool(value, default=False):
+#     # 支持字符串 'true', 'false' 等的转换`}
           </pre>
 
           <Divider />

@@ -48,6 +48,7 @@ BlockFlow 的 Python 脚本执行引擎支持在隔离的 Python 环境中执行
 │  2. 包装脚本                                     │
 │     • 添加 UTF-8 编码配置                       │
 │     • 注入参数读取逻辑                           │
+│     • 🎉 自动注入安全类型转换函数(NEW!)         │
 │     • 嵌入用户脚本                               │
 │     • 添加输出格式化逻辑                         │
 ├─────────────────────────────────────────────────┤
@@ -109,46 +110,23 @@ outputs = {
 import json
 import sys
 
-# ========== 2. 安全转换函数（可选） ==========
+# ========== 2. 🎉 安全转换函数（已内置,无需手动编写） ==========
 
-def safe_int(value, default=0):
-    """安全地转换为整数"""
-    if value is None or value == '':
-        return default
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
-
-def safe_float(value, default=0.0):
-    """安全地转换为浮点数"""
-    if value is None or value == '':
-        return default
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
-
-def safe_bool(value, default=False):
-    """安全地转换为布尔值"""
-    if value is None or value == '':
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.lower() in ['true', '1', 'yes', 'on']
-    return bool(value)
+# 系统已自动注入以下函数,可直接使用:
+# - safe_int(value, default=0)      # 安全转换为整数
+# - safe_float(value, default=0.0)  # 安全转换为浮点数
+# - safe_bool(value, default=False) # 安全转换为布尔值
 
 # ========== 3. 获取输入参数 ==========
 
 # 字符串参数（无需转换）
 name = inputs.get('name', 'Unknown')
 
-# 数字参数（使用安全转换）
+# 数字参数（使用内置的安全转换函数）
 age = safe_int(inputs.get('age'), 0)
 price = safe_float(inputs.get('price'), 0.0)
 
-# 布尔参数（使用安全转换）
+# 布尔参数（使用内置的安全转换函数）
 enabled = safe_bool(inputs.get('enabled'), False)
 
 # 上下文变量（自动注入）
@@ -219,6 +197,23 @@ outputs = "some string"  # 会被自动包装为 {"result": "some string"}
 }
 ```
 
+### 🎉 内置安全转换函数（NEW!）
+
+**系统已自动注入以下三个函数，可直接使用，无需手动定义：**
+
+```python
+# 这些函数已内置到所有Python脚本中，直接使用即可！
+
+# 1. safe_int - 安全转换为整数
+age = safe_int(inputs.get('age'), 0)
+
+# 2. safe_float - 安全转换为浮点数
+price = safe_float(inputs.get('price'), 0.0)
+
+# 3. safe_bool - 安全转换为布尔值
+enabled = safe_bool(inputs.get('enabled'), False)
+```
+
 ### 错误的写法
 
 ```python
@@ -235,7 +230,18 @@ a = int(inputs.get('a', 2))  # 如果 a = ""，会报错
 
 ### 正确的写法
 
-#### 方法1：安全转换函数（推荐）
+#### 方法1：安全转换函数（推荐，已内置）
+
+```python
+# 🎉 这些函数已内置到系统中，直接使用即可！
+
+# 使用示例
+a = safe_int(inputs.get('a'), 2)      # ✅ 安全转换
+b = safe_int(inputs.get('b'), 0)      # ✅ 空字符串返回默认值
+product = a * b                        # ✅ 正确：两个整数相乘
+```
+
+**函数定义（已自动注入，无需手动编写）：**
 
 ```python
 def safe_int(value, default=0):
@@ -246,11 +252,6 @@ def safe_int(value, default=0):
         return int(value)
     except (ValueError, TypeError):
         return default
-
-# 使用
-a = safe_int(inputs.get('a'), 2)      # ✅ 安全转换
-b = safe_int(inputs.get('b'), 0)      # ✅ 空字符串返回默认值
-product = a * b                        # ✅ 正确：两个整数相乘
 ```
 
 #### 方法2：手动 try-except
@@ -266,59 +267,46 @@ except (ValueError, TypeError):
 
 ### 各类型转换函数
 
+**🎉 以下函数已内置到系统中，可直接使用！**
+
 #### 整数转换
 
 ```python
-def safe_int(value, default=0):
-    """安全地转换为整数"""
-    if value is None or value == '':
-        return default
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
-
-# 使用示例
+# safe_int 已内置，直接使用
 count = safe_int(inputs.get('count'), 0)
 port = safe_int(inputs.get('port'), 3306)
 age = safe_int(inputs.get('age'), 18)
+
+# 函数签名（已自动注入）：
+# def safe_int(value, default=0):
+#     处理 None、空字符串、无效值
 ```
 
 #### 浮点数转换
 
 ```python
-def safe_float(value, default=0.0):
-    """安全地转换为浮点数"""
-    if value is None or value == '':
-        return default
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
-
-# 使用示例
+# safe_float 已内置，直接使用
 price = safe_float(inputs.get('price'), 0.0)
 rate = safe_float(inputs.get('rate'), 1.5)
 temperature = safe_float(inputs.get('temp'), 25.0)
+
+# 函数签名（已自动注入）：
+# def safe_float(value, default=0.0):
+#     处理 None、空字符串、无效值
 ```
 
 #### 布尔值转换
 
 ```python
-def safe_bool(value, default=False):
-    """安全地转换为布尔值"""
-    if value is None or value == '':
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.lower() in ['true', '1', 'yes', 'on']
-    return bool(value)
-
-# 使用示例
+# safe_bool 已内置，直接使用
 enabled = safe_bool(inputs.get('enabled'), False)
 is_active = safe_bool(inputs.get('is_active'), True)
 debug_mode = safe_bool(inputs.get('debug'), False)
+
+# 函数签名（已自动注入）：
+# def safe_bool(value, default=False):
+#     支持字符串 'true', '1', 'yes', 'on' 转为 True
+#     支持字符串 'false', '0', 'no', 'off' 及其他值转为 False
 ```
 
 #### JSON 对象转换

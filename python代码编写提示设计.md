@@ -93,6 +93,7 @@ db_port = inputs.get('ctx.DB_PORT', 0)
 - 提示 safe_int, safe_float, safe_bool 函数
 - 自动生成函数调用模板
 - 使用代码片段(Snippet)支持Tab键跳转参数
+- **🎉 这些函数已内置到系统中,无需手动定义**
 
 **示例**:
 ```python
@@ -101,7 +102,7 @@ db_port = inputs.get('ctx.DB_PORT', 0)
 safe_int(inputs.get('param_name'), 0)
 #                    ^光标在这里, 可以Tab跳转到下一个参数
 
-# 提供的函数:
+# 提供的函数 (已内置,无需手动编写):
 # - safe_int(inputs.get('param_name'), 0)
 # - safe_float(inputs.get('param_name'), 0.0)
 # - safe_bool(inputs.get('param_name'), False)
