@@ -37,6 +37,9 @@ const Flow: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<BlockNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [blocksPage, setBlocksPage] = useState(0); // 块库分页页码
+  const [blocksHasMore, setBlocksHasMore] = useState(true); // 是否还有更多块
+  const [blocksLoading, setBlocksLoading] = useState(false); // 块库加载中
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [copiedNode, setCopiedNode] = useState<Node<BlockNodeData> | null>(null);
@@ -50,7 +53,13 @@ const Flow: React.FC = () => {
   const [leftPanelTab, setLeftPanelTab] = useState<'blocks' | 'workflows'>('blocks');
   const [workflowViewType, setWorkflowViewType] = useState<'public' | 'mine'>('public');
   const [publicWorkflows, setPublicWorkflows] = useState<Workflow[]>([]);
+  const [publicWorkflowsPage, setPublicWorkflowsPage] = useState(0); // 公共流程分页
+  const [publicWorkflowsHasMore, setPublicWorkflowsHasMore] = useState(true); // 是否还有更多公共流程
+  const [publicWorkflowsLoading, setPublicWorkflowsLoading] = useState(false); // 公共流程加载中
   const [myWorkflows, setMyWorkflows] = useState<Workflow[]>([]);
+  const [myWorkflowsPage, setMyWorkflowsPage] = useState(0); // 我的流程分页
+  const [myWorkflowsHasMore, setMyWorkflowsHasMore] = useState(true); // 是否还有更多我的流程
+  const [myWorkflowsLoading, setMyWorkflowsLoading] = useState(false); // 我的流程加载中
 
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -170,19 +179,32 @@ const Flow: React.FC = () => {
     };
   }, [selectedNodeId, selectedEdge, copiedNode, nodes, setNodes, setEdges]);
 
-  const loadBlocks = async () => {
+  const loadBlocks = async (page: number = 0, append: boolean = false) => {
     try {
-      setLoading(true);
+      if (!append) {
+        setLoading(true);
+      }
+      setBlocksLoading(true);
       const response = await blockApi.pageFlow({
-        page: { pageNum: 0, pageSize: 100 },
+        page: { pageNum: page, pageSize: 20 }, // 每页20条
       });
       if (response.code === 200 && response.data?.rows) {
-        setBlocks(response.data.rows);
+        const newBlocks = response.data.rows;
+        if (append) {
+          setBlocks(prev => [...prev, ...newBlocks]);
+        } else {
+          setBlocks(newBlocks);
+        }
+        // 判断是否还有更多数据
+        const hasMore = newBlocks.length === 20; // 如果返回的数据量等于pageSize，说明可能还有更多
+        setBlocksHasMore(hasMore);
+        setBlocksPage(page);
       }
     } catch (error) {
       console.error('加载块库失败', error);
     } finally {
       setLoading(false);
+      setBlocksLoading(false);
     }
   };
 
@@ -211,32 +233,75 @@ const Flow: React.FC = () => {
   };
 
   // 加载公共流程
-  const loadPublicWorkflows = async () => {
+  const loadPublicWorkflows = async (page: number = 0, append: boolean = false) => {
     try {
+      setPublicWorkflowsLoading(true);
       const response = await workflowApi.pagePublic({
-        page: { pageNum: 0, pageSize: 50 },
+        page: { pageNum: page, pageSize: 20 }, // 每页20条
       });
       if (response.code === 200 && response.data?.rows) {
-        setPublicWorkflows(response.data.rows);
+        const newWorkflows = response.data.rows;
+        if (append) {
+          setPublicWorkflows(prev => [...prev, ...newWorkflows]);
+        } else {
+          setPublicWorkflows(newWorkflows);
+        }
+        // 判断是否还有更多数据
+        const hasMore = newWorkflows.length === 20;
+        setPublicWorkflowsHasMore(hasMore);
+        setPublicWorkflowsPage(page);
       }
     } catch (error) {
       console.error('加载公共流程失败', error);
+    } finally {
+      setPublicWorkflowsLoading(false);
     }
   };
 
   // 加载我的流程
-  const loadMyWorkflows = async () => {
+  const loadMyWorkflows = async (page: number = 0, append: boolean = false) => {
     try {
+      setMyWorkflowsLoading(true);
       const response = await workflowApi.page({
-        page: { pageNum: 0, pageSize: 50 },
+        page: { pageNum: page, pageSize: 20 }, // 每页20条
       });
       if (response.code === 200 && response.data?.rows) {
-        setMyWorkflows(response.data.rows);
+        const newWorkflows = response.data.rows;
+        if (append) {
+          setMyWorkflows(prev => [...prev, ...newWorkflows]);
+        } else {
+          setMyWorkflows(newWorkflows);
+        }
+        // 判断是否还有更多数据
+        const hasMore = newWorkflows.length === 20;
+        setMyWorkflowsHasMore(hasMore);
+        setMyWorkflowsPage(page);
       }
     } catch (error) {
       console.error('加载我的流程失败', error);
+    } finally {
+      setMyWorkflowsLoading(false);
     }
   };
+
+  // 滚动加载处理函数
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>, type: 'blocks' | 'publicWorkflows' | 'myWorkflows') => {
+    const target = e.currentTarget;
+    const scrollTop = target.scrollTop;
+    const scrollHeight = target.scrollHeight;
+    const clientHeight = target.clientHeight;
+
+    // 当滚动到距离底部100px时触发加载
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      if (type === 'blocks' && blocksHasMore && !blocksLoading) {
+        loadBlocks(blocksPage + 1, true);
+      } else if (type === 'publicWorkflows' && publicWorkflowsHasMore && !publicWorkflowsLoading) {
+        loadPublicWorkflows(publicWorkflowsPage + 1, true);
+      } else if (type === 'myWorkflows' && myWorkflowsHasMore && !myWorkflowsLoading) {
+        loadMyWorkflows(myWorkflowsPage + 1, true);
+      }
+    }
+  }, [blocksHasMore, blocksLoading, blocksPage, publicWorkflowsHasMore, publicWorkflowsLoading, publicWorkflowsPage, myWorkflowsHasMore, myWorkflowsLoading, myWorkflowsPage]);
 
   // 连接节点
   const onConnect: OnConnect = useCallback(
@@ -1124,32 +1189,48 @@ const Flow: React.FC = () => {
                   </span>
                 ),
                 children: (
-                  <div className="toolbox-content">
+                  <div
+                    className="toolbox-content"
+                    onScroll={(e) => handleScroll(e, 'blocks')}
+                  >
                     {loading ? (
                       <Spin />
                     ) : blocks.length === 0 ? (
                       <Empty description="暂无可用块" />
                     ) : (
-                      blocks.map((block) => (
-                        <div
-                          key={block.id}
-                          className="block-library-item"
-                          draggable
-                          onDragStart={(e) => onDragStart(e, block)}
-                          style={{ borderLeft: `3px solid ${block.color}` }}
-                        >
-                          <div className="block-header">
-                            <span style={{ fontSize: '16px' }}>{block.icon || '📦'}</span>
-                            <div style={{ flex: 1 }}>
-                              <div className="block-name">{block.name}</div>
-                              <div className="block-type">{block.typeCode}</div>
+                      <>
+                        {blocks.map((block) => (
+                          <div
+                            key={block.id}
+                            className="block-library-item"
+                            draggable
+                            onDragStart={(e) => onDragStart(e, block)}
+                            style={{ borderLeft: `3px solid ${block.color}` }}
+                          >
+                            <div className="block-header">
+                              <span style={{ fontSize: '16px' }}>{block.icon || '📦'}</span>
+                              <div style={{ flex: 1 }}>
+                                <div className="block-name">{block.name}</div>
+                                <div className="block-type">{block.typeCode}</div>
+                              </div>
                             </div>
+                            {block.description && (
+                              <div className="block-description">{block.description}</div>
+                            )}
                           </div>
-                          {block.description && (
-                            <div className="block-description">{block.description}</div>
-                          )}
-                        </div>
-                      ))
+                        ))}
+                        {blocksLoading && (
+                          <div style={{ textAlign: 'center', padding: '12px' }}>
+                            <Spin size="small" />
+                            <span style={{ marginLeft: 8, color: '#999' }}>加载中...</span>
+                          </div>
+                        )}
+                        {!blocksHasMore && blocks.length > 0 && (
+                          <div style={{ textAlign: 'center', padding: '12px', color: '#999', fontSize: '12px' }}>
+                            没有更多数据了
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ),
@@ -1195,7 +1276,10 @@ const Flow: React.FC = () => {
                             <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8c8c8c', background: '#fafafa', borderRadius: '4px', margin: '0 0 12px 0' }}>
                               💡 双击流程可使用，将作为新流程保存（会保留原分类）
                             </div>
-                            <div style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+                            <div
+                              style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}
+                              onScroll={(e) => handleScroll(e, 'publicWorkflows')}
+                            >
                               {publicWorkflows.map((workflow) => (
                                 <Dropdown
                                   key={workflow.id}
@@ -1230,6 +1314,17 @@ const Flow: React.FC = () => {
                                   </div>
                                 </Dropdown>
                               ))}
+                              {publicWorkflowsLoading && (
+                                <div style={{ textAlign: 'center', padding: '12px' }}>
+                                  <Spin size="small" />
+                                  <span style={{ marginLeft: 8, color: '#999' }}>加载中...</span>
+                                </div>
+                              )}
+                              {!publicWorkflowsHasMore && publicWorkflows.length > 0 && (
+                                <div style={{ textAlign: 'center', padding: '12px', color: '#999', fontSize: '12px' }}>
+                                  没有更多数据了
+                                </div>
+                              )}
                             </div>
                           </>
                         )
@@ -1241,7 +1336,10 @@ const Flow: React.FC = () => {
                             <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8c8c8c', background: '#fafafa', borderRadius: '4px', margin: '0 0 12px 0' }}>
                               💡 单击打开流程进行编辑
                             </div>
-                            <div style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+                            <div
+                              style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}
+                              onScroll={(e) => handleScroll(e, 'myWorkflows')}
+                            >
                               {myWorkflows.map((workflow) => (
                                 <div
                                   key={workflow.id}
@@ -1311,6 +1409,17 @@ const Flow: React.FC = () => {
                                   </div>
                                 </div>
                               ))}
+                              {myWorkflowsLoading && (
+                                <div style={{ textAlign: 'center', padding: '12px' }}>
+                                  <Spin size="small" />
+                                  <span style={{ marginLeft: 8, color: '#999' }}>加载中...</span>
+                                </div>
+                              )}
+                              {!myWorkflowsHasMore && myWorkflows.length > 0 && (
+                                <div style={{ textAlign: 'center', padding: '12px', color: '#999', fontSize: '12px' }}>
+                                  没有更多数据了
+                                </div>
+                              )}
                             </div>
                           </>
                         )
