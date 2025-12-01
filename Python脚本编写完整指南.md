@@ -1012,6 +1012,277 @@ if critical_error:
 
 ### 手动错误处理
 
+#### ⚠️ 重要限制：不能使用 return 语句提前退出
+
+**问题：** BlockFlow的Python脚本不能在顶层直接使用 `return` 语句
+
+**原因：** 用户脚本被包装在 `try-except` 块中，但不是在函数内部，所以 `return` 会导致语法错误。
+
+**常见错误信息：**
+- `SyntaxError: 'return' outside function`
+- 脚本执行失败，日志中提示 `return` 相关语法错误
+
+```python
+# ❌ 错误示例1：在顶层直接使用 return
+raw = inputs.get('data', {})
+try:
+    data = json.loads(raw) if isinstance(raw, str) else raw
+except (TypeError, ValueError) as e:
+    outputs = {
+        'success': False,
+        'error': 'JSON 解析失败',
+        'detail': str(e)
+    }
+    return  # ❌ SyntaxError: 'return' outside function
+
+# 继续执行的代码（无法阻止）
+base_url = data.get('webUrl', '')  # ❌ 如果上面出错，data 未定义
+
+# ❌ 错误示例2：在条件判断中使用 return
+username = inputs.get('username', '')
+if not username:
+    outputs = {'success': False, 'error': '用户名不能为空'}
+    return  # ❌ SyntaxError: 'return' outside function
+
+# 继续执行...
+process_user(username)  # ❌ 验证失败后仍会执行
+
+# ❌ 错误示例3：在循环中使用 return
+for item in items:
+    if not validate(item):
+        outputs = {'success': False, 'error': f'项目 {item} 验证失败'}
+        return  # ❌ SyntaxError: 'return' outside function
+```
+
+**解决方案：**
+
+**方法1：使用 try-except-else（推荐）**
+
+适用场景：异常处理后需要跳过后续逻辑
+
+```python
+# ✅ 推荐：使用 else 块
+raw = inputs.get('data', {})
+try:
+    data = json.loads(raw) if isinstance(raw, str) else raw
+except (TypeError, ValueError) as e:
+    # 异常时设置错误输出
+    outputs = {
+        'success': False,
+        'error': 'JSON 解析失败',
+        'detail': str(e)
+    }
+else:
+    # 只有解析成功才执行后续逻辑
+    base_url = data.get('webUrl', '').strip()
+    artifacts_url = data.get('artifactsUrl', '')
+
+    outputs = {
+        'success': True,
+        'baseUrl': base_url,
+        'artifactsUrl': artifacts_url
+    }
+```
+
+**方法2：使用条件判断**
+
+适用场景：参数验证失败后跳过后续逻辑
+
+```python
+# ✅ 使用标志变量
+raw = inputs.get('data', {})
+error_occurred = False
+
+try:
+    data = json.loads(raw) if isinstance(raw, str) else raw
+except (TypeError, ValueError) as e:
+    outputs = {
+        'success': False,
+        'error': 'JSON 解析失败'
+    }
+    error_occurred = True
+
+# 只有没有错误时才继续执行
+if not error_occurred:
+    base_url = data.get('webUrl', '').strip()
+    outputs = {
+        'success': True,
+        'baseUrl': base_url
+    }
+
+# ✅ 嵌套条件判断（多层验证）
+username = inputs.get('username', '')
+if not username:
+    outputs = {'success': False, 'error': '用户名不能为空'}
+else:
+    password = inputs.get('password', '')
+    if not password:
+        outputs = {'success': False, 'error': '密码不能为空'}
+    else:
+        # 验证通过，执行业务逻辑
+        outputs = login(username, password)
+```
+
+**方法3：使用函数封装（最灵活，推荐用于复杂逻辑）**
+
+适用场景：复杂业务逻辑，需要多处提前退出
+
+```python
+# ✅ 将逻辑封装在函数中，可以使用 return
+def process_data():
+    """处理数据"""
+    raw = inputs.get('data', {})
+    try:
+        data = json.loads(raw) if isinstance(raw, str) else raw
+    except (TypeError, ValueError) as e:
+        return {
+            'success': False,
+            'error': 'JSON 解析失败',
+            'detail': str(e)
+        }
+
+    # 提前验证 - 可以使用 return 提前退出
+    base_url = data.get('webUrl', '')
+    if not base_url:
+        return {
+            'success': False,
+            'error': '缺少必要字段 webUrl'
+        }
+
+    # 多层验证
+    if not base_url.startswith('http'):
+        return {
+            'success': False,
+            'error': 'webUrl 必须以 http 开头'
+        }
+
+    # 所有验证通过
+    return {
+        'success': True,
+        'baseUrl': base_url
+    }
+
+# 调用函数并设置输出
+outputs = process_data()
+
+# ✅ 函数封装的更多示例
+def validate_and_process():
+    """验证并处理用户数据"""
+    # 验证用户名
+    username = inputs.get('username', '')
+    if not username:
+        return {'success': False, 'error': '用户名不能为空'}
+
+    # 验证邮箱
+    email = inputs.get('email', '')
+    if not email or '@' not in email:
+        return {'success': False, 'error': '邮箱格式错误'}
+
+    # 验证年龄
+    age = safe_int(inputs.get('age'), 0)
+    if age < 18:
+        return {'success': False, 'error': '年龄必须大于18岁'}
+
+    # 所有验证通过，执行业务逻辑
+    user_id = create_user(username, email, age)
+    return {
+        'success': True,
+        'user_id': user_id,
+        'message': f'用户 {username} 创建成功'
+    }
+
+outputs = validate_and_process()
+```
+
+**方法4：使用 if-elif-else 链（适用于简单场景）**
+
+```python
+# ✅ 使用 if-elif-else 链
+username = inputs.get('username', '')
+password = inputs.get('password', '')
+email = inputs.get('email', '')
+
+if not username:
+    outputs = {'success': False, 'error': '用户名不能为空'}
+elif not password:
+    outputs = {'success': False, 'error': '密码不能为空'}
+elif not email:
+    outputs = {'success': False, 'error': '邮箱不能为空'}
+else:
+    # 所有验证通过
+    outputs = {
+        'success': True,
+        'message': '注册成功'
+    }
+```
+
+**完整对比示例：**
+
+```python
+# ❌ 错误：尝试使用 return
+def main():
+    username = inputs.get('username', '')
+    if not username:
+        outputs = {'success': False}
+        return  # ❌ 错误！
+
+    process_user(username)
+
+# ✅ 正确：方法1 - try-except-else
+try:
+    data = parse_input()
+except Exception as e:
+    outputs = {'success': False, 'error': str(e)}
+else:
+    outputs = process_data(data)
+
+# ✅ 正确：方法2 - 标志变量
+has_error = False
+username = inputs.get('username', '')
+if not username:
+    outputs = {'success': False, 'error': '用户名不能为空'}
+    has_error = True
+
+if not has_error:
+    outputs = process_user(username)
+
+# ✅ 正确：方法3 - 函数封装
+def main():
+    username = inputs.get('username', '')
+    if not username:
+        return {'success': False, 'error': '用户名不能为空'}
+
+    return process_user(username)
+
+outputs = main()
+
+# ✅ 正确：方法4 - if-elif-else
+username = inputs.get('username', '')
+if not username:
+    outputs = {'success': False, 'error': '用户名不能为空'}
+else:
+    outputs = process_user(username)
+```
+
+**关键要点总结：**
+
+```
+❌ 不能在脚本顶层使用 return
+   • 会导致 SyntaxError: 'return' outside function
+   • 系统会捕获错误并返回执行失败
+
+✅ 推荐的替代方案
+   1. try-except-else：异常处理场景
+   2. 标志变量：简单的提前退出
+   3. 函数封装：复杂逻辑，多处退出（最推荐）
+   4. if-elif-else：简单的多分支判断
+
+💡 最佳实践
+   • 复杂业务逻辑优先使用函数封装
+   • 函数内可以自由使用 return
+   • 保持代码清晰和可维护性
+```
+
 #### 方式1：返回错误标志
 
 ```python
@@ -1934,7 +2205,58 @@ print(f"输出: {json.dumps(outputs, ensure_ascii=False)}")
 # 输出会显示在测试结果的 _console_output 中
 ```
 
-### Q10: 如何处理文件操作？
+### Q10: 为什么不能使用 return 提前退出？⚠️
+
+**问题：** 在脚本中使用 `return` 提示 `SyntaxError: 'return' outside function`
+
+**原因：** 用户脚本被包装在 `try-except` 块中执行，但不在函数内部，所以顶层不能使用 `return`
+
+**解决方案（按推荐顺序）：**
+
+**1. 使用函数封装（最推荐）**
+```python
+# ✅ 将逻辑封装在函数中，可以自由使用 return
+def main():
+    username = inputs.get('username', '')
+    if not username:
+        return {'success': False, 'error': '用户名不能为空'}
+
+    # 更多验证...
+    if error:
+        return {'success': False, 'error': 'xxx'}
+
+    # 业务逻辑
+    result = process(username)
+    return {'success': True, 'data': result}
+
+outputs = main()
+```
+
+**2. 使用 try-except-else**
+```python
+# ✅ 适用于异常处理场景
+try:
+    data = parse_data()
+except Exception as e:
+    outputs = {'success': False, 'error': str(e)}
+else:
+    # 只有成功时才执行
+    outputs = {'success': True, 'data': data}
+```
+
+**3. 使用条件判断**
+```python
+# ✅ 适用于简单验证
+username = inputs.get('username', '')
+if not username:
+    outputs = {'success': False, 'error': '用户名不能为空'}
+else:
+    outputs = process(username)
+```
+
+**参考：** 详见"错误处理"章节的"不能使用 return 语句提前退出"部分
+
+### Q11: 如何处理文件操作？
 
 ```python
 # 读取文件

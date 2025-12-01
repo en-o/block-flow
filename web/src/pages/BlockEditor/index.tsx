@@ -2791,6 +2791,51 @@ finally:
             • 异常信息会在测试结果中显示
           </Card>
 
+          <Card size="small" style={{ marginBottom: 8, background: '#fff2e8', borderColor: '#ffbb96' }}>
+            <strong>⚠️ 重要限制：不能在脚本顶层使用 return 提前退出</strong>
+            <br />
+            <br />
+            <strong style={{ color: '#ff4d4f' }}>问题：</strong> 使用 <code>return</code> 会提示 <code>SyntaxError: 'return' outside function</code>
+            <br />
+            <br />
+            <strong style={{ color: '#fa8c16' }}>原因：</strong> 用户脚本被包装在 try-except 块中执行，但不在函数内部，所以顶层不能使用 return
+            <br />
+            <br />
+            <strong style={{ color: '#52c41a' }}>解决方案（推荐顺序）：</strong>
+            <br />
+            <br />
+            <strong>1. 函数封装（最推荐）</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4, border: '1px solid #b7eb8f' }}>
+{`def main():
+    username = inputs.get('username', '')
+    if not username:
+        return {'success': False, 'error': '用户名不能为空'}
+
+    return process_user(username)
+
+outputs = main()  # 调用函数并设置输出`}
+            </pre>
+            <strong>2. try-except-else</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`try:
+    data = parse_data()
+except Exception as e:
+    outputs = {'success': False, 'error': str(e)}
+else:
+    # 只有成功时才执行
+    outputs = {'success': True, 'data': data}`}
+            </pre>
+            <strong>3. 条件判断</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`username = inputs.get('username', '')
+if not username:
+    outputs = {'success': False, 'error': '用户名不能为空'}
+else:
+    outputs = process(username)`}
+            </pre>
+            详细说明请参考下方"错误处理"章节的相关内容
+          </Card>
+
           <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
             <strong>7. 执行时间限制</strong>
             <br />
