@@ -16,7 +16,7 @@
 
 **功能**:
 - 自动列出所有已配置的输入参数
-- 显示参数类型(string/number/boolean/object)
+- 显示参数类型(string/number/boolean/json)
 - 显示参数描述
 - 自动填充参数名和类型对应的默认值
 
@@ -90,7 +90,7 @@ db_port = inputs.get('ctx.DB_PORT', 0)
 **触发条件**: 输入 `safe_`
 
 **功能**:
-- 提示 safe_int, safe_float, safe_bool 函数
+- 提示 safe_int, safe_float, safe_bool, safe_json_parse 函数
 - 自动生成函数调用模板
 - 使用代码片段(Snippet)支持Tab键跳转参数
 - **🎉 这些函数已内置到系统中,无需手动定义**
@@ -106,6 +106,7 @@ safe_int(inputs.get('param_name'), 0)
 # - safe_int(inputs.get('param_name'), 0)
 # - safe_float(inputs.get('param_name'), 0.0)
 # - safe_bool(inputs.get('param_name'), False)
+# - safe_json_parse(inputs.get('param_name'), {})
 ```
 
 ### 5. inputs. 方法提示
@@ -207,7 +208,7 @@ monaco.languages.registerCompletionItemProvider('python', {
 - `string` → `''`
 - `number` → `0`
 - `boolean` → `False`
-- `object` → `{}`
+- `json` → `{}`
 
 ### 2. 描述信息
 
@@ -274,7 +275,7 @@ insertText: 'safe_int(inputs.get(\'${1:param_name}\'), ${2:0})'
    - 输入 `inputs.get('ctx.` 验证提示显示
 
 4. **安全转换函数测试**
-   - 输入 `safe_` 验证三个函数的提示
+   - 输入 `safe_` 验证四个函数的提示
    - 验证代码片段的Tab跳转功能
 
 5. **边界情况测试**

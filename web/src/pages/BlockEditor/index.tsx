@@ -343,6 +343,15 @@ outputs = {
               detail: '安全转换为布尔值',
               documentation: '安全地将输入转换为布尔值',
               range: range,
+            },
+            {
+              label: 'safe_json_parse',
+              kind: monaco.languages.CompletionItemKind.Function,
+              insertText: 'safe_json_parse(inputs.get(\'${1:param_name}\'), ${2:{}})',
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: '安全解析JSON',
+              documentation: '安全地解析JSON，自动处理字符串和对象',
+              range: range,
             }
           );
         }
@@ -392,7 +401,7 @@ outputs = {
         return '0';
       case 'boolean':
         return 'False';
-      case 'object':
+      case 'json':
         return '{}';
       default:
         return "''";
@@ -1622,7 +1631,7 @@ outputs = {
                             <Select.Option value="string">字符串</Select.Option>
                             <Select.Option value="number">数字</Select.Option>
                             <Select.Option value="boolean">布尔</Select.Option>
-                            <Select.Option value="object">对象</Select.Option>
+                            <Select.Option value="json">JSON</Select.Option>
                           </Select>
                           <Checkbox
                             checked={param.required}
@@ -1699,7 +1708,7 @@ outputs = {
                             <Select.Option value="string">字符串</Select.Option>
                             <Select.Option value="number">数字</Select.Option>
                             <Select.Option value="boolean">布尔</Select.Option>
-                            <Select.Option value="object">对象</Select.Option>
+                            <Select.Option value="json">JSON</Select.Option>
                           </Select>
                           <Button
                             type="link"
@@ -2236,9 +2245,9 @@ outputs = {
             <br />
             <strong>🎉 内置函数提示（NEW!）</strong>
             <br />
-            • 输入 <code>safe_</code> 后会自动提示已内置的三个安全转换函数
+            • 输入 <code>safe_</code> 后会自动提示已内置的四个安全转换函数
             <br />
-            • <code>safe_int()</code>, <code>safe_float()</code>, <code>safe_bool()</code> 已内置到系统中
+            • <code>safe_int()</code>, <code>safe_float()</code>, <code>safe_bool()</code>, <code>safe_json_parse()</code> 已内置到系统中
             <br />
             • 直接使用即可，无需手动定义这些函数
             <br />
@@ -2264,7 +2273,7 @@ outputs = {
             <br />
             <strong>4. 安全转换函数</strong>
             <br />
-            • 输入 <code>safe_</code> 后会提示 safe_int, safe_float, safe_bool 函数
+            • 输入 <code>safe_</code> 后会提示 safe_int, safe_float, safe_bool, safe_json_parse 函数
             <br />
             • 选择后会自动生成函数调用模板
             <br />
@@ -2321,7 +2330,10 @@ product = a * b                        # ✅ 正确：两个整数相乘
 #     # 同样的逻辑，处理浮点数
 #
 # def safe_bool(value, default=False):
-#     # 支持字符串 'true', 'false' 等的转换`}
+#     # 支持字符串 'true', 'false' 等的转换
+#
+# def safe_json_parse(value, default):
+#     # 自动处理字符串和对象，智能解析JSON`}
           </pre>
 
           <Divider />
@@ -2344,12 +2356,97 @@ price = safe_float(inputs.get('price'), 0.0)`}
 {`enabled = safe_bool(inputs.get('enabled'), False)`}
           </pre>
 
-          <h4>4. 上下文变量（自动注入，使用安全转换）</h4>
+          <h4>4. JSON 类型（智能解析）</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`# safe_json_parse 已内置，直接使用（🎉 NEW!）
+
+# 使用示例
+config = safe_json_parse(inputs.get('config'), {})
+items = safe_json_parse(inputs.get('items'), [])
+
+# 函数签名（已自动注入）：
+# def safe_json_parse(value, default):
+#     自动处理字符串和对象，智能解析JSON`}
+          </pre>
+
+          <h4>5. 上下文变量（自动注入，使用安全转换）</h4>
           <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
 {`user_name = inputs.get('ctx.USER_NAME', '默认用户')
 db_host = inputs.get('ctx.DB_HOST', 'localhost')
 db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)`}
           </pre>
+
+          <Divider />
+
+          <h3>🔗 流程编排中的 JSON 数据提取</h3>
+          <Card size="small" style={{ marginBottom: 12, background: '#e6f7ff', borderColor: '#91d5ff' }}>
+            <strong>场景：从上一个节点的 API 响应中提取嵌套数据</strong>
+            <br /><br />
+            假设上一个节点（HTTP 请求块）返回了 TeamCity API 响应：
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 8 }}>
+{`{
+  "success": true,
+  "status_code": 200,
+  "data": {
+    "version": "2025.03.3",
+    "webUrl": "http://192.168.1.134:8111",
+    "artifactsUrl": "http://192.168.1.134:8111/artifacts"
+  },
+  "message": "GET 请求成功"
+}`}
+            </pre>
+            下一个节点需要提取 <code>webUrl</code> 和 <code>artifactsUrl</code>：
+            <pre style={{ background: '#f6ffed', padding: 8, borderRadius: 4, marginTop: 8, border: '1px solid #b7eb8f' }}>
+{`# 方式1：参数已经是字典对象（推荐）
+# 假设输入参数名为 'response' (在块配置中定义为 json 类型)
+response = inputs.get('response', {})
+response = safe_json_parse(response, {})  # 确保是字典
+
+# 提取嵌套数据
+data = response.get('data', {})
+url = data.get('webUrl', '')
+api = data.get('artifactsUrl', '')
+
+# 验证并输出
+if not url:
+    outputs = {
+        "success": False,
+        "error": "无法从响应中提取 webUrl"
+    }
+else:
+    outputs = {
+        "success": True,
+        "url": url,
+        "api": api
+    }
+
+# 方式2：完整示例（带错误处理）
+previous_output = inputs.get('previous_node_output', '{}')
+
+# 解析 JSON
+if isinstance(previous_output, str):
+    try:
+        previous_output = json.loads(previous_output)
+    except json.JSONDecodeError as e:
+        outputs = {"success": False, "error": f"JSON解析失败: {str(e)}"}
+
+# 检查响应状态
+if previous_output.get('success', False):
+    data = previous_output.get('data', {})
+    if isinstance(data, str):
+        data = safe_json_parse(data, {})
+
+    url = data.get('webUrl', '')
+    api = data.get('artifactsUrl', '')
+
+    outputs = {
+        "success": True,
+        "url": url,
+        "api": api,
+        "message": f"成功提取: {url}"
+    }`}
+            </pre>
+          </Card>
 
           <Divider />
 

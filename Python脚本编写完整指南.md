@@ -113,9 +113,10 @@ import sys
 # ========== 2. 🎉 安全转换函数（已内置,无需手动编写） ==========
 
 # 系统已自动注入以下函数,可直接使用:
-# - safe_int(value, default=0)      # 安全转换为整数
-# - safe_float(value, default=0.0)  # 安全转换为浮点数
-# - safe_bool(value, default=False) # 安全转换为布尔值
+# - safe_int(value, default=0)         # 安全转换为整数
+# - safe_float(value, default=0.0)     # 安全转换为浮点数
+# - safe_bool(value, default=False)    # 安全转换为布尔值
+# - safe_json_parse(value, default)    # 安全解析JSON
 
 # ========== 3. 获取输入参数 ==========
 
@@ -199,7 +200,7 @@ outputs = "some string"  # 会被自动包装为 {"result": "some string"}
 
 ### 🎉 内置安全转换函数（NEW!）
 
-**系统已自动注入以下三个函数，可直接使用，无需手动定义：**
+**系统已自动注入以下四个函数，可直接使用，无需手动定义：**
 
 ```python
 # 这些函数已内置到所有Python脚本中，直接使用即可！
@@ -212,6 +213,10 @@ price = safe_float(inputs.get('price'), 0.0)
 
 # 3. safe_bool - 安全转换为布尔值
 enabled = safe_bool(inputs.get('enabled'), False)
+
+# 4. safe_json_parse - 安全解析JSON（NEW!）
+config = safe_json_parse(inputs.get('config'), {})
+items = safe_json_parse(inputs.get('items'), [])
 ```
 
 ### 错误的写法
@@ -244,6 +249,8 @@ product = a * b                        # ✅ 正确：两个整数相乘
 **函数定义（已自动注入，无需手动编写）：**
 
 ```python
+# 以下四个函数已由系统自动注入，可直接使用：
+
 def safe_int(value, default=0):
     """安全地转换为整数，处理空字符串、None和无效值"""
     if value is None or value == '':
@@ -252,6 +259,34 @@ def safe_int(value, default=0):
         return int(value)
     except (ValueError, TypeError):
         return default
+
+def safe_float(value, default=0.0):
+    """安全地转换为浮点数，处理空字符串、None和无效值"""
+    if value is None or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_bool(value, default=False):
+    """安全地转换为布尔值"""
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ['true', '1', 'yes', 'on']
+    return bool(value)
+
+def safe_json_parse(value, default):
+    """安全地解析JSON，自动处理字符串和对象"""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return default
+    return value if value is not None else default
 ```
 
 #### 方法2：手动 try-except
@@ -312,21 +347,196 @@ debug_mode = safe_bool(inputs.get('debug'), False)
 #### JSON 对象转换
 
 ```python
-import json
-
-def safe_json_parse(value, default):
-    """安全地解析JSON"""
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return default
-    return value if value is not None else default
-
-# 使用示例
+# safe_json_parse 已内置，直接使用（🎉 NEW!）
 items = safe_json_parse(inputs.get('items'), [])
 config = safe_json_parse(inputs.get('config'), {})
 tags = safe_json_parse(inputs.get('tags'), [])
+
+# 函数签名（已自动注入）：
+# def safe_json_parse(value, default):
+#     自动处理字符串和对象，智能解析JSON
+```
+
+#### 流程编排中的 JSON 数据提取
+
+在流程编排场景中,一个节点的输出通常会成为下一个节点的输入。当上一个节点返回复杂的 JSON 数据时,下一个节点需要正确解析和提取所需的字段。
+
+**场景示例：从 API 响应中提取嵌套数据**
+
+假设上一个节点(HTTP 请求块)返回了 TeamCity API 的响应:
+
+```json
+{
+  "success": true,
+  "status_code": 200,
+  "data": {
+    "version": "2025.03.3 (build 186370)",
+    "webUrl": "http://192.168.1.134:8111",
+    "artifactsUrl": "http://192.168.1.134:8111/artifacts",
+    "buildNumber": "186370"
+  },
+  "message": "GET 请求成功"
+}
+```
+
+**下一个节点需要提取 `url` 和 `api` 两个字段:**
+
+```python
+# -*- coding: utf-8 -*-
+import json
+
+# ========== 方式1：参数已经是字典对象（推荐） ==========
+
+# 如果流程编排自动传递了上一个节点的完整输出作为参数
+# 参数名假设为 'response'（在块配置中定义）
+
+# 1. 获取整个响应对象（可能已经是字典）
+response = inputs.get('response', {})
+
+# 2. 如果响应是字符串，需要解析
+response = safe_json_parse(response, {})
+
+# 3. 从嵌套结构中提取数据
+data = response.get('data', {})
+url = data.get('webUrl', '')
+api = data.get('artifactsUrl', '')
+
+# 4. 验证提取的数据
+if not url:
+    outputs = {
+        "success": False,
+        "error": "无法从响应中提取 webUrl"
+    }
+else:
+    outputs = {
+        "success": True,
+        "url": url,
+        "api": api,
+        "message": f"成功提取: url={url}, api={api}"
+    }
+
+
+# ========== 方式2：参数是特定字段（需要手动解析嵌套结构） ==========
+
+# 如果流程编排传递的参数是 data 字段的 JSON 字符串
+# 参数名假设为 'data_json'
+
+data_json = inputs.get('data_json', '{}')
+data = safe_json_parse(data_json, {})
+
+url = data.get('webUrl', '')
+api = data.get('artifactsUrl', '')
+
+outputs = {
+    "success": True,
+    "url": url,
+    "api": api
+}
+
+
+# ========== 方式3：完整示例（带错误处理和验证） ==========
+
+# 获取上一个节点的完整输出
+previous_output = inputs.get('previous_node_output', '{}')
+
+# 解析 JSON（如果是字符串）
+if isinstance(previous_output, str):
+    try:
+        previous_output = json.loads(previous_output)
+    except json.JSONDecodeError as e:
+        outputs = {
+            "success": False,
+            "error": f"JSON解析失败: {str(e)}"
+        }
+        # 提前结束
+else:
+    # 已经是字典对象，直接使用
+    pass
+
+# 检查响应状态
+if not previous_output.get('success', False):
+    outputs = {
+        "success": False,
+        "error": "上一个节点执行失败",
+        "previous_message": previous_output.get('message', '')
+    }
+else:
+    # 提取 data 字段
+    data = previous_output.get('data', {})
+
+    # 如果 data 也是字符串（某些情况下可能被二次序列化）
+    if isinstance(data, str):
+        data = safe_json_parse(data, {})
+
+    # 提取所需字段
+    url = data.get('webUrl', '')
+    api = data.get('artifactsUrl', '')
+    version = data.get('version', '')
+
+    # 验证必要字段
+    if not url:
+        outputs = {
+            "success": False,
+            "error": "未找到 webUrl 字段",
+            "available_fields": list(data.keys())
+        }
+    else:
+        # 提取成功
+        outputs = {
+            "success": True,
+            "url": url,
+            "api": api,
+            "version": version,
+            "message": f"成功从 TeamCity API 提取数据: {url}"
+        }
+
+        # 打印调试信息
+        print(f"提取的URL: {url}")
+        print(f"提取的API: {api}")
+        print(f"版本: {version}")
+```
+
+**流程编排配置示例：**
+
+1. **节点1（HTTP请求块）** - 输出参数配置:
+   - `success` (boolean)
+   - `status_code` (number)
+   - `data` (json) - TeamCity API 响应的 data 字段
+   - `message` (string)
+
+2. **节点2（数据提取块）** - 输入参数配置:
+   - `response` (json) - 接收节点1的完整输出
+
+3. **节点2（数据提取块）** - 输出参数配置:
+   - `url` (string) - 提取的 webUrl
+   - `api` (string) - 提取的 artifactsUrl
+   - `version` (string) - 提取的版本信息
+
+**最佳实践：**
+
+```python
+# 1. 总是使用 safe_json_parse 处理可能的字符串
+data = safe_json_parse(inputs.get('data'), {})
+
+# 2. 使用 get() 方法提供默认值，避免 KeyError
+url = data.get('webUrl', '')
+
+# 3. 验证提取的数据是否存在
+if not url:
+    outputs = {"success": False, "error": "缺少必要字段"}
+
+# 4. 打印调试信息，方便排查问题
+print(f"原始数据: {data}")
+print(f"提取结果: url={url}, api={api}")
+
+# 5. 在输出中包含原始数据的关键信息，便于追踪
+outputs = {
+    "success": True,
+    "url": url,
+    "api": api,
+    "_source": "TeamCity API",
+    "_extracted_at": "2025-01-21 10:00:00"
+}
 ```
 
 ### 类型转换快速参考表
@@ -336,7 +546,7 @@ tags = safe_json_parse(inputs.get('tags'), [])
 | 整数 | `safe_int(value, 0)` | `int(value)` | 处理空字符串和无效值 |
 | 浮点 | `safe_float(value, 0.0)` | `float(value)` | 处理空字符串和无效值 |
 | 布尔 | `safe_bool(value, False)` | `bool(value)` | 字符串 "false" 也是 True |
-| JSON | `safe_json_parse(value, {})` | `json.loads(value)` | 可能不是字符串 |
+| JSON | `safe_json_parse(value, {})` | `json.loads(value)` | 智能处理字符串和对象 |
 
 ---
 

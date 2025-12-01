@@ -335,6 +335,15 @@ public class PythonScriptExecutor {
         wrapped.append("        return value.lower() in ['true', '1', 'yes', 'on']\n");
         wrapped.append("    return bool(value)\n");
         wrapped.append("\n");
+        wrapped.append("def safe_json_parse(value, default):\n");
+        wrapped.append("    \"\"\"安全地解析JSON，自动处理字符串和对象\"\"\"\n");
+        wrapped.append("    if isinstance(value, str):\n");
+        wrapped.append("        try:\n");
+        wrapped.append("            return json.loads(value)\n");
+        wrapped.append("        except json.JSONDecodeError:\n");
+        wrapped.append("            return default\n");
+        wrapped.append("    return value if value is not None else default\n");
+        wrapped.append("\n");
 
         // 捕获 print 输出
         wrapped.append("# 捕获 print 输出，避免混入 JSON 结果\n");
