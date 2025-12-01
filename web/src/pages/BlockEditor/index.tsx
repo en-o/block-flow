@@ -1464,7 +1464,7 @@ outputs = {
             onClick={() => setHelpModalVisible(true)}
             style={{ marginLeft: 16, color: '#1890ff' }}
           >
-            类型转换规则
+            代码编写提示
           </Button>
         </h1>
         <div className="header-actions">
@@ -2207,9 +2207,9 @@ outputs = {
         </div>
       </Modal>
 
-      {/* 类型转换规则帮助 Modal */}
+      {/* 代码编写提示 Modal */}
       <Modal
-        title="Python 参数类型转换规则与代码提示"
+        title="Python 代码编写完整指南"
         open={helpModalVisible}
         onCancel={() => setHelpModalVisible(false)}
         width={800}
@@ -2343,6 +2343,267 @@ price = safe_float(inputs.get('price'), 0.0)`}
 db_host = inputs.get('ctx.DB_HOST', 'localhost')
 db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)`}
           </pre>
+
+          <Divider />
+
+          <h3>🔤 变量在字符串中的使用方式</h3>
+
+          <h4>方法1: f-string（推荐，Python 3.6+）</h4>
+          <pre style={{ background: '#f6ffed', padding: 12, borderRadius: 4, border: '1px solid #b7eb8f' }}>
+{`# 获取变量
+teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+username = inputs.get('name', 'admin')
+
+# 在字符串中引用变量
+url = f"http://localhost:{teamcity_port}/api"
+message = f"用户 {username} 的端口是 {teamcity_port}"
+
+# 输出示例:
+# url = "http://localhost:8111/api"
+# message = "用户 admin 的端口是 8111"`}
+          </pre>
+
+          <h4>方法2: format() 方法</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+
+# 使用 format()
+url = "http://localhost:{}/api".format(teamcity_port)
+message = "端口: {port}, 状态: {status}".format(
+    port=teamcity_port,
+    status="running"
+)`}
+          </pre>
+
+          <h4>方法3: 字符串拼接</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+
+# 使用 + 拼接
+url = "http://localhost:" + teamcity_port + "/api"
+message = "端口是 " + str(teamcity_port)  # 注意: 非字符串需要转换`}
+          </pre>
+
+          <h3>⚠️ 重要：变量值的直接使用（不需要引号）</h3>
+
+          <Card size="small" style={{ marginBottom: 12, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>错误示例：将变量名作为字符串传递</strong>
+            <br />
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 8, border: '1px solid #ffbb96' }}>
+{`# ❌ 错误：这里传递的是字符串 'teamcity_host'，而不是变量值
+import http.client
+teamcity_host = inputs.get('ctx.TEAMCITY_HOST', '192.168.1.134')
+teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+
+conn = http.client.HTTPSConnection('teamcity_host', teamcity_port)
+# 这会尝试连接到 'teamcity_host' 这个字符串，而不是变量的值！`}
+            </pre>
+            <strong style={{ color: '#ff4d4f' }}>正确示例：直接使用变量值</strong>
+            <br />
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 8, border: '1px solid #b7eb8f' }}>
+{`# ✅ 正确：直接传递变量值（不加引号）
+import http.client
+teamcity_host = inputs.get('ctx.TEAMCITY_HOST', '192.168.1.134')
+teamcity_port = safe_int(inputs.get('ctx.TEAMCITY_PORT'), 8111)
+
+conn = http.client.HTTPSConnection(teamcity_host, teamcity_port)
+# 这会使用变量的实际值：'192.168.1.134' 和 8111`}
+            </pre>
+          </Card>
+
+          <h4>更多直接使用变量的场景</h4>
+          <pre style={{ background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+{`# 1. 函数参数（不需要引号）
+import requests
+api_url = inputs.get('ctx.API_URL', 'https://api.example.com')
+timeout = safe_int(inputs.get('ctx.TIMEOUT'), 30)
+
+response = requests.get(api_url, timeout=timeout)  # ✅ 直接使用变量
+
+# 2. 数值运算（不需要引号）
+count = safe_int(inputs.get('count'), 10)
+multiplier = safe_int(inputs.get('multiplier'), 2)
+
+result = count * multiplier  # ✅ 直接使用变量进行计算
+
+# 3. 字典的值（不需要引号）
+db_host = inputs.get('ctx.DB_HOST', 'localhost')
+db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)
+
+config = {
+    'host': db_host,      # ✅ 直接使用变量作为字典的值
+    'port': db_port,      # ✅ 直接使用变量
+    'database': 'mydb'
+}
+
+# 4. 条件判断（不需要引号）
+status = inputs.get('status', 'pending')
+
+if status == 'success':  # ✅ 直接使用变量进行比较
+    print("操作成功")`}
+          </pre>
+
+          <h4>字符串 vs 变量值对比</h4>
+          <pre style={{ background: '#e6f7ff', padding: 12, borderRadius: 4, border: '1px solid #91d5ff' }}>
+{`teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+
+# 场景1: 在字符串中使用变量 → 需要 f-string 或 format
+url = f"http://localhost:{teamcity_port}/api"  # ✅ f-string
+# 不能写成: url = "http://localhost:teamcity_port/api"  # ❌ 错误！
+
+# 场景2: 作为函数参数传递变量 → 不需要引号
+port_num = safe_int(teamcity_port, 8111)  # ✅ 直接使用变量
+# 不能写成: port_num = safe_int('teamcity_port', 8111)  # ❌ 错误！这会尝试转换字符串 'teamcity_port'
+
+# 场景3: 打印变量值 → 不需要引号
+print(teamcity_port)  # ✅ 输出: 8111
+# 不能写成: print('teamcity_port')  # ❌ 这会输出字符串 'teamcity_port'`}
+          </pre>
+
+          <Divider />
+
+          <h3>📚 Python 基础语法提示</h3>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>1. 条件语句 (if-elif-else)</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`count = safe_int(inputs.get('count'), 0)
+
+if count > 100:
+    result = "大量数据"
+elif count > 10:
+    result = "中等数据"
+else:
+    result = "少量数据"
+
+# 注意: Python 使用缩进表示代码块，if/elif/else 后面要加冒号`}
+            </pre>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>2. 循环语句 (for 和 while)</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`# for 循环
+items = ['apple', 'banana', 'cherry']
+for item in items:
+    print(f"处理: {item}")
+
+# range() 函数
+for i in range(5):  # 0, 1, 2, 3, 4
+    print(f"第 {i} 次循环")
+
+# while 循环
+count = 0
+while count < 5:
+    print(count)
+    count += 1  # count = count + 1 的简写`}
+            </pre>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>3. 列表和字典操作</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`# 列表操作
+my_list = [1, 2, 3, 4, 5]
+my_list.append(6)           # 添加元素
+first = my_list[0]          # 获取第一个元素 (索引从 0 开始)
+last = my_list[-1]          # 获取最后一个元素
+length = len(my_list)       # 获取列表长度
+
+# 字典操作
+my_dict = {'name': 'Alice', 'age': 25}
+name = my_dict.get('name', 'Unknown')  # 安全获取，支持默认值
+my_dict['email'] = 'alice@example.com'  # 添加或更新
+keys = my_dict.keys()       # 获取所有键
+values = my_dict.values()   # 获取所有值`}
+            </pre>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>4. 函数定义和调用</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`# 定义函数
+def calculate_sum(a, b):
+    """计算两个数的和"""
+    return a + b
+
+# 调用函数
+result = calculate_sum(10, 20)
+
+# 带默认参数的函数
+def greet(name, greeting="你好"):
+    return f"{greeting}, {name}"
+
+msg1 = greet("张三")              # 使用默认值
+msg2 = greet("李四", "早上好")   # 自定义问候语`}
+            </pre>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>5. 字符串常用方法</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`text = "  Hello World  "
+
+# 常用方法
+lower_text = text.lower()         # 转小写
+upper_text = text.upper()         # 转大写
+stripped = text.strip()           # 去除首尾空白
+replaced = text.replace("Hello", "Hi")  # 替换
+split_list = text.split()         # 按空格分割成列表
+joined = "-".join(['a', 'b', 'c'])  # 用-连接列表: "a-b-c"
+
+# 判断
+is_digit = "123".isdigit()        # 是否全是数字
+starts = text.startswith("He")    # 是否以某字符串开头
+contains = "World" in text        # 是否包含某字符串`}
+            </pre>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>6. JSON 处理</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`import json
+
+# JSON 字符串转 Python 对象
+json_str = '{"name": "Alice", "age": 25}'
+data = json.loads(json_str)  # 转成字典
+
+# Python 对象转 JSON 字符串
+python_dict = {"name": "Bob", "age": 30}
+json_output = json.dumps(python_dict, ensure_ascii=False)  # 支持中文
+
+# 实际使用示例
+config_str = inputs.get('config', '{}')
+config = json.loads(config_str) if isinstance(config_str, str) else config_str`}
+            </pre>
+          </Card>
+
+          <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
+            <strong>7. 异常处理 (try-except)</strong>
+            <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginTop: 4 }}>
+{`# 基本用法
+try:
+    result = 10 / 0  # 可能出错的代码
+except ZeroDivisionError as e:
+    print(f"除零错误: {e}")
+    result = 0
+
+# 捕获多种异常
+try:
+    value = int("abc")
+except (ValueError, TypeError) as e:
+    print(f"类型错误: {e}")
+    value = 0
+
+# 通用异常捕获
+try:
+    risky_operation()
+except Exception as e:
+    print(f"发生错误: {e}")
+finally:
+    print("无论是否异常都会执行")`}
+            </pre>
+          </Card>
 
           <Divider />
 
