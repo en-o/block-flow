@@ -1189,16 +1189,20 @@ const Flow: React.FC = () => {
                   </span>
                 ),
                 children: (
-                  <div
-                    className="toolbox-content"
-                    onScroll={(e) => handleScroll(e, 'blocks')}
-                  >
+                  <div className="toolbox-content">
                     {loading ? (
-                      <Spin />
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <Spin />
+                      </div>
                     ) : blocks.length === 0 ? (
-                      <Empty description="暂无可用块" />
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <Empty description="暂无可用块" />
+                      </div>
                     ) : (
-                      <>
+                      <div
+                        className="workflow-list-container"
+                        onScroll={(e) => handleScroll(e, 'blocks')}
+                      >
                         {blocks.map((block) => (
                           <div
                             key={block.id}
@@ -1230,7 +1234,7 @@ const Flow: React.FC = () => {
                             没有更多数据了
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
                   </div>
                 ),
