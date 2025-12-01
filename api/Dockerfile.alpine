@@ -58,12 +58,13 @@ RUN apk add --no-cache \
     ca-certificates
 
 # 创建必要的目录
-RUN mkdir -p /app/data \
-             /app/logs \
-             /app/python-envs && \
-    addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
-    chown -R appuser:appuser /app
+RUN mkdir -p /app/data /app/logs /app/python-envs
+# UN mkdir -p /app/data \
+#             /app/logs \
+#             /app/python-envs && \
+#    addgroup -g 1000 appuser && \
+#    adduser -D -u 1000 -G appuser appuser && \
+#    chown -R appuser:appuser /app
 
 # 暴露端口
 EXPOSE 1250
@@ -74,7 +75,7 @@ ENV CONFIG_ENV="prod"
 ENV SPRING_PROFILES_ACTIVE="prod"
 
 # 切换到非 root 用户
-USER appuser
+# USER appuser
 
 # 启动应用
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/block-flow.jar"]

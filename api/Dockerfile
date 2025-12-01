@@ -87,7 +87,7 @@ ENV CONFIG_ENV="prod"
 ENV SPRING_PROFILES_ACTIVE="prod"
 
 # 切换到非 root 用户
-USER appuser
+#USER appuser
 
 # 启动应用
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/block-flow.jar"]
