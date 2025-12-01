@@ -1146,6 +1146,47 @@ const Flow: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  // 格式化日志详情：检测并格式化JSON数据
+  const formatLogDetail = useCallback((logText: string) => {
+    if (!logText) return logText;
+
+    // 分行处理
+    const lines = logText.split('\n');
+    const formattedLines: string[] = [];
+
+    lines.forEach((line) => {
+      // 检测包含JSON的行（通常是 "输入参数:" 或 "输出结果:" 后面的内容）
+      const jsonPatterns = [
+        /^(\s*)(输入参数|输出结果|错误信息):\s*(\{.*\}|\[.*\])$/,
+        /^(\s*)(\w+)\s*=\s*(\{.*\}|\[.*\])$/,
+      ];
+
+      let matched = false;
+      for (const pattern of jsonPatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          try {
+            const jsonStr = match[3];
+            const jsonObj = JSON.parse(jsonStr);
+            const formatted = JSON.stringify(jsonObj, null, 2);
+            // 保留原有的前缀（如"输入参数: "），然后添加格式化的JSON
+            formattedLines.push(`${match[1]}${match[2]}: ${formatted}`);
+            matched = true;
+            break;
+          } catch (e) {
+            // JSON解析失败，保持原样
+          }
+        }
+      }
+
+      if (!matched) {
+        formattedLines.push(line);
+      }
+    });
+
+    return formattedLines.join('\n');
+  }, []);
+
   return (
     <div className="flow-container">
       <div className="flow-header">
@@ -1971,7 +2012,7 @@ const Flow: React.FC = () => {
                           overflowY: 'auto',
                         }}
                       >
-                        {logDetail}
+                        {formatLogDetail(logDetail)}
                       </pre>
                     ) : (
                       <Spin tip="加载日志中..." />
