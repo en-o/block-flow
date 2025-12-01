@@ -305,6 +305,37 @@ public class PythonScriptExecutor {
             wrapped.append("\n");
         }
 
+        // 注入内置的安全类型转换函数
+        wrapped.append("# ========== 内置安全类型转换函数 ==========\n");
+        wrapped.append("def safe_int(value, default=0):\n");
+        wrapped.append("    \"\"\"安全地转换为整数，处理空字符串、None和无效值\"\"\"\n");
+        wrapped.append("    if value is None or value == '':\n");
+        wrapped.append("        return default\n");
+        wrapped.append("    try:\n");
+        wrapped.append("        return int(value)\n");
+        wrapped.append("    except (ValueError, TypeError):\n");
+        wrapped.append("        return default\n");
+        wrapped.append("\n");
+        wrapped.append("def safe_float(value, default=0.0):\n");
+        wrapped.append("    \"\"\"安全地转换为浮点数，处理空字符串、None和无效值\"\"\"\n");
+        wrapped.append("    if value is None or value == '':\n");
+        wrapped.append("        return default\n");
+        wrapped.append("    try:\n");
+        wrapped.append("        return float(value)\n");
+        wrapped.append("    except (ValueError, TypeError):\n");
+        wrapped.append("        return default\n");
+        wrapped.append("\n");
+        wrapped.append("def safe_bool(value, default=False):\n");
+        wrapped.append("    \"\"\"安全地转换为布尔值\"\"\"\n");
+        wrapped.append("    if value is None or value == '':\n");
+        wrapped.append("        return default\n");
+        wrapped.append("    if isinstance(value, bool):\n");
+        wrapped.append("        return value\n");
+        wrapped.append("    if isinstance(value, str):\n");
+        wrapped.append("        return value.lower() in ['true', '1', 'yes', 'on']\n");
+        wrapped.append("    return bool(value)\n");
+        wrapped.append("\n");
+
         // 捕获 print 输出
         wrapped.append("# 捕获 print 输出，避免混入 JSON 结果\n");
         wrapped.append("_original_stdout = sys.stdout\n");
