@@ -8,6 +8,7 @@ INSERT INTO `block_types` ( `create_time`, `update_time`, `code`, `name`, `sort_
 INSERT INTO `block_types` ( `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES ( '2025-11-18 13:06:42.879913', '2025-11-18 13:06:42.879913', 'node', 'node', 0);
 INSERT INTO `block_types` ( `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES ( '2025-11-18 13:07:18.431345', '2025-11-18 13:07:18.431345', 'tool', '工具', 0);
 INSERT INTO `block_types` ( `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES ( '2025-11-18 13:07:27.550446', '2025-11-18 13:07:27.550446', 'notify', '通知', 0);
+INSERT INTO `block_types` ( `create_time`, `update_time`, `code`, `name`, `sort_order`) VALUES ( '2025-12-01 10:45:58.235283', '2025-12-01 10:45:58.235292', 'test_code', '测试', 6);
 
 
 -- 流程分类
