@@ -252,6 +252,7 @@ export interface BlockPage {
 export interface BlockTestDTO {
   inputs: Record<string, any>;
   tempScript?: string; // 临时脚本（用于可视化模式测试）
+  timeoutSeconds?: number; // 超时时间（秒）
 }
 
 // ===================
@@ -425,6 +426,7 @@ export interface WorkflowExecuteDTO {
   workflowId: number;
   executorUsername?: string;
   inputParams?: Record<string, any>;
+  timeoutSeconds?: number; // 超时时间（秒）
 }
 
 // ===================
