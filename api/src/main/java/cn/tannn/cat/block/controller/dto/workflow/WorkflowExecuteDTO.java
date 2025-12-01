@@ -23,4 +23,7 @@ public class WorkflowExecuteDTO implements Serializable {
 
     @Schema(description = "输入参数")
     private JSONObject inputParams;
+
+    @Schema(description = "超时时间（秒），默认60秒", example = "60")
+    private Long timeoutSeconds;
 }

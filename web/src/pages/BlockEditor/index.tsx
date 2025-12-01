@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Form,
   Input,
+  InputNumber,
   Select,
   Button,
   Radio,
@@ -135,6 +136,7 @@ outputs = {
   const [testInputs, setTestInputs] = useState<Record<string, any>>({});
   const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
+  const [testTimeout, setTestTimeout] = useState<number>(60); // 默认60秒
   const [helpModalVisible, setHelpModalVisible] = useState(false);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
@@ -1172,6 +1174,7 @@ outputs = {
       const response = await blockApi.test(block.id, {
         inputs: filteredInputs, // 使用过滤后的参数
         tempScript: codeToTest, // 传入临时代码用于测试
+        timeoutSeconds: testTimeout, // 传入超时时间
       });
 
       if (response.code === 200) {
@@ -1895,6 +1898,27 @@ outputs = {
           </Button>,
         ]}
       >
+        <div style={{ marginBottom: 16 }}>
+          <h4>执行配置</h4>
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '14px', color: '#666' }}>超时时间：</span>
+            <InputNumber
+              value={testTimeout}
+              onChange={(value) => setTestTimeout(value || 60)}
+              min={1}
+              max={600}
+              step={10}
+              style={{ width: 120 }}
+              addonAfter="秒"
+            />
+            <Tooltip title="脚本执行的最大等待时间，超过该时间将自动终止执行">
+              <QuestionCircleOutlined style={{ color: '#999', cursor: 'help' }} />
+            </Tooltip>
+          </div>
+        </div>
+
+        <Divider />
+
         <div style={{ marginBottom: 16 }}>
           <h4>输入参数</h4>
           {inputParamsRef.current.length === 0 ? (
@@ -2690,7 +2714,7 @@ finally:
           <Card size="small" style={{ marginBottom: 8, background: '#fff7e6', borderColor: '#ffd591' }}>
             <strong>7. 执行时间限制</strong>
             <br />
-            • 默认超时时间为 60 秒
+            • 脚本执行超时时间默认为 60 秒（可在测试或执行流程时自定义配置）
             <br />
             • 避免死循环和耗时过长的操作
             <br />

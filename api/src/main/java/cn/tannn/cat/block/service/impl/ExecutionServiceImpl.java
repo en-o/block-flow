@@ -74,7 +74,10 @@ public class ExecutionServiceImpl implements ExecutionService {
 
         // 异步执行流程
         Long executionId = executionLog.getId();
-        executeWorkflowAsync(executionId, workflow, executeDTO.getInputParams());
+        Long timeoutSeconds = executeDTO.getTimeoutSeconds() != null && executeDTO.getTimeoutSeconds() > 0
+                ? executeDTO.getTimeoutSeconds()
+                : 60L;
+        executeWorkflowAsync(executionId, workflow, executeDTO.getInputParams(), timeoutSeconds);
 
         return executionLog;
     }
@@ -83,7 +86,7 @@ public class ExecutionServiceImpl implements ExecutionService {
      * 异步执行流程
      */
     @Async
-    public void executeWorkflowAsync(Long executionId, Workflow workflow, JSONObject inputParams) {
+    public void executeWorkflowAsync(Long executionId, Workflow workflow, JSONObject inputParams, Long timeoutSeconds) {
         ExecutionLog executionLog = executionLogRepository.findById(executionId)
                 .orElseThrow(() -> new RuntimeException("执行记录不存在"));
 
@@ -326,11 +329,12 @@ public class ExecutionServiceImpl implements ExecutionService {
 
                 // 执行块
                 try {
+                    logsBuilder.append(String.format("  使用超时时间: %d 秒\n", timeoutSeconds));
                     PythonScriptExecutor.ExecutionResult result = pythonScriptExecutor.execute(
                             pythonEnvId,
                             script,
                             blockInputs,
-                            60L
+                            timeoutSeconds
                     );
 
                     if (result.isSuccess()) {

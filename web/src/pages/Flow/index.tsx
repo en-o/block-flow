@@ -15,8 +15,8 @@ import {
   Panel,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button, Input, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown, Drawer, Tag, List, Divider, App } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, FileTextOutlined, ReloadOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Button, Input, InputNumber, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown, Drawer, Tag, List, Divider, App, Tooltip } from 'antd';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, FileTextOutlined, ReloadOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
@@ -66,6 +66,10 @@ const Flow: React.FC = () => {
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
   const [logDetail, setLogDetail] = useState<string>('');
+
+  // 流程执行配置状态
+  const [executeModalVisible, setExecuteModalVisible] = useState(false);
+  const [workflowTimeout, setWorkflowTimeout] = useState<number>(60); // 默认60秒
 
   // 加载块库和流程分类
   useEffect(() => {
@@ -792,7 +796,7 @@ const Flow: React.FC = () => {
     }
   };
 
-  // 执行流程
+  // 打开执行配置弹窗
   const handleExecute = async () => {
     if (!currentWorkflow) {
       message.warning('请先保存流程后再执行');
@@ -876,6 +880,18 @@ const Flow: React.FC = () => {
       return;
     }
 
+    // 参数验证通过，打开执行配置弹窗
+    setExecuteModalVisible(true);
+  };
+
+  // 确认执行流程
+  const handleConfirmExecute = async () => {
+    if (!currentWorkflow) {
+      return;
+    }
+
+    setExecuteModalVisible(false);
+
     try {
       console.log('开始执行流程, workflowId:', currentWorkflow.id);
 
@@ -884,6 +900,7 @@ const Flow: React.FC = () => {
         workflowId: currentWorkflow.id,
         executorUsername: '', // 后端会从JWT token中自动获取
         inputParams: undefined, // 可选的全局输入参数
+        timeoutSeconds: workflowTimeout, // 传入超时时间
       });
 
       console.log('执行API响应:', response);
@@ -1667,6 +1684,38 @@ const Flow: React.FC = () => {
             <Checkbox>设为公共流程（其他用户可见并使用）</Checkbox>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 执行配置弹窗 */}
+      <Modal
+        title="流程执行配置"
+        open={executeModalVisible}
+        onOk={handleConfirmExecute}
+        onCancel={() => setExecuteModalVisible(false)}
+        okText="开始执行"
+        cancelText="取消"
+      >
+        <div>
+          <h4>执行配置</h4>
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '14px', color: '#666' }}>超时时间：</span>
+            <InputNumber
+              value={workflowTimeout}
+              onChange={(value) => setWorkflowTimeout(value || 60)}
+              min={1}
+              max={600}
+              step={10}
+              style={{ width: 120 }}
+              addonAfter="秒"
+            />
+            <Tooltip title="流程执行的最大等待时间，超过该时间将自动终止执行">
+              <QuestionCircleOutlined style={{ color: '#999', cursor: 'help' }} />
+            </Tooltip>
+          </div>
+          <p style={{ fontSize: '12px', color: '#8c8c8c', marginTop: 12 }}>
+            注意：超时时间适用于流程中的所有块执行
+          </p>
+        </div>
       </Modal>
 
       {/* 执行日志抽屉 */}

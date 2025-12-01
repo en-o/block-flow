@@ -23,4 +23,7 @@ public class BlockTestDTO implements Serializable {
 
     @Schema(description = "临时脚本（用于可视化模式测试，如果提供则使用此脚本而非块的script字段）")
     private String tempScript;
+
+    @Schema(description = "超时时间（秒），默认60秒", example = "60")
+    private Long timeoutSeconds;
 }

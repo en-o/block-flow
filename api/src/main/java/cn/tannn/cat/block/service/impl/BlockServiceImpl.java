@@ -258,11 +258,18 @@ public class BlockServiceImpl implements BlockService {
 
             log.info("测试块 {}, 输入参数数量: {}", block.getName(), mergedInputs.size());
 
-            // 执行Python脚本（使用确定的脚本）
+            // 获取超时时间（如果未指定则使用默认值60秒）
+            long timeoutSeconds = testDTO.getTimeoutSeconds() != null && testDTO.getTimeoutSeconds() > 0
+                    ? testDTO.getTimeoutSeconds()
+                    : 60L;
+            log.info("使用超时时间: {} 秒", timeoutSeconds);
+
+            // 执行Python脚本（使用确定的脚本和超时时间）
             PythonScriptExecutor.ExecutionResult result = pythonScriptExecutor.execute(
                     block.getPythonEnvId(),
                     scriptToExecute,
-                    mergedInputs
+                    mergedInputs,
+                    timeoutSeconds
             );
 
             // 构建返回结果
