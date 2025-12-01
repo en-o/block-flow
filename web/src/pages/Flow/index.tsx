@@ -401,6 +401,24 @@ const Flow: React.FC = () => {
     setSelectedNodeId(null); // 清除节点的选择
   }, []);
 
+  // 更新边的 JSON 路径配置
+  const updateEdgeFieldPath = useCallback((edgeId: string, fieldPath: string) => {
+    setEdges((eds) =>
+      eds.map((edge) => {
+        if (edge.id === edgeId) {
+          return {
+            ...edge,
+            data: {
+              ...(edge.data || {}),
+              fieldPath: fieldPath || undefined, // 空字符串时设为 undefined
+            },
+          };
+        }
+        return edge;
+      })
+    );
+  }, [setEdges]);
+
   // 点击画布空白处清除选择
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
@@ -530,6 +548,7 @@ const Flow: React.FC = () => {
           target: edge.target,
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
+          data: edge.data, // 包含 fieldPath
         })),
       };
 
@@ -616,6 +635,7 @@ const Flow: React.FC = () => {
           target: edge.target,
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
+          data: edge.data, // 包含 fieldPath
         })),
       };
 
@@ -687,6 +707,7 @@ const Flow: React.FC = () => {
           target: edge.target,
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
+          data: edge.data, // 包含 fieldPath
         })),
       };
 
@@ -1695,6 +1716,35 @@ const Flow: React.FC = () => {
                 <Form.Item label="目标输入">
                   <Input value={selectedEdge.targetHandle ? selectedEdge.targetHandle.replace('input-', '') : '默认输入'} disabled />
                 </Form.Item>
+                {/* JSON 路径提取配置 */}
+                <Form.Item
+                  label={
+                    <span>
+                      JSON 路径提取
+                      <Tooltip title={
+                        <div>
+                          <p>用于从源节点的输出中提取嵌套字段</p>
+                          <p><strong>示例：</strong></p>
+                          <p>• 提取对象字段：<code>projects</code></p>
+                          <p>• 提取嵌套字段：<code>fullUrl.projects</code></p>
+                          <p>• 提取数组元素：<code>items[0]</code></p>
+                          <p>• 复杂路径：<code>data.users[0].name</code></p>
+                          <p style={{ marginTop: 8 }}>留空则传递完整数据</p>
+                        </div>
+                      }>
+                        <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff', cursor: 'help' }} />
+                      </Tooltip>
+                    </span>
+                  }
+                  extra="留空则传递完整的输出数据，填写路径则只传递指定字段的值"
+                >
+                  <Input
+                    placeholder="例如: fullUrl.projects 或 items[0].name"
+                    value={(selectedEdge.data as any)?.fieldPath || ''}
+                    onChange={(e) => updateEdgeFieldPath(selectedEdge.id, e.target.value)}
+                    allowClear
+                  />
+                </Form.Item>
                 {/* 显示连接详情 */}
                 {selectedEdge.sourceHandle && selectedEdge.targetHandle && (
                   <Form.Item label="数据流向">
@@ -1705,6 +1755,13 @@ const Flow: React.FC = () => {
                         </div>
                         <div style={{ marginLeft: '12px', marginBottom: '8px', color: '#1890ff' }}>
                           ↓ 输出: <strong>{selectedEdge.sourceHandle.replace('output-', '')}</strong>
+                          {(selectedEdge.data as any)?.fieldPath && (
+                            <div style={{ fontSize: '12px', color: '#52c41a', marginTop: '4px' }}>
+                              🔍 提取路径: <code style={{ background: '#f6ffed', padding: '2px 6px', borderRadius: '2px' }}>
+                                {(selectedEdge.data as any).fieldPath}
+                              </code>
+                            </div>
+                          )}
                         </div>
                         <div style={{ marginBottom: '8px' }}>
                           <strong>到:</strong> {nodes.find(n => n.id === selectedEdge.target)?.data?.blockName}

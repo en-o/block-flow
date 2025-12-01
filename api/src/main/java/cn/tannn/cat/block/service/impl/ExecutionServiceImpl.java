@@ -250,9 +250,23 @@ public class ExecutionServiceImpl implements ExecutionService {
                                 String inputKey = targetHandle.replace("input-", "");
 
                                 if (sourceOutput.containsKey(outputKey)) {
-                                    blockInputs.put(inputKey, sourceOutput.get(outputKey));
-                                    logsBuilder.append(String.format("  接收参数: %s = %s (来自前置节点)\n",
-                                            inputKey, sourceOutput.get(outputKey)));
+                                    Object value = sourceOutput.get(outputKey);
+
+                                    // 支持 JSON 路径提取
+                                    JSONObject edgeData = edge.getJSONObject("data");
+                                    String fieldPath = edgeData != null ? edgeData.getString("fieldPath") : null;
+
+                                    if (fieldPath != null && !fieldPath.trim().isEmpty()) {
+                                        // 提取嵌套字段
+                                        value = extractFieldByPath(value, fieldPath);
+                                        logsBuilder.append(String.format("  接收参数: %s = %s (来自前置节点，路径: %s)\n",
+                                                inputKey, value, fieldPath));
+                                    } else {
+                                        logsBuilder.append(String.format("  接收参数: %s = %s (来自前置节点)\n",
+                                                inputKey, value));
+                                    }
+
+                                    blockInputs.put(inputKey, value);
                                 }
                             }
                         }
@@ -409,6 +423,99 @@ public class ExecutionServiceImpl implements ExecutionService {
             log.error("流程执行失败: executionId={}, workflowId={}, error={}",
                     executionId, workflow.getId(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * 根据路径提取嵌套字段
+     * 支持格式：
+     * - 点分隔：fullUrl.projects
+     * - 数组索引：items[0]
+     * - 组合：data.users[0].name
+     *
+     * @param value     源数据对象
+     * @param fieldPath 字段路径
+     * @return 提取的值
+     */
+    private Object extractFieldByPath(Object value, String fieldPath) {
+        if (value == null || fieldPath == null || fieldPath.trim().isEmpty()) {
+            return value;
+        }
+
+        Object current = value;
+        String[] pathSegments = fieldPath.split("\\.");
+
+        for (String segment : pathSegments) {
+            if (current == null) {
+                break;
+            }
+
+            // 处理数组索引，例如 items[0]
+            if (segment.contains("[") && segment.contains("]")) {
+                String fieldName = segment.substring(0, segment.indexOf("["));
+                String indexStr = segment.substring(segment.indexOf("[") + 1, segment.indexOf("]"));
+
+                try {
+                    int index = Integer.parseInt(indexStr);
+
+                    // 先获取数组字段
+                    if (!fieldName.isEmpty()) {
+                        current = getFieldValue(current, fieldName);
+                    }
+
+                    // 再获取数组元素
+                    if (current instanceof List) {
+                        List<?> list = (List<?>) current;
+                        if (index >= 0 && index < list.size()) {
+                            current = list.get(index);
+                        } else {
+                            log.warn("数组索引越界: index={}, size={}", index, list.size());
+                            return null;
+                        }
+                    } else if (current instanceof JSONArray) {
+                        JSONArray array = (JSONArray) current;
+                        if (index >= 0 && index < array.size()) {
+                            current = array.get(index);
+                        } else {
+                            log.warn("数组索引越界: index={}, size={}", index, array.size());
+                            return null;
+                        }
+                    } else {
+                        log.warn("字段 {} 不是数组类型: {}", fieldName, current.getClass().getSimpleName());
+                        return null;
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("无效的数组索引: {}", indexStr);
+                    return null;
+                }
+            } else {
+                // 普通字段访问
+                current = getFieldValue(current, segment);
+            }
+        }
+
+        return current;
+    }
+
+    /**
+     * 从对象中获取字段值
+     */
+    private Object getFieldValue(Object obj, String fieldName) {
+        if (obj == null || fieldName == null) {
+            return null;
+        }
+
+        // 支持 Map
+        if (obj instanceof Map) {
+            return ((Map<?, ?>) obj).get(fieldName);
+        }
+
+        // 支持 JSONObject
+        if (obj instanceof JSONObject) {
+            return ((JSONObject) obj).get(fieldName);
+        }
+
+        log.warn("不支持的对象类型: {}", obj.getClass().getSimpleName());
+        return null;
     }
 
     /**
