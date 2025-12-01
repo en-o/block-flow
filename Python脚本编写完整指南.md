@@ -424,6 +424,190 @@ connection = connect(
 ⚠️ 修改上下文变量会影响所有使用它的脚本
 ```
 
+### 变量引用和字符串插值
+
+获取变量后,可以通过多种方式在字符串中使用变量值。
+
+#### 方法1: f-string(推荐)
+
+```python
+# 获取变量
+teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+username = inputs.get('name', 'admin')
+
+# 在字符串中引用变量
+url = f"http://localhost:{teamcity_port}/api"
+message = f"用户 {username} 的端口是 {teamcity_port}"
+
+# 输出示例:
+# url = "http://localhost:8111/api"
+# message = "用户 admin 的端口是 8111"
+```
+
+#### 方法2: format()方法
+
+```python
+# 获取变量
+teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+
+# 使用 format() 方法
+url = "http://localhost:{}/api".format(teamcity_port)
+message = "端口: {port}, 状态: {status}".format(
+    port=teamcity_port,
+    status="running"
+)
+
+# 输出示例:
+# url = "http://localhost:8111/api"
+# message = "端口: 8111, 状态: running"
+```
+
+#### 方法3: 字符串拼接
+
+```python
+# 获取变量
+teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+
+# 使用 + 拼接
+url = "http://localhost:" + teamcity_port + "/api"
+message = "端口是 " + str(teamcity_port)  # 注意:非字符串需要转换
+
+# 输出示例:
+# url = "http://localhost:8111/api"
+# message = "端口是 8111"
+```
+
+#### 方法4: 模板字符串(Template)
+
+```python
+from string import Template
+
+# 获取变量
+teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+
+# 使用 Template
+template = Template("http://localhost:$port/api")
+url = template.substitute(port=teamcity_port)
+
+# 输出示例:
+# url = "http://localhost:8111/api"
+```
+
+#### 完整示例: 组合使用
+
+```python
+# -*- coding: utf-8 -*-
+
+# ========== 安全转换函数 ==========
+def safe_int(value, default=0):
+    if value is None or value == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+# ========== 获取上下文变量 ==========
+teamcity_host = inputs.get('ctx.TEAMCITY_HOST', 'localhost')
+teamcity_port = inputs.get('ctx.TEAMCITY_PORT', '8111')
+teamcity_user = inputs.get('ctx.TEAMCITY_USER', 'admin')
+
+# ========== 字符串中使用变量 ==========
+# 方式1: f-string(最推荐)
+base_url = f"http://{teamcity_host}:{teamcity_port}"
+api_url = f"{base_url}/app/rest/builds"
+login_info = f"用户 {teamcity_user} 连接到 {teamcity_host}:{teamcity_port}"
+
+# 方式2: 多行字符串中使用变量
+config_text = f"""
+TeamCity 配置:
+  主机: {teamcity_host}
+  端口: {teamcity_port}
+  用户: {teamcity_user}
+  API: {api_url}
+"""
+
+# 方式3: 在字典/JSON中使用
+outputs = {
+    "success": True,
+    "config": {
+        "url": f"http://{teamcity_host}:{teamcity_port}",
+        "user": teamcity_user,
+        "message": f"连接到 {teamcity_host}:{teamcity_port} 成功"
+    }
+}
+```
+
+#### 常见场景示例
+
+**场景1: 构建 URL**
+
+```python
+# 获取变量
+api_host = inputs.get('ctx.API_HOST', 'api.example.com')
+api_version = inputs.get('ctx.API_VERSION', 'v1')
+resource = inputs.get('resource', 'users')
+resource_id = inputs.get('id', '123')
+
+# 构建完整 URL
+url = f"https://{api_host}/{api_version}/{resource}/{resource_id}"
+# 结果: https://api.example.com/v1/users/123
+```
+
+**场景2: 构建命令字符串**
+
+```python
+# 获取变量
+docker_image = inputs.get('ctx.DOCKER_IMAGE', 'nginx')
+docker_tag = inputs.get('ctx.DOCKER_TAG', 'latest')
+container_name = inputs.get('name', 'my-app')
+port = safe_int(inputs.get('ctx.PORT'), 8080)
+
+# 构建 Docker 命令
+docker_cmd = f"docker run -d --name {container_name} -p {port}:80 {docker_image}:{docker_tag}"
+# 结果: docker run -d --name my-app -p 8080:80 nginx:latest
+```
+
+**场景3: 构建数据库连接字符串**
+
+```python
+# 获取变量
+db_host = inputs.get('ctx.DB_HOST', 'localhost')
+db_port = safe_int(inputs.get('ctx.DB_PORT'), 3306)
+db_name = inputs.get('ctx.DB_NAME', 'mydb')
+db_user = inputs.get('ctx.DB_USER', 'root')
+db_password = inputs.get('ctx.DB_PASSWORD', '')
+
+# 构建连接字符串
+connection_string = f"mysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+# 结果: mysql://root:password@localhost:3306/mydb
+```
+
+**场景4: 生成日志消息**
+
+```python
+# 获取变量
+username = inputs.get('username', 'Unknown')
+action = inputs.get('action', 'login')
+timestamp = inputs.get('timestamp', '2025-01-21 10:00:00')
+
+# 生成日志
+log_message = f"[{timestamp}] 用户 {username} 执行了 {action} 操作"
+print(log_message)
+# 输出: [2025-01-21 10:00:00] 用户 Unknown 执行了 login 操作
+```
+
+#### 注意事项
+
+```
+✅ f-string 是最推荐的方式,代码简洁易读(Python 3.6+)
+✅ 可以在 f-string 中进行简单的表达式计算: f"{count * 2}"
+✅ 多行字符串也可以使用 f-string
+⚠️ 非字符串类型在拼接时需要转换: str(port)
+⚠️ f-string 中的大括号需要转义: f"{{key}}: {value}"  # 输出 {key}: xxx
+❌ 不要在字符串中直接写变量名期望自动替换: "端口: teamcity_port"  # 错误!
+```
+
 ---
 
 ## 输入输出处理
