@@ -91,6 +91,37 @@
   padding: 16px;
 }
 
+/* 流程tab的容器 - 需要flex布局来让子元素正确缩放 */
+.workflow-tab-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.workflow-tab-content .ant-radio-group {
+  flex-shrink: 0; /* 不允许压缩 */
+  margin-bottom: 12px;
+}
+
+/* 流程提示信息 */
+.workflow-hint {
+  flex-shrink: 0; /* 不允许压缩 */
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #8c8c8c;
+  background: #fafafa;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+/* 流程列表容器 - 自适应高度并支持滚动 */
+.workflow-list-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0; /* 允许在flex布局中正确缩小 */
+}
+
 /* 流程项目样式 */
 .workflow-item {
   padding: 12px;

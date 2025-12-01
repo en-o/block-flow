@@ -1244,7 +1244,7 @@ const Flow: React.FC = () => {
                 ),
                 children: (
                   <div className="toolbox-content">
-                    <div style={{ padding: '8px' }}>
+                    <div className="workflow-tab-content">
                       <Radio.Group
                         value={workflowViewType}
                         onChange={(e) => {
@@ -1258,7 +1258,7 @@ const Flow: React.FC = () => {
                             loadMyWorkflows();
                           }
                         }}
-                        style={{ marginBottom: '12px', width: '100%' }}
+                        style={{ width: '100%' }}
                       >
                         <Radio.Button value="public" style={{ width: '50%', textAlign: 'center' }}>
                           公共流程
@@ -1273,11 +1273,11 @@ const Flow: React.FC = () => {
                           <Empty description="暂无公共流程" />
                         ) : (
                           <>
-                            <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8c8c8c', background: '#fafafa', borderRadius: '4px', margin: '0 0 12px 0' }}>
+                            <div className="workflow-hint">
                               💡 双击流程可使用，将作为新流程保存（会保留原分类）
                             </div>
                             <div
-                              style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}
+                              className="workflow-list-container"
                               onScroll={(e) => handleScroll(e, 'publicWorkflows')}
                             >
                               {publicWorkflows.map((workflow) => (
@@ -1333,11 +1333,11 @@ const Flow: React.FC = () => {
                           <Empty description="暂无我的流程" />
                         ) : (
                           <>
-                            <div style={{ padding: '8px 12px', fontSize: '12px', color: '#8c8c8c', background: '#fafafa', borderRadius: '4px', margin: '0 0 12px 0' }}>
+                            <div className="workflow-hint">
                               💡 单击打开流程进行编辑
                             </div>
                             <div
-                              style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}
+                              className="workflow-list-container"
                               onScroll={(e) => handleScroll(e, 'myWorkflows')}
                             >
                               {myWorkflows.map((workflow) => (
