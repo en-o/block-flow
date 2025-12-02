@@ -2391,11 +2391,12 @@ const Flow: React.FC = () => {
               </div>
 
               {/* 右侧：日志详情 */}
-              <div style={{ flex: 1, overflowY: 'auto' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 {selectedLogId ? (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                      <Divider orientation="left" style={{ margin: 0, flex: 1 }}>执行日志详情</Divider>
+                  <>
+                    {/* 固定的标题和按钮区域 */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', flexShrink: 0 }}>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>执行日志详情</h4>
                       {logDetail && (
                         <Button
                           icon={<CopyOutlined />}
@@ -2407,26 +2408,27 @@ const Flow: React.FC = () => {
                         </Button>
                       )}
                     </div>
-                    {logDetail ? (
-                      <pre
-                        style={{
-                          background: '#f5f5f5',
-                          padding: '16px',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          lineHeight: '1.6',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          maxHeight: 'calc(100vh - 220px)',
-                          overflowY: 'auto',
-                        }}
-                      >
-                        {formatLogDetail(logDetail)}
-                      </pre>
-                    ) : (
-                      <Spin tip="加载日志中..." />
-                    )}
-                  </div>
+                    {/* 可滚动的日志内容区域 */}
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
+                      {logDetail ? (
+                        <pre
+                          style={{
+                            background: '#f5f5f5',
+                            padding: '16px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            lineHeight: '1.6',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {formatLogDetail(logDetail)}
+                        </pre>
+                      ) : (
+                        <Spin tip="加载日志中..." />
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <Empty
                     description="请选择一条执行记录查看详情"
