@@ -74,6 +74,7 @@ export default defineConfig(({ mode }) => {
         // 代理所有 /api 请求到后端服务器
         [apiBaseUrl]: {
           target: 'http://localhost:1250',
+          // target: 'http://192.168.1.95:1250',
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${apiBaseUrl}`), ''),
         },
