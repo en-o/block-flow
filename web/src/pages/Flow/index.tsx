@@ -1930,6 +1930,7 @@ const Flow: React.FC = () => {
                           <p>• 路径：<code>fullUrl.projects</code> （完整路径）</p>
                           <p>• 结果：fullUrl.projects</p>
                           <p style={{ marginTop: 8 }}><strong>其他示例：</strong></p>
+                          <p>• 直接取值：<code>[0]</code></p>
                           <p>• 数组元素：<code>items[0]</code></p>
                           <p>• 复杂路径：<code>users[0].name</code></p>
                           <p style={{ marginTop: 8 }}>💡 留空则传递源端口的完整数据</p>
