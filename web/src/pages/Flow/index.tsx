@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button, Input, InputNumber, Form, Select, message, Modal, Empty, Spin, Popconfirm, Tabs, Upload, Radio, Checkbox, Dropdown, Drawer, Tag, List, Divider, App, Tooltip } from 'antd';
-import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, FileTextOutlined, ReloadOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { SaveOutlined, PlayCircleOutlined, DownloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined, UploadOutlined, AppstoreOutlined, FolderOutlined, EyeOutlined, EyeInvisibleOutlined, FileTextOutlined, ReloadOutlined, CloseCircleOutlined, QuestionCircleOutlined, CopyOutlined } from '@ant-design/icons';
 import BlockNode, { type BlockNodeData } from '../../components/BlockNode';
 import { blockApi } from '../../api/block';
 import { workflowApi } from '../../api/workflow';
@@ -1304,6 +1304,73 @@ const Flow: React.FC = () => {
     return formattedLines.join('\n');
   }, []);
 
+  // 复制日志到剪贴板
+  const handleCopyLog = useCallback(() => {
+    if (!logDetail) {
+      message.warning('没有可复制的日志内容');
+      return;
+    }
+
+    // 使用 Clipboard API 复制文本
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(logDetail)
+        .then(() => {
+          message.success('日志已复制到剪贴板');
+        })
+        .catch((err) => {
+          console.error('复制失败:', err);
+          // 降级到传统方法
+          fallbackCopyText(logDetail);
+        });
+    } else {
+      // 浏览器不支持 Clipboard API，使用降级方案
+      fallbackCopyText(logDetail);
+    }
+  }, [logDetail]);
+
+  // 降级复制方法
+  const fallbackCopyText = (text: string) => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      document.execCommand('copy');
+      message.success('日志已复制到剪贴板');
+    } catch (err) {
+      console.error('复制失败:', err);
+      message.error('复制失败，请手动复制');
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  };
+
+  // 复制节点测试结果到剪贴板
+  const handleCopyNodeTestResult = useCallback(() => {
+    if (!nodeTestResult) {
+      message.warning('没有可复制的测试结果');
+      return;
+    }
+
+    const resultText = JSON.stringify(nodeTestResult.output || nodeTestResult, null, 2);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(resultText)
+        .then(() => {
+          message.success('测试结果已复制到剪贴板');
+        })
+        .catch((err) => {
+          console.error('复制失败:', err);
+          fallbackCopyText(resultText);
+        });
+    } else {
+      fallbackCopyText(resultText);
+    }
+  }, [nodeTestResult]);
+
   return (
     <div className="flow-container">
       <div className="flow-header">
@@ -2152,7 +2219,16 @@ const Flow: React.FC = () => {
           {/* 测试结果 */}
           {nodeTestResult && (
             <div style={{ marginTop: 20 }}>
-              <h4 style={{ marginBottom: 12 }}>测试结果</h4>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h4 style={{ margin: 0 }}>测试结果</h4>
+                <Button
+                  icon={<CopyOutlined />}
+                  size="small"
+                  onClick={handleCopyNodeTestResult}
+                >
+                  复制结果
+                </Button>
+              </div>
               {nodeTestResult.success !== false ? (
                 <div>
                   <Tag color="success" style={{ marginBottom: 12 }}>执行成功</Tag>
@@ -2317,7 +2393,19 @@ const Flow: React.FC = () => {
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {selectedLogId ? (
                   <div>
-                    <Divider orientation="left">执行日志详情</Divider>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                      <Divider orientation="left" style={{ margin: 0, flex: 1 }}>执行日志详情</Divider>
+                      {logDetail && (
+                        <Button
+                          icon={<CopyOutlined />}
+                          size="small"
+                          onClick={handleCopyLog}
+                          style={{ marginLeft: '12px' }}
+                        >
+                          复制日志
+                        </Button>
+                      )}
+                    </div>
                     {logDetail ? (
                       <pre
                         style={{

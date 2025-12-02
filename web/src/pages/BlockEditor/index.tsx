@@ -17,7 +17,7 @@ import {
   Alert,
   Checkbox,
 } from 'antd';
-import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined, PlayCircleOutlined, ThunderboltOutlined, QuestionCircleOutlined, WarningOutlined, DownloadOutlined, UploadOutlined, CopyOutlined } from '@ant-design/icons';
 import * as Blockly from 'blockly';
 import { pythonGenerator } from 'blockly/python';
 import Editor from '@monaco-editor/react';
@@ -1039,6 +1039,67 @@ outputs = {
     setTestModalVisible(true);
   };
 
+  // 复制测试结果到剪贴板
+  const handleCopyTestResult = useCallback(() => {
+    if (!testResult) {
+      message.warning('没有可复制的测试结果');
+      return;
+    }
+
+    // 构建要复制的文本内容
+    let resultText = '';
+
+    if (testResult.success) {
+      // 成功的结果
+      if (testResult.output) {
+        if (typeof testResult.output === 'object') {
+          const { _console_output, ...restOutput } = testResult.output;
+          resultText = JSON.stringify(restOutput, null, 2);
+        } else {
+          resultText = String(testResult.output);
+        }
+      }
+    } else {
+      // 失败的结果
+      resultText = testResult.errorMessage || testResult.error || '执行失败';
+    }
+
+    // 使用 Clipboard API 复制
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(resultText)
+        .then(() => {
+          message.success('测试结果已复制到剪贴板');
+        })
+        .catch((err) => {
+          console.error('复制失败:', err);
+          // 降级到传统方法
+          fallbackCopyText(resultText);
+        });
+    } else {
+      fallbackCopyText(resultText);
+    }
+  }, [testResult]);
+
+  // 降级复制方法
+  const fallbackCopyText = (text: string) => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      document.execCommand('copy');
+      message.success('测试结果已复制到剪贴板');
+    } catch (err) {
+      console.error('复制失败:', err);
+      message.error('复制失败，请手动复制');
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  };
+
   // 执行测试
   const handleTest = async () => {
     if (!block) {
@@ -1950,7 +2011,18 @@ outputs = {
         <Divider />
 
         <div>
-          <h4>执行结果</h4>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h4 style={{ margin: 0 }}>执行结果</h4>
+            {testResult && (
+              <Button
+                icon={<CopyOutlined />}
+                size="small"
+                onClick={handleCopyTestResult}
+              >
+                复制结果
+              </Button>
+            )}
+          </div>
           {testing ? (
             <div
               style={{
