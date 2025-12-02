@@ -414,13 +414,16 @@ const Flow: React.FC = () => {
     setEdges((eds) =>
       eds.map((edge) => {
         if (edge.id === edgeId) {
-          return {
+          const updatedEdge = {
             ...edge,
             data: {
               ...(edge.data || {}),
               fieldPath: fieldPath || undefined, // 空字符串时设为 undefined
             },
           };
+          // 同时更新selectedEdge，确保输入框能正确显示最新值
+          setSelectedEdge(updatedEdge);
+          return updatedEdge;
         }
         return edge;
       })
