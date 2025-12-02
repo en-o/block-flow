@@ -1853,12 +1853,19 @@ const Flow: React.FC = () => {
                       <Tooltip title={
                         <div>
                           <p>用于从源节点的输出中提取嵌套字段</p>
-                          <p><strong>示例：</strong></p>
-                          <p>• 提取对象字段：<code>projects</code></p>
-                          <p>• 提取嵌套字段：<code>fullUrl.projects</code></p>
-                          <p>• 提取数组元素：<code>items[0]</code></p>
-                          <p>• 复杂路径：<code>data.users[0].name</code></p>
-                          <p style={{ marginTop: 8 }}>留空则传递完整数据</p>
+                          <p><strong>重要：路径是相对于源输出端口的</strong></p>
+                          <p style={{ marginTop: 8 }}><strong>场景1：连接到具体字段端口</strong></p>
+                          <p>• 连接：output-fullUrl → input-a</p>
+                          <p>• 路径：<code>projects</code> （相对路径）</p>
+                          <p>• 结果：fullUrl.projects</p>
+                          <p style={{ marginTop: 8 }}><strong>场景2：连接到通用输出端口</strong></p>
+                          <p>• 连接：output-data → input-a</p>
+                          <p>• 路径：<code>fullUrl.projects</code> （完整路径）</p>
+                          <p>• 结果：fullUrl.projects</p>
+                          <p style={{ marginTop: 8 }}><strong>其他示例：</strong></p>
+                          <p>• 数组元素：<code>items[0]</code></p>
+                          <p>• 复杂路径：<code>users[0].name</code></p>
+                          <p style={{ marginTop: 8 }}>💡 留空则传递源端口的完整数据</p>
                         </div>
                       }>
                         <QuestionCircleOutlined style={{ marginLeft: 4, color: '#1890ff', cursor: 'help' }} />
