@@ -187,7 +187,7 @@ const Flow: React.FC = () => {
     };
   }, [selectedNodeId, selectedEdge, copiedNode, nodes, setNodes, setEdges]);
 
-  const loadBlocks = async (page: number = 0, append: boolean = false) => {
+  const loadBlocks = async (page: number = 1, append: boolean = false) => {
     try {
       if (!append) {
         setLoading(true);
