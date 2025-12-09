@@ -7,7 +7,7 @@ export interface ApiResponse<T = any> {
 
 // 分页参数（PagingSorteds）
 export interface PagingSorteds {
-  pageNum?: number; // 页码，从0开始
+  pageIndex?: number; // 页码，从1开始
   pageSize?: number; // 每页大小
   sorted?: string; // 排序字段
   order?: 'asc' | 'desc'; // 排序方向
@@ -33,7 +33,7 @@ export interface ResultPageVO<T> {
 export interface SpringPage<T> {
   content: T[]; // 数据列表
   pageable: {
-    pageNumber: number; // 当前页码，从0开始
+    pageIndex: number; // 当前页码，从1开始
     pageSize: number; // 每页大小
     sort: {
       sorted: boolean;

@@ -32,7 +32,7 @@ const Blocks: React.FC = () => {
         ...searchParams,
         ...params,
         page: {
-          pageNum: (params?.page?.pageNum !== undefined ? params.page.pageNum : pagination.current - 1),
+          pageIndex: (params?.page?.pageIndex !== undefined ? params.page.pageIndex : pagination.current),
           pageSize: (params?.page?.pageSize !== undefined ? params.page.pageSize : pagination.pageSize),
         }
       };
@@ -68,14 +68,14 @@ const Blocks: React.FC = () => {
     const values = await searchForm.validateFields();
     setSearchParams(values);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchBlocks({ ...values, page: { pageNum: 0, pageSize: pagination.pageSize } });
+    fetchBlocks({ ...values, page: { pageIndex: 1, pageSize: pagination.pageSize } });
   };
 
   const handleResetSearch = () => {
     searchForm.resetFields();
     setSearchParams({});
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchBlocks({ page: { pageNum: 0, pageSize: pagination.pageSize } });
+    fetchBlocks({ page: { pageIndex: 1, pageSize: pagination.pageSize } });
   };
 
   const handleDelete = async (id: number) => {
@@ -118,7 +118,7 @@ const Blocks: React.FC = () => {
     fetchBlocks({
       ...searchParams,
       page: {
-        pageNum: pag.current - 1,
+        pageIndex: pag.current,
         pageSize: pag.pageSize
       }
     });

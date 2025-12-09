@@ -31,13 +31,13 @@ const Context: React.FC = () => {
     fetchVariables();
   }, []);
 
-  const fetchVariables = async (pageNum: number = 0, pageSize: number = 10) => {
+  const fetchVariables = async (pageIndex: number = 1, pageSize: number = 10) => {
     setLoading(true);
     try {
       const response = await contextApi.page({
         ...filterParams,
         page: {
-          pageNum,
+          pageIndex,
           pageSize,
         },
       });
@@ -77,7 +77,7 @@ const Context: React.FC = () => {
         try {
           await contextApi.deleteContextVariable(id);
           message.success('删除成功');
-          fetchVariables(pagination.current - 1, pagination.pageSize);
+          fetchVariables(pagination.current, pagination.pageSize);
         } catch (error: any) {
           message.error(error.message || '删除失败');
           throw error; // 抛出错误以保持 Modal 打开
@@ -104,7 +104,7 @@ const Context: React.FC = () => {
       }
 
       setModalVisible(false);
-      fetchVariables(pagination.current - 1, pagination.pageSize);
+      fetchVariables(pagination.current, pagination.pageSize);
     } catch (error) {
       console.error('保存失败', error);
     }
@@ -120,7 +120,7 @@ const Context: React.FC = () => {
       const response = await contextApi.page({
         ...values,
         page: {
-          pageNum: 0,
+          pageIndex: 0,
           pageSize: pagination.pageSize,
         },
       });
@@ -162,7 +162,7 @@ const Context: React.FC = () => {
       const response = await contextApi.page({
         varKey: keyword, // 使用 varKey 进行模糊搜索
         page: {
-          pageNum: 0,
+          pageIndex: 0,
           pageSize: pagination.pageSize,
         },
       });
@@ -216,7 +216,7 @@ const Context: React.FC = () => {
         message.success(`成功导入 ${response.data} 个变量`);
         setImportModalVisible(false);
         importForm.resetFields();
-        fetchVariables(pagination.current - 1, pagination.pageSize);
+        fetchVariables(pagination.current, pagination.pageSize);
       }
     } catch (error) {
       if (error instanceof SyntaxError) {
@@ -229,7 +229,7 @@ const Context: React.FC = () => {
 
   const handleTableChange = (pag: any) => {
     setPagination(pag);
-    fetchVariables(pag.current - 1, pag.pageSize);
+    fetchVariables(pag.current, pag.pageSize);
   };
 
   const handleShowUsage = (record: ContextVariable) => {

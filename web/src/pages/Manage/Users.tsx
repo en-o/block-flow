@@ -55,7 +55,7 @@ const Users: React.FC = () => {
         ...searchParams,
         ...params,
         page: {
-          pageNum: (params?.page?.pageNum !== undefined ? params.page.pageNum : pagination.current - 1),
+          pageIndex: (params?.page?.pageIndex !== undefined ? params.page.pageIndex : pagination.current),
           pageSize: (params?.page?.pageSize !== undefined ? params.page.pageSize : pagination.pageSize),
         }
       };
@@ -80,14 +80,14 @@ const Users: React.FC = () => {
     const values = await searchForm.validateFields();
     setSearchParams(values);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchUsers({ ...values, page: { pageNum: 0, pageSize: pagination.pageSize } });
+    fetchUsers({ ...values, page: { pageIndex: 1, pageSize: pagination.pageSize } });
   };
 
   const handleResetSearch = () => {
     searchForm.resetFields();
     setSearchParams({});
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchUsers({ page: { pageNum: 0, pageSize: pagination.pageSize } });
+    fetchUsers({ page: { pageIndex: 1, pageSize: pagination.pageSize } });
   };
 
   const handleAdd = () => {
@@ -184,7 +184,7 @@ const Users: React.FC = () => {
     fetchUsers({
       ...searchParams,
       page: {
-        pageNum: pag.current - 1,
+        pageIndex: pag.current,
         pageSize: pag.pageSize
       }
     });

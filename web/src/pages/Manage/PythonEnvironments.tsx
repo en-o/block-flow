@@ -132,7 +132,7 @@ const PythonEnvironments: React.FC = () => {
         ...searchParams,
         ...params,
         page: {
-          pageNum: (params?.page?.pageNum !== undefined ? params.page.pageNum : pagination.current - 1),
+          pageIndex: (params?.page?.pageIndex !== undefined ? params.page.pageIndex : pagination.current),
           pageSize: (params?.page?.pageSize !== undefined ? params.page.pageSize : pagination.pageSize),
         }
       };
@@ -157,14 +157,14 @@ const PythonEnvironments: React.FC = () => {
     const values = await searchForm.validateFields();
     setSearchParams(values);
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchEnvironments({ ...values, page: { pageNum: 0, pageSize: pagination.pageSize } });
+    fetchEnvironments({ ...values, page: { pageIndex: 1, pageSize: pagination.pageSize } });
   };
 
   const handleResetSearch = () => {
     searchForm.resetFields();
     setSearchParams({});
     setPagination(prev => ({ ...prev, current: 1 }));
-    fetchEnvironments({ page: { pageNum: 0, pageSize: pagination.pageSize } });
+    fetchEnvironments({ page: { pageIndex: 1, pageSize: pagination.pageSize } });
   };
 
   const handleAdd = () => {
@@ -1329,7 +1329,7 @@ const PythonEnvironments: React.FC = () => {
     fetchEnvironments({
       ...searchParams,
       page: {
-        pageNum: pag.current - 1,
+        pageIndex: pag.current,
         pageSize: pag.pageSize
       }
     });

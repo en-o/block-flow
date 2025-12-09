@@ -604,7 +604,7 @@ outputs = {
   const loadBlockTypes = async () => {
     try {
       const response = await blockTypeApi.page({
-        page: { pageNum: 0, pageSize: 100 },
+        page: { pageIndex: 1, pageSize: 100 },
       });
       if (response.code === 200 && response.data?.rows) {
         setBlockTypes(response.data.rows);

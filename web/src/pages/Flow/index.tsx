@@ -194,7 +194,7 @@ const Flow: React.FC = () => {
       }
       setBlocksLoading(true);
       const response = await blockApi.pageFlow({
-        page: { pageNum: page, pageSize: 20 }, // 每页20条
+        page: { pageIndex: page, pageSize: 20 }, // 每页20条
       });
       if (response.code === 200 && response.data?.rows) {
         const newBlocks = response.data.rows;
@@ -241,11 +241,11 @@ const Flow: React.FC = () => {
   };
 
   // 加载公共流程
-  const loadPublicWorkflows = async (page: number = 0, append: boolean = false) => {
+  const loadPublicWorkflows = async (page: number = 1, append: boolean = false) => {
     try {
       setPublicWorkflowsLoading(true);
       const response = await workflowApi.pagePublic({
-        page: { pageNum: page, pageSize: 20 }, // 每页20条
+        page: { pageIndex: page, pageSize: 20 }, // 每页20条
       });
       if (response.code === 200 && response.data?.rows) {
         const newWorkflows = response.data.rows;
@@ -267,11 +267,11 @@ const Flow: React.FC = () => {
   };
 
   // 加载我的流程
-  const loadMyWorkflows = async (page: number = 0, append: boolean = false) => {
+  const loadMyWorkflows = async (page: number = 1, append: boolean = false) => {
     try {
       setMyWorkflowsLoading(true);
       const response = await workflowApi.page({
-        page: { pageNum: page, pageSize: 20 }, // 每页20条
+        page: { pageIndex: page, pageSize: 20 }, // 每页20条
       });
       if (response.code === 200 && response.data?.rows) {
         const newWorkflows = response.data.rows;
@@ -1047,7 +1047,7 @@ const Flow: React.FC = () => {
       setLoadingLogs(true);
       const response = await executionApi.page({
         workflowId: currentWorkflow.id,
-        page: { pageNum: 0, pageSize: 20 },
+        page: { pageIndex: 1, pageSize: 20 },
       });
       if (response.code === 200 && response.data?.rows) {
         setExecutionLogs(response.data.rows);

@@ -94,7 +94,7 @@ const BlocklyBlocks: React.FC = () => {
       const response: any = await getBlocklyBlockPage({
         ...searchParams,
         page: {
-          pageNum: currentPage - 1,
+          pageIndex: currentPage,
           pageSize: pageSize,
         },
       });
