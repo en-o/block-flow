@@ -361,7 +361,11 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
         String version = packageDTO.getVersion();
 
         // 检查包是否已存在（仅验证，不阻止安装）
-        String existingVersion = PythonEnvDetector.verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+        String existingVersion = PythonEnvDetector.verifyPackageInstalled(
+            environment.getPythonExecutable(),
+            packageName,
+            environment.getSitePackagesPath()
+        );
         if (existingVersion != null) {
             log.info("包 {} 已存在，当前版本: {}，用户请求安装版本: {}",
                     packageName, existingVersion, version != null ? version : "最新版本");
@@ -411,8 +415,12 @@ public class PythonEnvironmentServiceImpl implements PythonEnvironmentService {
 
             log.info("包安装成功: {} {}", packageName, version);
 
-            // 安装成功后，验证包是否确实安装了
-            String installedVersion = PythonEnvDetector.verifyPackageInstalled(environment.getPythonExecutable(), packageName);
+            // 安装成功后，验证包是否确实安装了（关键修复：传递site-packages路径）
+            String installedVersion = PythonEnvDetector.verifyPackageInstalled(
+                environment.getPythonExecutable(),
+                packageName,
+                environment.getSitePackagesPath()
+            );
             if (installedVersion == null) {
                 log.warn("包安装后验证失败: {}", packageName);
                 installedVersion = version != null ? version : "unknown";
