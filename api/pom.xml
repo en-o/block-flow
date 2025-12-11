@@ -10,7 +10,7 @@
     </parent>
     <groupId>cn.tannn.cat</groupId>
     <artifactId>block-flow</artifactId>
-    <!--docker 最新 0.0.2.4-->
+    <!--docker 最新 0.0.2.5-->
     <version>0.0.1-SNAPSHOT</version>
     <name>block-flow</name>
     <description>block flow 接口</description>
