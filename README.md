@@ -42,7 +42,7 @@ docker run -d -p 1250:1250 \
 # windows
 #  -v $(pwd)/python-envs:/app/python-envs
 #  -e PYTHON_ENV_ROOT_PATH=/app/python-envs
-docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306   -e MYSQL_DB=db_block_flow   tannnn/block-flow:0.0.2.5
+docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306   -e MYSQL_DB=db_block_flow   tannnn/block-flow:0.0.2.7
 
 ```
 
