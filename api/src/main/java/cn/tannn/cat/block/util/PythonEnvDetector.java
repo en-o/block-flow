@@ -530,13 +530,25 @@ public class PythonEnvDetector {
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
+            log.debug("开始执行 pip show {} 命令", packageName);
+
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
+                int lineCount = 0;
                 while ((line = reader.readLine()) != null) {
+                    lineCount++;
+                    // 移除ANSI颜色代码（Linux环境下可能包含）并trim
+                    String cleanLine = removeAnsiCodes(line).trim();
+
+                    // 调试：打印前5行输出
+                    if (lineCount <= 5) {
+                        log.debug("pip show 输出第{}行: 原始=[{}], 清理后=[{}]", lineCount, line, cleanLine);
+                    }
+
                     // 查找 "Version: x.x.x" 行
-                    if (line.startsWith("Version:")) {
-                        String version = line.substring("Version:".length()).trim();
+                    if (cleanLine.startsWith("Version:")) {
+                        String version = cleanLine.substring("Version:".length()).trim();
                         if (!version.isEmpty()) {
                             log.info("通过pip show检测到包 {} 版本: {}", packageName, version);
                             return version;
@@ -546,13 +558,33 @@ public class PythonEnvDetector {
 
                 int exitCode = process.waitFor();
                 if (exitCode != 0) {
-                    log.debug("pip show {} 失败，退出代码: {}", packageName, exitCode);
+                    log.debug("pip show {} 失败，退出代码: {}, 共读取{}行输出", packageName, exitCode, lineCount);
+                } else {
+                    log.debug("pip show {} 执行成功但未找到Version行，共读取{}行输出", packageName, lineCount);
                 }
             }
         } catch (Exception e) {
-            log.debug("通过pip show获取包 {} 版本失败: {}", packageName, e.getMessage());
+            log.debug("通过pip show获取包 {} 版本失败: {}", packageName, e.getMessage(), e);
         }
 
         return null;
+    }
+
+    /**
+     * 移除字符串中的ANSI颜色代码
+     *
+     * @param text 原始文本
+     * @return 清理后的文本
+     */
+    private static String removeAnsiCodes(String text) {
+        if (text == null) {
+            return null;
+        }
+        // ANSI转义序列的正则表达式：\u001B\[[0-9;]*m 或 \x1b\[[0-9;]*m
+        // 也匹配 [0;39m 这种格式（不带ESC前缀的）
+        return text.replaceAll("\u001B\\[[0-9;]*m", "")
+                   .replaceAll("\\x1b\\[[0-9;]*m", "")
+                   .replaceAll("\\[\\d+;\\d+m", "")
+                   .replaceAll("\\[\\d+m", "");
     }
 }
