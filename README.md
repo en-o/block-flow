@@ -20,8 +20,7 @@ Block Flow 是一个基于 Blockly 的可视化工作流编排系统，允许用
 ## docker运行
     
 **📚 Dockerfile详细说明：** [查看Dockerfile使用指南](api/DOCKERFILE-GUIDE.md)
-> 不建议映射`-v $(pwd)/python-envs:/app/python-envs \` 会导致很多问题
-> 0.0.2版本和之前版本映射存在问题，上面的错误可能也是由于这个问题导致的我后面测试一下
+> 不建议映射`-v $(pwd)/python-envs:/app/python-envs \` 会导致很多问题 【Too many levels of symbolic links】
 
 Docker参数说明：[README-build.md](README-build.md)
 当前docker python环境使用：cpython-3.10.19+20251010-x86_64-unknown-linux-gnu-install_only.tar.gz
@@ -42,6 +41,7 @@ docker run -d -p 1250:1250 \
   
 # windows
 #  -v $(pwd)/python-envs:/app/python-envs
+#  -e PYTHON_ENV_ROOT_PATH=/app/python-envs
 docker run -d -p 1250:1250  --name block-flow  -e MYSQL_URL=192.168.0.162:3306   -e MYSQL_DB=db_block_flow   tannnn/block-flow:0.0.2.4
 
 ```
