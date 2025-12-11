@@ -473,8 +473,20 @@ public class PythonEnvDetector {
      * @return 包版本号，未安装返回null
      */
     public static String verifyPackageInstalled(String pythonExecutable, String packageName) {
+        return verifyPackageInstalled(pythonExecutable, packageName, null);
+    }
+
+    /**
+     * 验证包是否已安装（支持指定site-packages路径）
+     *
+     * @param pythonExecutable Python可执行文件路径
+     * @param packageName      包名
+     * @param sitePackagesPath 自定义site-packages路径（可选，使用--target安装时需要）
+     * @return 包版本号，未安装返回null
+     */
+    public static String verifyPackageInstalled(String pythonExecutable, String packageName, String sitePackagesPath) {
         // 优先使用 pip show 获取版本 (最可靠)
-        String versionViaPip = getPackageVersionViaPip(pythonExecutable, packageName);
+        String versionViaPip = getPackageVersionViaPip(pythonExecutable, packageName, sitePackagesPath);
         if (versionViaPip != null) {
             return versionViaPip;
         }
@@ -486,6 +498,18 @@ public class PythonEnvDetector {
                     "-c",
                     "import " + packageName + "; print(getattr(" + packageName + ", '__version__', 'unknown'))"
             );
+
+            // 如果指定了自定义site-packages路径，需要设置PYTHONPATH
+            if (sitePackagesPath != null && !sitePackagesPath.trim().isEmpty()) {
+                java.util.Map<String, String> env = pb.environment();
+                String existingPath = env.get("PYTHONPATH");
+                if (existingPath != null && !existingPath.isEmpty()) {
+                    env.put("PYTHONPATH", sitePackagesPath + File.pathSeparator + existingPath);
+                } else {
+                    env.put("PYTHONPATH", sitePackagesPath);
+                }
+            }
+
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
@@ -514,11 +538,90 @@ public class PythonEnvDetector {
      * @return 包版本号，未安装返回null
      */
     public static String getPackageVersionViaPip(String pythonExecutable, String packageName) {
+        return getPackageVersionViaPip(pythonExecutable, packageName, null);
+    }
+
+    /**
+     * 通过 pip show 命令获取包版本 (支持自定义site-packages路径)
+     *
+     * @param pythonExecutable Python可执行文件路径
+     * @param packageName      包名
+     * @param sitePackagesPath 自定义site-packages路径（可选，使用--target安装时需要）
+     * @return 包版本号，未安装返回null
+     */
+    public static String getPackageVersionViaPip(String pythonExecutable, String packageName, String sitePackagesPath) {
         if (pythonExecutable == null || pythonExecutable.trim().isEmpty() ||
             packageName == null || packageName.trim().isEmpty()) {
             return null;
         }
 
+        // 尝试多种包名格式（处理包名不一致的情况）
+        String[] packageNameVariants = generatePackageNameVariants(packageName);
+
+        for (String nameVariant : packageNameVariants) {
+            String version = tryGetPackageVersionViaPip(pythonExecutable, nameVariant, sitePackagesPath);
+            if (version != null) {
+                if (!nameVariant.equals(packageName)) {
+                    log.info("包 {} 使用别名 {} 查询成功", packageName, nameVariant);
+                }
+                return version;
+            }
+        }
+
+        log.debug("pip show 尝试了所有包名变体均失败: {}", String.join(", ", packageNameVariants));
+        return null;
+    }
+
+    /**
+     * 生成包名的多种可能变体
+     * 处理常见的包名转换情况：
+     * - python-dateutil -> python-dateutil, python_dateutil, dateutil
+     * - beautifulsoup4 -> beautifulsoup4, bs4
+     * - Pillow -> Pillow, pillow, PIL
+     *
+     * @param packageName 原始包名
+     * @return 包名变体数组
+     */
+    private static String[] generatePackageNameVariants(String packageName) {
+        java.util.Set<String> variants = new java.util.LinkedHashSet<>();
+
+        // 1. 原始名称（最优先）
+        variants.add(packageName);
+
+        // 2. 下划线和横线互换
+        if (packageName.contains("-")) {
+            variants.add(packageName.replace("-", "_"));
+        }
+        if (packageName.contains("_")) {
+            variants.add(packageName.replace("_", "-"));
+        }
+
+        // 3. 去掉 python- 或 python_ 前缀
+        if (packageName.toLowerCase().startsWith("python-")) {
+            variants.add(packageName.substring(7));
+        }
+        if (packageName.toLowerCase().startsWith("python_")) {
+            variants.add(packageName.substring(7));
+        }
+
+        // 4. 特殊情况处理
+        String lowerName = packageName.toLowerCase();
+        if (lowerName.equals("pillow")) {
+            variants.add("PIL");
+        } else if (lowerName.equals("beautifulsoup4")) {
+            variants.add("beautifulsoup4");
+            variants.add("bs4");
+        } else if (lowerName.equals("pyyaml")) {
+            variants.add("yaml");
+        }
+
+        return variants.toArray(new String[0]);
+    }
+
+    /**
+     * 尝试使用指定包名查询版本（内部方法）
+     */
+    private static String tryGetPackageVersionViaPip(String pythonExecutable, String packageName, String sitePackagesPath) {
         try {
             ProcessBuilder pb = new ProcessBuilder(
                     pythonExecutable,
@@ -527,10 +630,24 @@ public class PythonEnvDetector {
                     "show",
                     packageName
             );
+
+            // 关键修复：如果指定了自定义site-packages路径，设置PYTHONPATH环境变量
+            // 这样pip show才能找到使用--target参数安装的包
+            if (sitePackagesPath != null && !sitePackagesPath.trim().isEmpty()) {
+                java.util.Map<String, String> env = pb.environment();
+                String existingPath = env.get("PYTHONPATH");
+                if (existingPath != null && !existingPath.isEmpty()) {
+                    env.put("PYTHONPATH", sitePackagesPath + File.pathSeparator + existingPath);
+                } else {
+                    env.put("PYTHONPATH", sitePackagesPath);
+                }
+                log.debug("pip show 设置PYTHONPATH: {}", sitePackagesPath);
+            }
+
             pb.redirectErrorStream(true);
             Process process = pb.start();
 
-            log.debug("开始执行 pip show {} 命令", packageName);
+            log.debug("尝试执行 pip show {} 命令", packageName);
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
@@ -543,7 +660,7 @@ public class PythonEnvDetector {
 
                     // 调试：打印前5行输出
                     if (lineCount <= 5) {
-                        log.debug("pip show 输出第{}行: 原始=[{}], 清理后=[{}]", lineCount, line, cleanLine);
+                        log.debug("pip show {} 输出第{}行: 原始=[{}], 清理后=[{}]", packageName, lineCount, line, cleanLine);
                     }
 
                     // 查找 "Version: x.x.x" 行
@@ -564,7 +681,7 @@ public class PythonEnvDetector {
                 }
             }
         } catch (Exception e) {
-            log.debug("通过pip show获取包 {} 版本失败: {}", packageName, e.getMessage(), e);
+            log.debug("通过pip show获取包 {} 版本失败: {}", packageName, e.getMessage());
         }
 
         return null;
