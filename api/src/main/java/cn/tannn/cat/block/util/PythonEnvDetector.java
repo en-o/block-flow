@@ -473,6 +473,13 @@ public class PythonEnvDetector {
      * @return 包版本号，未安装返回null
      */
     public static String verifyPackageInstalled(String pythonExecutable, String packageName) {
+        // 优先使用 pip show 获取版本 (最可靠)
+        String versionViaPip = getPackageVersionViaPip(pythonExecutable, packageName);
+        if (versionViaPip != null) {
+            return versionViaPip;
+        }
+
+        // 如果 pip show 失败，尝试 import 方式 (兼容性)
         try {
             ProcessBuilder pb = new ProcessBuilder(
                     pythonExecutable,
@@ -487,13 +494,63 @@ public class PythonEnvDetector {
                 String version = reader.readLine();
                 int exitCode = process.waitFor();
 
-                if (exitCode == 0 && version != null && !version.trim().isEmpty()) {
+                if (exitCode == 0 && version != null && !version.trim().isEmpty() && !"unknown".equals(version.trim())) {
                     log.info("包 {} 已安装，版本: {}", packageName, version);
                     return version.trim();
                 }
             }
         } catch (Exception e) {
             log.debug("包 {} 未安装或检测失败: {}", packageName, e.getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * 通过 pip show 命令获取包版本 (最可靠的方法)
+     *
+     * @param pythonExecutable Python可执行文件路径
+     * @param packageName      包名
+     * @return 包版本号，未安装返回null
+     */
+    public static String getPackageVersionViaPip(String pythonExecutable, String packageName) {
+        if (pythonExecutable == null || pythonExecutable.trim().isEmpty() ||
+            packageName == null || packageName.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    pythonExecutable,
+                    "-m",
+                    "pip",
+                    "show",
+                    packageName
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    // 查找 "Version: x.x.x" 行
+                    if (line.startsWith("Version:")) {
+                        String version = line.substring("Version:".length()).trim();
+                        if (!version.isEmpty()) {
+                            log.info("通过pip show检测到包 {} 版本: {}", packageName, version);
+                            return version;
+                        }
+                    }
+                }
+
+                int exitCode = process.waitFor();
+                if (exitCode != 0) {
+                    log.debug("pip show {} 失败，退出代码: {}", packageName, exitCode);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("通过pip show获取包 {} 版本失败: {}", packageName, e.getMessage());
         }
 
         return null;

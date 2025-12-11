@@ -1919,7 +1919,7 @@ const PythonEnvironments: React.FC = () => {
                           <div style={{ marginBottom: 4 }}>
                             <strong>pip版本：</strong>
                             <Tag color="green" icon={<CheckCircleOutlined />}>{selectedEnv.pipVersion}</Tag>
-                            <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用在线安装</span>
+                            <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用，在线安装</span>
                           </div>
                         ) : pipDetected ? (
                           <div style={{ marginBottom: 4 }}>
@@ -2102,7 +2102,7 @@ const PythonEnvironments: React.FC = () => {
                     <Tag color="green" icon={<CheckCircleOutlined />} style={{ marginLeft: 4 }}>
                       {selectedEnv.pipVersion}
                     </Tag>
-                    <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用在线安装</span>
+                    <span style={{ color: '#52c41a', fontSize: 12, marginLeft: 8 }}>可使用，在线安装</span>
                   </div>
                 ) : pipDetected ? (
                   <div>
